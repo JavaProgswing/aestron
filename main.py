@@ -73,7 +73,7 @@ valorant_api_key = os.getenv("VAL_API_TOKEN")
 valorant_rso_api_key = os.getenv("VAL_RSO_API_TOKEN")
 doodleclient = pydoodle.Compiler(clientId=os.getenv("DOODLE_API_ID"),
                                  clientSecret=os.getenv("DOODLE_API_KEY"))
-dbltoken=os.getenv("DBL_TOKEN")
+dbltoken = os.getenv("DBL_TOKEN")
 # https://www.jdoodle.com/compiler-api
 # REQUIRES API KEY
 
@@ -268,9 +268,17 @@ class YTDLSource(discord.PCMVolumeTransformer):
         except Exception as ex:
             print(f"Exception in fetching data {ex}")
         if data is None or wavelinkBool:
-            track = await wavelink.YouTubeTrack.search(query=url, return_first=True)
-            data = await Video.getInfo(url)
-            return cls(track, url=url, data=data, wavelink=True)
+            try:
+                track = await wavelink.YouTubeTrack.search(query=url, return_first=True)
+                data = await Video.getInfo(url)
+                return cls(track, url=url, data=data, wavelink=True)
+            except:
+                try:
+                    track = await wavelink.YouTubeTrack.search(query=url, return_first=True)
+                    data = await Video.getInfo(url)
+                    return cls(track, url=url, data=data, wavelink=True)
+                except:
+                    return None
         if start is None:
             if 'entries' in data:
                 # take first item from a playlist
@@ -1823,7 +1831,7 @@ def convertwords(lst):
 def uservoted(member: discord.Member):
     link = f"https://top.gg/api/bots/1061480715172200498/check?userId={member.id}"
     headerstoken = {
-        "authorization":dbltoken
+        "authorization": dbltoken
     }
     f = requests.get(link, headers=headerstoken)
     ftext = f.text
@@ -8706,7 +8714,7 @@ class Call(commands.Cog):
                 await messageonesent.edit(embed=newembed)
             except:
                 pass
-            await member.send(f"Your call from {ctx.author.mention} was automatically declined as it was disabled in settings , do a!calltoggle to enable it.")
+            # await member.send(f"Your call from {ctx.author.mention} was automatically declined as it was disabled in settings , do a!calltoggle to enable it.")
             await ctx.author.send(f"Your call to {member.mention} was declined because of no response.")
 
 
@@ -10473,7 +10481,7 @@ class Support(commands.Cog):
     @commands.command(
         brief='This command can be used to vote for this bot.',
         description='This command can be used to vote for this bot.',
-        usage="",disabled=True)
+        usage="", disabled=True)
     async def vote(self, ctx):
         embedOne = discord.Embed(title="Voting websites",
                                  description="",
@@ -11656,6 +11664,7 @@ class YoutubeTogether(commands.Cog):
                       description='This command can be used to start a youtube activity in a voice channel.',
                       usage="", aliases=["youtubevideo", "video", "yt", "youtube", "ytstart"])
     @commands.bot_has_permissions(create_instant_invite=True)
+    @commands.guild_only()
     async def ytvideo(self, ctx):
         # Here we consider that the user is already in a VC accessible to the bot.
         link = await togetherControl.create_link(ctx.author.voice.channel.id, 'youtube', max_age=300)
@@ -14248,7 +14257,7 @@ async def on_message(message):
             retry_after = bucket.update_rate_limit()
             if retry_after and not checkstaff(ctx.author):
                 pass
-                #await on_command_error(ctx, f"You exceeded the maximum allowed ratelimit for trivia answers!")
+                # await on_command_error(ctx, f"You exceeded the maximum allowed ratelimit for trivia answers!")
             else:
                 statement = """INSERT INTO pendingTrivia (channelid) VALUES($1);"""
                 async with pool.acquire() as con:
