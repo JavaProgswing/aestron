@@ -5445,6 +5445,10 @@ targeted attacks using automated user accounts.""")
                 "Run the **setupverification** command before this command for setting up the roles."
             )
             return
+        if verifyrole in ctx.author.roles:
+            await ctx.author.send(
+                content="You are already verified.")
+            return
         captchaMessage = randStr()
         image = ImageCaptcha()
         image.write(captchaMessage, 'captcha.png')
