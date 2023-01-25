@@ -5428,7 +5428,7 @@ targeted attacks using automated user accounts.""")
         if not msg is None:
             statement = """INSERT INTO verifymsg (guildid,channelid,messageid) VALUES($1,$2,$3);"""
             async with pool.acquire() as con:
-                await con.execute(statement, ctx.guild.id, ctx.channel.id, msg.id)
+                await con.execute(statement, ctx.guild.id, verifychannel.id, msg.id)
         try:
             messageone = await ctx.send("Server verification setup was successful , It is recommended to run the verificationchannels command to view which channels the verified role can access. ")
             await asyncio.sleep(60)
@@ -7086,7 +7086,8 @@ class ValorantAPI():
             'onefa': 'Replication',
             'snowball': 'Snowball Fight',
             'spikerush': 'SpikeRush',
-            'unrated': 'Unrated'
+            'unrated': 'Unrated',
+            'swiftplay': 'Swift Play',
         }
         return validQueueNames[queueId]
 
