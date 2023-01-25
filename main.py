@@ -3266,7 +3266,7 @@ class Moderation(commands.Cog):
             if member.id in currentlyblacklisting:
                 continue
             currentlyblacklisting.append(member.id)
-            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == member and not ctx.author.id==ctx.guild.owner.id:
+            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == member and not ctx.author.id == ctx.guild.owner.id:
                 await on_command_error(ctx, f"You cannot blacklist {member.mention} having higher roles than your highest role.")
                 try:
                     currentlyblacklisting.remove(member.id)
@@ -3453,7 +3453,7 @@ class Moderation(commands.Cog):
             if blacklistedmember.id in currentlyunblacklisting:
                 continue
             currentlyunblacklisting.append(blacklistedmember.id)
-            if ctx.author.top_role <= blacklistedmember.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == blacklistedmember and not ctx.author.id==ctx.guild.owner.id:
+            if ctx.author.top_role <= blacklistedmember.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == blacklistedmember and not ctx.author.id == ctx.guild.owner.id:
                 await on_command_error(ctx, f"You cannot unblacklist {blacklistedmember.mention} having higher roles than your highest role.")
                 try:
                     currentlyunblacklisting.remove(blacklistedmember.id)
@@ -3551,7 +3551,7 @@ class Moderation(commands.Cog):
             raise commands.BadArgument("Nothing")
             return
         for member in members:
-            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == member and not ctx.author.id==ctx.guild.owner.id:
+            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == member and not ctx.author.id == ctx.guild.owner.id:
                 await on_command_error(ctx, "You cannot warn members having higher roles than your highest role.")
                 continue
             if reason is None:
@@ -3629,7 +3629,7 @@ class Moderation(commands.Cog):
             if member.id in currentlymuting:
                 continue
             currentlymuting.append(member.id)
-            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == member and not ctx.author.id==ctx.guild.owner.id:
+            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == member and not ctx.author.id == ctx.guild.owner.id:
                 await on_command_error(ctx, f"You cannot mute {member.mention} having higher roles than your highest role.")
                 try:
                     currentlymuting.remove(member.id)
@@ -3810,7 +3810,7 @@ class Moderation(commands.Cog):
             if mutedmember.id in currentlyunmuting:
                 continue
             currentlyunmuting.append(mutedmember.id)
-            if ctx.author.top_role <= mutedmember.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == mutedmember and not ctx.author.id==ctx.guild.owner.id:
+            if ctx.author.top_role <= mutedmember.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == mutedmember and not ctx.author.id == ctx.guild.owner.id:
                 await on_command_error(ctx, f"You cannot unmute {mutedmember.mention} having higher roles than your highest role.")
                 try:
                     currentlyunmuting.remove(mutedmember.id)
@@ -3983,7 +3983,7 @@ class Moderation(commands.Cog):
             return
         bannedmembers = await ctx.guild.bans()
         for member in members:
-            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author.id==ctx.guild.owner.id:
+            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author.id == ctx.guild.owner.id:
                 await on_command_error(ctx, "You cannot ban members having higher roles than your highest role.")
                 continue
             if member is None or member == ctx.message.author:
@@ -4043,7 +4043,7 @@ class Moderation(commands.Cog):
             raise commands.BadArgument("Nothing")
             return
         for member in members:
-            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author.id==ctx.guild.owner.id:
+            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author.id == ctx.guild.owner.id:
                 await on_command_error(ctx, "You cannot kick members having higher roles than your highest role.")
                 continue
             if member is None or member == ctx.message.author:
@@ -4671,7 +4671,8 @@ class Templates(commands.Cog):
                         (f"(Role) {role.name} was not deleted as its punishment role.\n")
                 elif ((not role in ctx.guild.me.roles) and (not ctx.guild.default_role == role)):
                     await role.delete()
-                    changesstrDel = changesstrDel+(f"(Role) {role.name} deleted.\n")
+                    changesstrDel = changesstrDel + \
+                        (f"(Role) {role.name} deleted.\n")
                 else:
                     changesstrDel = changesstrDel + \
                         (f"(Role) {role.name} was not deleted as its my role.\n")
@@ -4679,7 +4680,7 @@ class Templates(commands.Cog):
                 changesstrDel = changesstrDel + \
                     (f"(Role) {role.name} was not deleted.\n")
         myFileDel = discord.File(io.StringIO(str(changesstrDel)),
-                              filename="DELETEDchanges.text")
+                                 filename="DELETEDchanges.text")
         await ctx.send(file=myFileDel)
         for embedLoop in messagesent.embeds:
             embedLoop.description = "<a:yes:872664918736928858> Deleted."
@@ -4769,7 +4770,7 @@ class Templates(commands.Cog):
             myFile = discord.File(io.StringIO(
                 str(changesstr)), filename="CREATEDchanges.text")
             myFileDel = discord.File(io.StringIO(str(changesstrDel)),
-                                        filename="DELETEDchanges.text")
+                                     filename="DELETEDchanges.text")
             await firsttxtchnl.send(file=myFileDel)
             embedStatusDel.description = "<a:yes:872664918736928858> Deleted."
             embedStatusDel.color = Color.green()
@@ -5428,6 +5429,7 @@ targeted attacks using automated user accounts.""")
             await messageone.delete()
         except:
             pass
+
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(brief='This command verifies you on the guild.',
                       description='This command verifies you on the guild.',
@@ -6905,7 +6907,7 @@ class Leveling(commands.Cog):
         }
         imgbackground = Image.open("aestron/levelleaderboard.png")
         draw = ImageDraw.Draw(imgbackground)
-        font = ImageFont.truetype("consolasbold.ttf", 20)
+        font = ImageFont.truetype("aestron/consolasbold.ttf", 20)
         for i in range(5):
             draw.text(levelcoords[i], str(
                 topmember[i]['level']), (0, 125, 232), font=font)
@@ -6980,7 +6982,7 @@ class Leveling(commands.Cog):
         pfp = pfp.resize((239, 222))
         imgbackground.paste(pfp, (71, 43))
         draw = ImageDraw.Draw(imgbackground)
-        font = ImageFont.truetype("consolasbold.ttf", 30)
+        font = ImageFont.truetype("aestron/consolasbold.ttf", 30)
         draw.text((402, 123), member.name, (255, 255, 255), font=font)
         draw.text((796, 29), str(rank), (255, 255, 255), font=font)
         draw.text((1067, 25), str(msgcount//levelmsgcount),
@@ -8601,7 +8603,8 @@ class Call(commands.Cog):
             messageonesent = await ctx.author.send(embed=embed)
         except:
             if ctx.channel.permissions_for(ctx.guild.me).attach_files:
-                f = discord.File("aestron/dmEnable.png", filename="dmEnable.png")
+                f = discord.File("aestron/dmEnable.png",
+                                 filename="dmEnable.png")
                 e = discord.Embed(title=f"Dms disabled")
                 e.add_field(name="Command author",
                             value=f"{ctx.author.mention}", inline=False)
@@ -9129,7 +9132,7 @@ class Social(commands.Cog):
         imgbackground.paste(pfpMember, (892, 360))
         draw = ImageDraw.Draw(imgbackground)
         # font = ImageFont.truetype(<font-file>, <font-size>)
-        font = ImageFont.truetype("consolasbold.ttf", 51)
+        font = ImageFont.truetype("aestron/consolasbold.ttf", 51)
         # draw.text((x, y),"Sample Text",(r,g,b))
         idOne = ctx.author.id
         idTwo = member.id
@@ -9178,7 +9181,7 @@ class Social(commands.Cog):
         imgbackground.paste(pfp, (388, 195))
         draw = ImageDraw.Draw(imgbackground)
         # font = ImageFont.truetype(<font-file>, <font-size>)
-        font = ImageFont.truetype("consolasbold.ttf", 18)
+        font = ImageFont.truetype("aestron/consolasbold.ttf", 18)
         # draw.text((x, y),"Sample Text",(r,g,b))
         draw.text(
             (8, 465),
