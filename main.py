@@ -2485,11 +2485,13 @@ async def valorantMatchSave():
                     await con.execute(results, json.dumps(matchjsons), time.time(), puuidstr)
                     #print(f"Finished updating db for {puuid} in {time.time() - start}s")
 
-def check_ensure_permissions(ctx,member,perms):
+
+def check_ensure_permissions(ctx, member, perms):
     for perm in perms:
         if not getattr(ctx.channel.permissions_for(member), perm):
             raise discord.ext.commands.errors.BotMissingPermissions([perm])
-    
+
+
 async def runBot():  # Bot START Aestron START
     await client.wait_until_ready()
     # Testing commit
@@ -2938,6 +2940,7 @@ class AestronInfo(commands.Cog):
 
 client.add_cog(AestronInfo(client))
 
+
 def ismuted(ctx, member):
     muterole = discord.utils.get(ctx.guild.roles, name='muted')
     if muterole is None:
@@ -2959,7 +2962,7 @@ class Moderation(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
     async def lock(self, ctx, channel: typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel], reason: str, role: discord.Role = None, duration: str = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_channels"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
             return
@@ -3029,7 +3032,7 @@ class Moderation(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
     async def unlock(self, ctx, channel: typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel], reason: str, role: discord.Role = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_guild"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["manage_guild"])
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
             return
@@ -3129,7 +3132,7 @@ class Moderation(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_messages=True))
     async def setslowmode(self, ctx, delay: int = 0):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_channels"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         if delay < 0:
             await on_command_error(ctx, "You cannot set slowmode to negative amount of delay.")
             return
@@ -3188,7 +3191,8 @@ class Moderation(commands.Cog):
                     members: Greedy[discord.Member] = None,
                     *,
                     reason: str = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_messages","read_message_history"])
+        check_ensure_permissions(
+            ctx, ctx.guild.me, ["manage_messages", "read_message_history"])
         if reason is None:
             reason = "no reason provided."
         if members is None:
@@ -3249,7 +3253,7 @@ class Moderation(commands.Cog):
                         timenum: str = None,
                         *,
                         reason: str = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_roles"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
         global currentlyblacklisting
         if isinstance(members, discord.Member):
             members = [members]
@@ -3260,7 +3264,7 @@ class Moderation(commands.Cog):
             if member.id in currentlyblacklisting:
                 continue
             currentlyblacklisting.append(member.id)
-            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == member:
+            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == member and not ctx.author.id==ctx.guild.owner.id:
                 await on_command_error(ctx, f"You cannot blacklist {member.mention} having higher roles than your highest role.")
                 try:
                     currentlyblacklisting.remove(member.id)
@@ -3436,7 +3440,7 @@ class Moderation(commands.Cog):
                           blacklistedmembers: Greedy[discord.Member],
                           *,
                           reason: str = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_roles"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
         global currentlyunblacklisting
         if isinstance(blacklistedmembers, discord.Member):
             blacklistedmembers = [blacklistedmembers]
@@ -3447,7 +3451,7 @@ class Moderation(commands.Cog):
             if blacklistedmember.id in currentlyunblacklisting:
                 continue
             currentlyunblacklisting.append(blacklistedmember.id)
-            if ctx.author.top_role <= blacklistedmember.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == blacklistedmember:
+            if ctx.author.top_role <= blacklistedmember.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == blacklistedmember and not ctx.author.id==ctx.guild.owner.id:
                 await on_command_error(ctx, f"You cannot unblacklist {blacklistedmember.mention} having higher roles than your highest role.")
                 try:
                     currentlyunblacklisting.remove(blacklistedmember.id)
@@ -3545,7 +3549,7 @@ class Moderation(commands.Cog):
             raise commands.BadArgument("Nothing")
             return
         for member in members:
-            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == member:
+            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == member and not ctx.author.id==ctx.guild.owner.id:
                 await on_command_error(ctx, "You cannot warn members having higher roles than your highest role.")
                 continue
             if reason is None:
@@ -3612,7 +3616,7 @@ class Moderation(commands.Cog):
                    timenum: str = None,
                    *,
                    reason: str = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_roles"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
         global currentlymuting
         if isinstance(members, discord.Member):
             members = [members]
@@ -3623,7 +3627,7 @@ class Moderation(commands.Cog):
             if member.id in currentlymuting:
                 continue
             currentlymuting.append(member.id)
-            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == member:
+            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == member and not ctx.author.id==ctx.guild.owner.id:
                 await on_command_error(ctx, f"You cannot mute {member.mention} having higher roles than your highest role.")
                 try:
                     currentlymuting.remove(member.id)
@@ -3793,7 +3797,7 @@ class Moderation(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_roles=True))
     async def unmute(self, ctx, mutedmembers: Greedy[discord.Member], *, reason: str = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_roles"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
         global currentlyunmuting
         if isinstance(mutedmembers, discord.Member):
             mutedmembers = [mutedmembers]
@@ -3804,7 +3808,7 @@ class Moderation(commands.Cog):
             if mutedmember.id in currentlyunmuting:
                 continue
             currentlyunmuting.append(mutedmember.id)
-            if ctx.author.top_role <= mutedmember.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == mutedmember:
+            if ctx.author.top_role <= mutedmember.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == mutedmember and not ctx.author.id==ctx.guild.owner.id:
                 await on_command_error(ctx, f"You cannot unmute {mutedmember.mention} having higher roles than your highest role.")
                 try:
                     currentlyunmuting.remove(mutedmember.id)
@@ -3945,7 +3949,7 @@ class Moderation(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(ban_members=True))
     async def checkbans(self, ctx):
-        check_ensure_permissions(ctx,ctx.guild.me,["ban_members"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["ban_members"])
         bans = await ctx.guild.bans()
         embed = discord.Embed(title="Guild bans", description="** **")
         count = 0
@@ -3977,7 +3981,7 @@ class Moderation(commands.Cog):
             return
         bannedmembers = await ctx.guild.bans()
         for member in members:
-            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot:
+            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author.id==ctx.guild.owner.id:
                 await on_command_error(ctx, "You cannot ban members having higher roles than your highest role.")
                 continue
             if member is None or member == ctx.message.author:
@@ -4037,7 +4041,7 @@ class Moderation(commands.Cog):
             raise commands.BadArgument("Nothing")
             return
         for member in members:
-            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot:
+            if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author.id==ctx.guild.owner.id:
                 await on_command_error(ctx, "You cannot kick members having higher roles than your highest role.")
                 continue
             if member is None or member == ctx.message.author:
@@ -4561,7 +4565,8 @@ class Templates(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
     async def backuptemplate(self, ctx):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_roles","manage_channels","manage_guild"])
+        check_ensure_permissions(
+            ctx, ctx.guild.me, ["manage_roles", "manage_channels", "manage_guild"])
         try:
             existTemp = await ctx.guild.templates()
             existTemp = existTemp[0]
@@ -4602,7 +4607,8 @@ class Templates(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
     async def settemplate(self, ctx, copytemplate: str = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_roles","manage_channels","manage_guild"])
+        check_ensure_permissions(
+            ctx, ctx.guild.me, ["manage_roles", "manage_channels", "manage_guild"])
         try:
             template = await client.fetch_template(copytemplate)
         except:
@@ -4633,11 +4639,11 @@ class Templates(commands.Cog):
             backupTemplate = "<:offline:886434154412113961> No permissions"
             await on_command_error(ctx, " I don't have manage guild permissions to create a backup template.")
             return
-        roles=ctx.guild.me.roles
-        sum=roles[0].permissions
+        roles = ctx.guild.me.roles
+        sum = roles[0].permissions
         for r in roles:
-            sum+=r.permissions
-        
+            sum += r.permissions
+
         embed = discord.Embed(title=f"{ctx.guild}'s backup template",
                               description=f"https://discord.new/{backupTemplate}", timestamp=discord.utils.utcnow())
         embedStatus = discord.Embed(
@@ -4843,7 +4849,8 @@ class SupportTicket(commands.Cog):
                                 reaction: str = None,
                                 *,
                                 supportmessage: str = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_roles","manage_channels"])
+        check_ensure_permissions(
+            ctx, ctx.guild.me, ["manage_roles", "manage_channels"])
         if channelname.guild != ctx.guild:
             await on_command_error(ctx, "The channel provided was not in this guild.")
             return
@@ -5130,7 +5137,7 @@ class Captcha(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_channels=True))
     async def verifyreadadd(self, ctx, channels: Greedy[typing.Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel]]):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_channels"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name='Verified')
         if verifyrole == None:
             await on_command_error(ctx, " The verification role was not found , run the setupverification command for setting this up .")
@@ -5161,7 +5168,7 @@ class Captcha(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_channels=True))
     async def verifyreadremove(self, ctx, channels: Greedy[typing.Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel]]):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_channels"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name='Verified')
         if verifyrole == None:
             await on_command_error(ctx, " The verification role was not found , run the setupverification command for setting this up .")
@@ -5193,7 +5200,7 @@ class Captcha(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_channels=True))
     async def verifyfulladd(self, ctx, channels: Greedy[typing.Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel]]):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_channels"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name='Verified')
         if verifyrole == None:
             await on_command_error(ctx, " The verification role was not found , run the setupverification command for setting this up .")
@@ -5224,7 +5231,7 @@ class Captcha(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_channels=True))
     async def verifyfullremove(self, ctx, channels: Greedy[typing.Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel]]):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_channels"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name='Verified')
         if verifyrole == None:
             await on_command_error(ctx, " The verification role was not found , run the setupverification command for setting this up .")
@@ -5303,7 +5310,8 @@ class Captcha(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
     async def setupverification(self, ctx, verifychannel: discord.TextChannel):
-        check_ensure_permissions(ctx,ctx.guild.me,['manage_channels','manage_roles','add_reactions','manage_messages','read_message_history','send_messages','view_channel','embed_links'])
+        check_ensure_permissions(ctx, ctx.guild.me, ['manage_channels', 'manage_roles', 'add_reactions',
+                                 'manage_messages', 'read_message_history', 'send_messages', 'view_channel', 'embed_links'])
         if verifychannel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
             return
@@ -5415,7 +5423,7 @@ targeted attacks using automated user accounts.""")
                       usage="")
     @commands.guild_only()
     async def verify(self, ctx):
-        check_ensure_permissions(ctx,ctx.guild.me,["attach_files"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["attach_files"])
         try:
             await ctx.message.delete()
         except:
@@ -5827,7 +5835,7 @@ class MinecraftFun(commands.Cog):
         usage="@member")
     @commands.guild_only()
     async def pvpOld(self, ctx, member: discord.Member = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["add_reactions"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["add_reactions"])
         global leaderBoard
         if member == ctx.author:
             await ctx.send(
@@ -6794,7 +6802,7 @@ class Leveling(commands.Cog):
                       description='This command can be used to get the leaderboard in a guild.')
     @commands.guild_only()
     async def levelrank(self, ctx, member: discord.Member = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["attach_files"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["attach_files"])
         if member is None:
             member = ctx.author
         async with pool.acquire() as con:
@@ -6903,7 +6911,7 @@ class Leveling(commands.Cog):
                       usage="@member")
     @commands.guild_only()
     async def level(self, ctx, member: discord.Member = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["attach_files"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["attach_files"])
         if member is None:
             member = ctx.author
         async with pool.acquire() as con:
@@ -8389,7 +8397,7 @@ class Misc(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
     async def setprefix(self, ctx, *, prefix: str):
-        check_ensure_permissions(ctx,ctx.guild.me,["add_reactions"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["add_reactions"])
         if not ctx.guild is None:
             if prefix == "None" or len(prefix) > 10:
                 await on_command_error(ctx, "You cannot set the prefix to that value.")
@@ -8756,7 +8764,7 @@ class Fun(commands.Cog):
                       description='This command can be used to play Chess in the Park in a vc.',
                       usage="", aliases=["chessgame", "chesspark"])
     async def chess(self, ctx):
-        check_ensure_permissions(ctx,ctx.guild.me,["create_instant_invite"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["create_instant_invite"])
         link = await togetherControl.create_link(ctx.author.voice.channel.id, 'chess', max_age=3600)
         embedVar = discord.Embed(title="",
                                  description=f"[Start playing]({link} \"Join your friends in a Chess in the Park activity.\")",
@@ -8775,7 +8783,7 @@ class Fun(commands.Cog):
                       description='This command can be used to play Betrayal.io in a vc.',
                       usage="", aliases=["betrayalgame", "betrayalio"])
     async def betrayal(self, ctx):
-        check_ensure_permissions(ctx,ctx.guild.me,["create_instant_invite"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["create_instant_invite"])
         link = await togetherControl.create_link(ctx.author.voice.channel.id, 'betrayal', max_age=3600)
         embedVar = discord.Embed(title="",
                                  description=f"[Start playing]({link} \"Join your friends in a Betrayal.io activity.\")",
@@ -8794,7 +8802,7 @@ class Fun(commands.Cog):
                       description='This command can be used to play Fishington.io in a vc.',
                       usage="", aliases=["fishinggame", "fishington", "fishingio", "fishingtonio"])
     async def fishing(self, ctx):
-        check_ensure_permissions(ctx,ctx.guild.me,["create_instant_invite"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["create_instant_invite"])
         link = await togetherControl.create_link(ctx.author.voice.channel.id, "fishing", max_age=3600)
         embedVar = discord.Embed(title="",
                                  description=f"[Start playing]({link} \"Join your friends in a Fishington.io activity.\")",
@@ -9088,7 +9096,7 @@ class Social(commands.Cog):
         usage="@member", aliases=["userliking", "memberliking", "ship", "shipuser", "shipmember"])
     @commands.guild_only()
     async def likinguser(self, ctx, member: discord.User = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["attach_files"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["attach_files"])
         if member is None:
             member = ctx.author
         imgbackground = Image.open("testingimage.jpg")
@@ -9141,7 +9149,7 @@ class Social(commands.Cog):
         usage="@member")
     @commands.guild_only()
     async def welcomeuser(self, ctx, member: discord.Member = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["attach_files"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["attach_files"])
         if member is None:
             member = ctx.author
         imgbackground = Image.open("background.jpg")
@@ -9173,7 +9181,7 @@ class Social(commands.Cog):
         usage="@member")
     @commands.guild_only()
     async def wanteduser(self, ctx, member: discord.Member = None):
-        check_ensure_permissions(ctx,ctx.guild.me,["attach_files"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["attach_files"])
         if member is None:
             member = ctx.author
         wanted = Image.open("wanted.png")
@@ -9480,7 +9488,8 @@ class Giveaways(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
     async def giveawaystart(self, ctx):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_messages","read_message_history","add_reactions"])
+        check_ensure_permissions(ctx, ctx.guild.me, [
+                                 "manage_messages", "read_message_history", "add_reactions"])
         count = 1
         await ctx.send(
             "Let's start with this giveaway! Answer these questions within 15 seconds!"
@@ -10167,10 +10176,11 @@ class Support(commands.Cog):
         usage="channelid")
     @commands.check_any(is_bot_staff())
     async def sendchannel(self, ctx, channels: Greedy[discord.TextChannel]):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_messages","read_message_history"])
+        check_ensure_permissions(
+            ctx, ctx.guild.me, ["manage_messages", "read_message_history"])
         if len(channels) == 0:
             raise commands.BadArgument("Nothing")
-            
+
         # guildsent=client.get_guild(guildid)
         for channel in channels:
             if not channel.permissions_for(ctx.guild.me).send_messages:
@@ -10231,10 +10241,11 @@ class Support(commands.Cog):
         usage="guildid")
     @commands.check_any(is_bot_staff())
     async def sendguild(self, ctx, guilds: Greedy[discord.Guild]):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_messages","read_message_history"])
+        check_ensure_permissions(
+            ctx, ctx.guild.me, ["manage_messages", "read_message_history"])
         if len(guilds) == 0:
             raise commands.BadArgument("Nothing")
-            
+
         # guildsent=client.get_guild(guildid)
         for guildsent in guilds:
             await ctx.send(str(guildsent))
@@ -10753,7 +10764,8 @@ class Support(commands.Cog):
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
     async def embedcreate(self, ctx):
-        check_ensure_permissions(ctx,ctx.guild.me,["manage_messages","read_message_history"])
+        check_ensure_permissions(
+            ctx, ctx.guild.me, ["manage_messages", "read_message_history"])
         count = 3
 
         def check(message):
@@ -11674,7 +11686,7 @@ class YoutubeTogether(commands.Cog):
                       usage="", aliases=["youtubevideo", "video", "yt", "youtube", "ytstart"])
     @commands.guild_only()
     async def ytvideo(self, ctx):
-        check_ensure_permissions(ctx,ctx.guild.me,["create_instant_invite"])
+        check_ensure_permissions(ctx, ctx.guild.me, ["create_instant_invite"])
         # Here we consider that the user is already in a VC accessible to the bot.
         link = await togetherControl.create_link(ctx.author.voice.channel.id, 'youtube', max_age=300)
         embedVar = discord.Embed(title="",
