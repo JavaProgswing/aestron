@@ -2540,7 +2540,8 @@ async def runBot():  # Bot START Aestron START
             channel = guild.get_channel(channelid)
             message = await channel.fetch_message(msgid)
             await message.edit(view=Verification())
-        except:
+        except Exception as e:
+            print(f"{e} Failed to edit message {msgid} in channel {channelid} in guild {guildid}.")
             async with pool.acquire() as con:
                 await con.execute(f"DELETE FROM verifymsg WHERE guildid = {guildid} AND channelid = {channelid} AND messageid = {msgid}")
     async with pool.acquire() as con:
@@ -2562,7 +2563,8 @@ async def runBot():  # Bot START Aestron START
             try:
                 txtchannel = guild.text_channels[0]
                 channel = txtchannel
-            except:
+            except Exception as e:
+                print(f"{e} Failed to get channel for guild = {guildid} and channelid = {channelid}.")
                 async with pool.acquire() as con:
                     await con.execute(f"DELETE FROM pendingunmute WHERE guildid = {guildid} AND channelid = {channelid}")
                 continue
@@ -2600,7 +2602,8 @@ async def runBot():  # Bot START Aestron START
             try:
                 txtchannel = guild.text_channels[0]
                 channel = txtchannel
-            except:
+            except Exception as e:
+                print(f"{e} Failed to get channel for guild = {guildid} and channelid = {channelid}.")
                 async with pool.acquire() as con:
                     await con.execute(f"DELETE FROM pendingunblacklist WHERE guildid = {guildid} AND channelid = {channelid}")
                 continue
