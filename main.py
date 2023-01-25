@@ -5057,6 +5057,10 @@ class Verification(discord.ui.View):
                 content="Run the **setupverification** command before this command for setting up the roles."
             )
             return
+        if verifyrole in interaction.user.roles:
+            await interaction.response.send_message(
+                content="You are already verified.")
+            return
         captchaMessage = randStr()
         image = ImageCaptcha()
         image.write(captchaMessage, 'captcha.png')
@@ -5418,10 +5422,12 @@ targeted attacks using automated user accounts.""")
             statement = """INSERT INTO verifymsg (guildid,channelid,messageid) VALUES($1,$2,$3);"""
             async with pool.acquire() as con:
                 await con.execute(statement, ctx.guild.id, ctx.channel.id, msg.id)
-        messageone = await ctx.send("Server verification setup was successful , It is recommended to run the verificationchannels command to view which channels the verified role can access. ")
-        await asyncio.sleep(60)
-        await messageone.delete()
-
+        try:
+            messageone = await ctx.send("Server verification setup was successful , It is recommended to run the verificationchannels command to view which channels the verified role can access. ")
+            await asyncio.sleep(60)
+            await messageone.delete()
+        except:
+            pass
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(brief='This command verifies you on the guild.',
                       description='This command verifies you on the guild.',
