@@ -1632,6 +1632,7 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=False, userl
     lines = traceback.format_exception(etype, error, trace)
     # format_exception returns a list with line breaks embedded in the lines, so let's just stitch the elements together
     traceback_text = ''.join(lines)
+    pastecode_failed = False
     try:
         pastecode = await mystbin_client.post(traceback_text, syntax="python")
     except:
@@ -1644,10 +1645,7 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=False, userl
         embederror.add_field(name='Traceback: ', value=pastecode.url)
     except:
         embederror.add_field(name='Traceback: ', value="See traceback below")
-        try:
-            await channelerrorlogging.send("Traceback", file=discord.File(io.StringIO(str(traceback_text)), filename="output.text"))
-        except:
-            pass
+        pastecode_failed = True
     if ctx.guild:
         embederror.add_field(name=(f"Guild: {ctx.guild} ({ctx.guild.id})"),
                              value="** **",
@@ -1686,6 +1684,8 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=False, userl
     if (not isinstance(error, commands.errors.CommandError)) or forcelog:
         try:
             await channelerrorlogging.send(embed=embederror)
+            if pastecode_failed:
+                await channelerrorlogging.send("Traceback", file=discord.File(io.StringIO(str(traceback_text)), filename="output.text"))
         except:
             await channelerrorlogging.send(f"Command : {ctx.command}.")
             await channelerrorlogging.send(f"🚫 Error occured ({type(error)})")
