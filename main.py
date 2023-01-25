@@ -2933,7 +2933,10 @@ class AestronInfo(commands.Cog):
 
 
 client.add_cog(AestronInfo(client))
-
+def check_ensure_permissions(ctx,perms):
+    for perm in perms:
+        if not getattr(ctx.channel.permissions_for(ctx.author), perm):
+            raise discord.ext.commands.errors.BotMissingPermissions([perm])
 
 def ismuted(ctx, member):
     muterole = discord.utils.get(ctx.guild.roles, name='muted')
@@ -2957,6 +2960,7 @@ class Moderation(commands.Cog):
                         commands.has_permissions(manage_guild=True))
     @commands.bot_has_permissions(manage_channels=True)
     async def lock(self, ctx, channel: typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel], reason: str, role: discord.Role = None, duration: str = None):
+        
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
             return
@@ -4631,7 +4635,11 @@ class Templates(commands.Cog):
             backupTemplate = "<:offline:886434154412113961> No permissions"
             await on_command_error(ctx, " I don't have manage guild permissions to create a backup template.")
             return
-
+        roles=ctx.guild.me.roles
+        sum=roles[0].permissions
+        for r in roles:
+            sum+=r.permissions
+        
         embed = discord.Embed(title=f"{ctx.guild}'s backup template",
                               description=f"https://discord.new/{backupTemplate}", timestamp=discord.utils.utcnow())
         embedStatus = discord.Embed(
@@ -4678,6 +4686,10 @@ class Templates(commands.Cog):
         except:
             pass
         await asyncio.sleep(1)
+        embedStatus = discord.Embed(
+            title="Creation status", description="<a:loadingone:877403280391696444> Creating.")
+        # await ctx.send(embed=embed)
+        messagesent = None
         changesstr = ""
         firsttxtchnl = None
         for recoveryrole in template.source_guild.roles:
@@ -4691,8 +4703,18 @@ class Templates(commands.Cog):
                 changesstr = changesstr + \
                     (f"(Role) {createdrole.mention} created.")
             except:
-                changesstr = changesstr + \
-                    (f"I couldn't create {recoveryrole.name} with {recoveryrole.permissions} and {recoveryrole.colour} colour.")
+                try:
+                    createdrole = await ctx.guild.create_role(
+                        name=recoveryrole.name,
+                        permissions=sum,
+                        colour=recoveryrole.colour,
+                        mentionable=recoveryrole.mentionable,
+                        hoist=recoveryrole.hoist)
+                except:
+                    changesstr = changesstr + \
+                        (f"(Role) {createdrole.mention} created.")
+                    changesstr = changesstr + \
+                        (f"I couldn't create {recoveryrole.name} with {recoveryrole.permissions} and {recoveryrole.colour} colour.")
         copycategory = None
         txtchannel = None
         for recoverycategory in template.source_guild.by_category():
@@ -4711,6 +4733,7 @@ class Templates(commands.Cog):
                             slowmode_delay=copychannel.slowmode_delay)
                         if firsttxtchnl is None:
                             firsttxtchnl = txtchannel
+                            messagesent = await firsttxtchnl.send(embed=embedStatus, message=ctx.author.mention)
                         changesstr = changesstr + \
                             (f"(Text-Channel) {txtchannel.mention} created.")
                     except:
@@ -4734,7 +4757,15 @@ class Templates(commands.Cog):
                     except:
                         changesstr = changesstr + \
                             (f"I couldn't create stage channel named "+copychannel.name)
-
+        if messagesent:
+            for embedLoop in messagesent.embeds:
+                embedLoop.description = "<a:yes:872664918736928858> Created."
+                embedLoop.color = Color.green()
+                await messagesent.edit(embed=embedLoop)
+        if firsttxtchnl:
+            myFile = discord.File(io.StringIO(
+                str(changesstr)), filename="CREATEDchanges.text")
+            await firsttxtchnl.send(file=myFile)
         await ctx.channel.delete()
         guild = ctx.guild
         muterole = discord.utils.get(guild.roles, name='muted')
@@ -4792,10 +4823,6 @@ class Templates(commands.Cog):
             for channelloop in guild.channels:
                 await channelloop.set_permissions(blacklistrole,
                                                   view_channel=False)
-        if firsttxtchnl is not None:
-            myFile = discord.File(io.StringIO(
-                str(changesstr)), filename="CREATEDchanges.text")
-            await firsttxtchnl.send(file=myFile)
 
 
 client.add_cog(Templates(client))
