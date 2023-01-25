@@ -4646,10 +4646,10 @@ class Templates(commands.Cog):
 
         embed = discord.Embed(title=f"{ctx.guild}'s backup template",
                               description=f"https://discord.new/{backupTemplate}", timestamp=discord.utils.utcnow())
-        embedStatus = discord.Embed(
+        embedStatusDel = discord.Embed(
             title="Deletion status", description="<a:loadingone:877403280391696444> Deleting.")
         # await ctx.send(embed=embed)
-        messagesent = await ctx.send(embed=embedStatus)
+        messagesent = await ctx.send(embed=embedStatusDel)
         changesstr = ""
         for channel in ctx.guild.channels:
             if channel == ctx.channel:
@@ -4678,9 +4678,9 @@ class Templates(commands.Cog):
                     (f"(Role) {role.name} was not deleted.\n")
             changesstr = changesstr + \
                 (f"(Role) {role.name} was not deleted as its my role.\n")
-        myFile = discord.File(io.StringIO(str(changesstr)),
+        myFileDel = discord.File(io.StringIO(str(changesstr)),
                               filename="DELETEDchanges.text")
-        await ctx.send(file=myFile)
+        await ctx.send(file=myFileDel)
         for embedLoop in messagesent.embeds:
             embedLoop.description = "<a:yes:872664918736928858> Deleted."
             embedLoop.color = Color.green()
@@ -4689,7 +4689,6 @@ class Templates(commands.Cog):
             await ctx.author.send(embed=embed)
         except:
             pass
-        await asyncio.sleep(1)
         embedStatus = discord.Embed(
             title="Creation status", description="<a:loadingone:877403280391696444> Creating.")
         # await ctx.send(embed=embed)
@@ -4705,7 +4704,7 @@ class Templates(commands.Cog):
                     mentionable=recoveryrole.mentionable,
                     hoist=recoveryrole.hoist)
                 changesstr = changesstr + \
-                    (f"(Role) {createdrole.mention} created.")
+                    (f"(Role) {createdrole.mention} created.\n")
             except:
                 try:
                     createdrole = await ctx.guild.create_role(
@@ -4714,11 +4713,11 @@ class Templates(commands.Cog):
                         colour=recoveryrole.colour,
                         mentionable=recoveryrole.mentionable,
                         hoist=recoveryrole.hoist)
+                    changesstr = changesstr + \
+                        (f"(Role) {createdrole.mention} created.\n")
                 except:
                     changesstr = changesstr + \
-                        (f"(Role) {createdrole.mention} created.")
-                    changesstr = changesstr + \
-                        (f"I couldn't create {recoveryrole.name} with {recoveryrole.permissions} and {recoveryrole.colour} colour.")
+                        (f"I couldn't create {recoveryrole.name} with {recoveryrole.permissions} and {recoveryrole.colour} colour.\n")
         copycategory = None
         txtchannel = None
         for recoverycategory in template.source_guild.by_category():
@@ -4739,28 +4738,28 @@ class Templates(commands.Cog):
                             firsttxtchnl = txtchannel
                             messagesent = await firsttxtchnl.send(embed=embedStatus, message=ctx.author.mention)
                         changesstr = changesstr + \
-                            (f"(Text-Channel) {txtchannel.mention} created.")
+                            (f"(Text-Channel) {txtchannel.name} created.\n")
                     except:
                         changesstr = changesstr + \
-                            (f"I couldn't create text channel named "+copychannel.name)
+                            (f"I couldn't create text channel named {copychannel.name}\n")
 
                 elif copychannel.type == discord.ChannelType.voice:
                     try:
                         txtchannel = await copycategory.create_voice_channel(copychannel.name, overwrites=copychannel.overwrites
                                                                              )
                         changesstr = changesstr + \
-                            (f"(Voice-Channel) {txtchannel.mention} created.")
+                            (f"(Voice-Channel) {txtchannel.name} created.\n")
                     except:
                         changesstr = changesstr + \
-                            (f"I couldn't create voice channel named "+copychannel.name)
+                            (f"I couldn't create voice channel named {copychannel.name}\n")
                 elif copychannel.type == discord.ChannelType.stage_voice:
                     try:
                         txtchannel = await copycategory.create_stage_channel(copychannel.name)
                         changesstr = changesstr + \
-                            (f"(Stage-Channel) {txtchannel.mention} created.")
+                            (f"(Stage-Channel) {txtchannel.name} created.\n")
                     except:
                         changesstr = changesstr + \
-                            (f"I couldn't create stage channel named "+copychannel.name)
+                            (f"I couldn't create stage channel named {copychannel.name}\n")
         if messagesent:
             for embedLoop in messagesent.embeds:
                 embedLoop.description = "<a:yes:872664918736928858> Created."
@@ -4769,6 +4768,8 @@ class Templates(commands.Cog):
         if firsttxtchnl:
             myFile = discord.File(io.StringIO(
                 str(changesstr)), filename="CREATEDchanges.text")
+            await firsttxtchnl.send(file=myFileDel)
+            await firsttxtchnl.send(embed=embedStatusDel)
             await firsttxtchnl.send(file=myFile)
         await ctx.channel.delete()
         guild = ctx.guild
