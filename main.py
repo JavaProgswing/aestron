@@ -335,6 +335,8 @@ def get_example(command, guild):
                 exStr = exStr+"https://cdn.discordapp.com/avatars/1061480715172200498/89424d67ceb481fa6ad2613e3037ae43.png?size=1024"
             elif key == "riotaccount":
                 exStr = exStr+"ValoName#Id"
+            elif key == "copytemplate":
+                exStr = exStr+"Tha94ebKmwEX"
             else:
                 exStr = exStr+f" {origvalue.name}"
         elif value == typing.Union[discord.guild.Guild, discord.channel.TextChannel]:
@@ -4606,7 +4608,7 @@ class Templates(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def settemplate(self, ctx, copytemplate: str = None):
+    async def settemplate(self, ctx, copytemplate: str):
         check_ensure_permissions(
             ctx, ctx.guild.me, ["manage_roles", "manage_channels", "manage_guild"])
         try:
@@ -4704,7 +4706,7 @@ class Templates(commands.Cog):
                     mentionable=recoveryrole.mentionable,
                     hoist=recoveryrole.hoist)
                 changesstr = changesstr + \
-                    (f"(Role) {createdrole.mention} created.\n")
+                    (f"(Role) {createdrole.name} created.\n")
             except:
                 try:
                     createdrole = await ctx.guild.create_role(
@@ -4714,7 +4716,7 @@ class Templates(commands.Cog):
                         mentionable=recoveryrole.mentionable,
                         hoist=recoveryrole.hoist)
                     changesstr = changesstr + \
-                        (f"(Role) {createdrole.mention} created.\n")
+                        (f"(Role) {createdrole.name} created.\n")
                 except:
                     changesstr = changesstr + \
                         (f"I couldn't create {recoveryrole.name} with {recoveryrole.permissions} and {recoveryrole.colour} colour.\n")
@@ -4768,7 +4770,11 @@ class Templates(commands.Cog):
         if firsttxtchnl:
             myFile = discord.File(io.StringIO(
                 str(changesstr)), filename="CREATEDchanges.text")
+            myFileDel = discord.File(io.StringIO(str(changesstr)),
+                                        filename="DELETEDchanges.text")
             await firsttxtchnl.send(file=myFileDel)
+            embedStatusDel.description = "<a:yes:872664918736928858> Deleted."
+            embedStatusDel.color = Color.green()
             await firsttxtchnl.send(embed=embedStatusDel)
             await firsttxtchnl.send(file=myFile)
         await ctx.channel.delete()
