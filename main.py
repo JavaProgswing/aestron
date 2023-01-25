@@ -336,7 +336,7 @@ def get_example(command, guild):
             elif key == "riotaccount":
                 exStr = exStr+"ValoName#Id"
             elif key == "copytemplate":
-                exStr = exStr+"Tha94ebKmwEX"
+                exStr = exStr+"H5qAZdEEeWdR"
             else:
                 exStr = exStr+f" {origvalue.name}"
         elif value == typing.Union[discord.guild.Guild, discord.channel.TextChannel]:
@@ -4620,14 +4620,14 @@ class Templates(commands.Cog):
             except:
                 thecode = copytemplate
             if thecode is None:
-                raise commands.ObjectNotFound(
-                    f"Unknown template with id `{thecode}`")
+                await on_command_error(ctx, f"Unknown template with id `{thecode}`")
+                return
             copytemplate = "https://discord.new/"+thecode
             try:
                 template = await client.fetch_template(copytemplate)
             except:
-                raise commands.ObjectNotFound(
-                    f"Unknown template with id `{thecode}`")
+                await on_command_error(ctx, f"Unknown template with id `{thecode}`")
+                return
         try:
             existTemp = await ctx.guild.templates()
             existTemp = existTemp[0]
@@ -4639,7 +4639,7 @@ class Templates(commands.Cog):
             backupTemplate = backupTemplate.code
         except:
             backupTemplate = "<:offline:886434154412113961> No permissions"
-            await on_command_error(ctx, " I don't have manage guild permissions to create a backup template.")
+            await on_command_error(ctx, "I don't have manage guild permissions to create a backup template.")
             return
         roles = ctx.guild.me.roles
         sum = roles[0].permissions
@@ -4652,35 +4652,33 @@ class Templates(commands.Cog):
             title="Deletion status", description="<a:loadingone:877403280391696444> Deleting.")
         # await ctx.send(embed=embed)
         messagesent = await ctx.send(embed=embedStatusDel)
-        changesstr = ""
+        changesstrDel = ""
         for channel in ctx.guild.channels:
             if channel == ctx.channel:
                 continue
             try:
                 await channel.delete()
-                changesstr = changesstr + \
+                changesstrDel = changesstrDel + \
                     (f"(Channel) {channel.name} deleted.\n")
             except:
-                changesstr = changesstr + \
+                changesstrDel = changesstrDel + \
                     (f"(Channel) {channel.name} was not deleted.\n")
 
         for role in ctx.guild.roles:
             try:
                 if role.name == "muted" or role.name == "blacklisted":
-                    changesstr = changesstr + \
+                    changesstrDel = changesstrDel + \
                         (f"(Role) {role.name} was not deleted as its punishment role.\n")
                 elif ((not role in ctx.guild.me.roles) and (not ctx.guild.default_role == role)):
                     await role.delete()
-                    changesstr = changesstr+(f"(Role) {role.name} deleted.\n")
+                    changesstrDel = changesstrDel+(f"(Role) {role.name} deleted.\n")
                 else:
-                    changesstr = changesstr + \
+                    changesstrDel = changesstrDel + \
                         (f"(Role) {role.name} was not deleted as its my role.\n")
             except:
-                changesstr = changesstr + \
+                changesstrDel = changesstrDel + \
                     (f"(Role) {role.name} was not deleted.\n")
-            changesstr = changesstr + \
-                (f"(Role) {role.name} was not deleted as its my role.\n")
-        myFileDel = discord.File(io.StringIO(str(changesstr)),
+        myFileDel = discord.File(io.StringIO(str(changesstrDel)),
                               filename="DELETEDchanges.text")
         await ctx.send(file=myFileDel)
         for embedLoop in messagesent.embeds:
@@ -4770,7 +4768,7 @@ class Templates(commands.Cog):
         if firsttxtchnl:
             myFile = discord.File(io.StringIO(
                 str(changesstr)), filename="CREATEDchanges.text")
-            myFileDel = discord.File(io.StringIO(str(changesstr)),
+            myFileDel = discord.File(io.StringIO(str(changesstrDel)),
                                         filename="DELETEDchanges.text")
             await firsttxtchnl.send(file=myFileDel)
             embedStatusDel.description = "<a:yes:872664918736928858> Deleted."
