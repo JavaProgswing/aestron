@@ -2937,10 +2937,6 @@ class AestronInfo(commands.Cog):
 
 
 client.add_cog(AestronInfo(client))
-def check_ensure_permissions(ctx,perms):
-    for perm in perms:
-        if not getattr(ctx.channel.permissions_for(ctx.author), perm):
-            raise discord.ext.commands.errors.BotMissingPermissions([perm])
 
 def ismuted(ctx, member):
     muterole = discord.utils.get(ctx.guild.roles, name='muted')
