@@ -5060,7 +5060,7 @@ class Verification(discord.ui.View):
             return
         if verifyrole in interaction.user.roles:
             await interaction.response.send_message(
-                content="You are already verified.")
+                content="You are already verified.", ephemeral=True)
             return
         captchaMessage = randStr()
         image = ImageCaptcha()
@@ -5449,7 +5449,7 @@ targeted attacks using automated user accounts.""")
             return
         if verifyrole in ctx.author.roles:
             await ctx.author.send(
-                content="You are already verified.")
+                content="You are already verified.",delete_after=4)
             return
         captchaMessage = randStr()
         image = ImageCaptcha()
