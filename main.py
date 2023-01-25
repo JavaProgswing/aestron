@@ -1830,15 +1830,18 @@ def convertwords(lst):
 
 def uservoted(member: discord.Member):
     link = f"https://top.gg/api/bots/1061480715172200498/check?userId={member.id}"
-    headerstoken = {
-        "authorization": dbltoken
-    }
-    f = requests.get(link, headers=headerstoken)
-    ftext = f.text
-    myfile = json.loads(ftext)
-    votereceived = False
-    if myfile['voted'] >= 1:
-        votereceived = True
+    try:
+        headerstoken = {
+            "authorization": dbltoken
+        }
+        f = requests.get(link, headers=headerstoken)
+        ftext = f.text
+        myfile = json.loads(ftext)
+        votereceived = False
+        if myfile['voted'] >= 1:
+            votereceived = True
+    except:
+        votereceived = False
     return votereceived
 
 
@@ -2661,17 +2664,9 @@ async def runBot():  # Bot START Aestron START
                         await con.execute(f"DELETE FROM customcommands WHERE guildid = {guild.id} AND commandname = '{custom[1]}'")
 
     try:
-        await wavelink.NodePool.create_node(bot=client, host='lava.link', port=80, password='anything as password', identifier='lavalink')
+        await wavelink.NodePool.create_node(bot=client, host='ip-172-31-32-128.ap-south-1.compute.internal', port=2333, password='youshallnotpass', identifier='ltest')
     except:
         pass
-    try:
-        await wavelink.NodePool.create_node(bot=client, host='kartadharta.xyz', port=3000, password='kdlavalink', identifier='kartadhartaxyz')
-    except:
-        pass
-    # try:
-    #    await wavelink.NodePool.create_node(bot=client, host='losingtime.dpaste.org', port=2124, password='SleepingOnTrains', identifier='losingtimedpaste')
-    # except:
-    #    pass
     for guild in client.guilds:
         guildids.append(guild.id)
         guildmusiccp[guild.id] = False
