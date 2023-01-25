@@ -2541,7 +2541,8 @@ async def runBot():  # Bot START Aestron START
             message = await channel.fetch_message(msgid)
             await message.edit(view=Verification())
         except Exception as e:
-            print(f"{e} Failed to edit message {msgid} in channel {channelid} in guild {guildid}.")
+            print(
+                f"{e} Failed to edit message {msgid} in channel {channelid} in guild {guildid}.")
             async with pool.acquire() as con:
                 await con.execute(f"DELETE FROM verifymsg WHERE guildid = {guildid} AND channelid = {channelid} AND messageid = {msgid}")
     async with pool.acquire() as con:
@@ -2564,7 +2565,8 @@ async def runBot():  # Bot START Aestron START
                 txtchannel = guild.text_channels[0]
                 channel = txtchannel
             except Exception as e:
-                print(f"{e} Failed to get channel for guild = {guildid} and channelid = {channelid}.")
+                print(
+                    f"{e} Failed to get channel for guild = {guildid} and channelid = {channelid}.")
                 async with pool.acquire() as con:
                     await con.execute(f"DELETE FROM pendingunmute WHERE guildid = {guildid} AND channelid = {channelid}")
                 continue
@@ -2603,7 +2605,8 @@ async def runBot():  # Bot START Aestron START
                 txtchannel = guild.text_channels[0]
                 channel = txtchannel
             except Exception as e:
-                print(f"{e} Failed to get channel for guild = {guildid} and channelid = {channelid}.")
+                print(
+                    f"{e} Failed to get channel for guild = {guildid} and channelid = {channelid}.")
                 async with pool.acquire() as con:
                     await con.execute(f"DELETE FROM pendingunblacklist WHERE guildid = {guildid} AND channelid = {channelid}")
                 continue
@@ -4590,12 +4593,12 @@ class Templates(commands.Cog):
         try:
             await ctx.author.send(embed=embed)
         except:
-            f = discord.File("aestron/dmEnable.png", filename="dmEnable.png")
+            f = discord.File("./dmEnable.png", filename="dmEnable.png")
             e = discord.Embed(
                 title=f"Dms disabled", description="Kindly enable your dms for sending the template.")
             e.add_field(name="Command author",
                         value=f"{ctx.author.mention}", inline=False)
-            e.set_image(url="attachment://aestron/dmEnable.png")
+            e.set_image(url="attachment://dmEnable.png")
             mentionMes = await ctx.send(ctx.author.mention)
             await asyncio.sleep(1)
             await mentionMes.delete()
@@ -5068,7 +5071,7 @@ class Verification(discord.ui.View):
         captchaMessage = randStr()
         image = ImageCaptcha()
         image.write(captchaMessage, 'captcha.png')
-        f = discord.File("aestron/captcha.png", filename="captcha.png")
+        f = discord.File("./captcha.png", filename="captcha.png")
         e = discord.Embed(
             title=f"{interaction.guild} Verification",
             description="""Hello! You are required to complete a captcha before entering the server.
@@ -5078,15 +5081,15 @@ Why?
 This is to protect the server against
 targeted attacks using automated user accounts.""")
         e.add_field(name="Your captcha :", value="** **")
-        e.set_image(url="attachment://aestron/captcha.png")
+        e.set_image(url="attachment://captcha.png")
         try:
             await interaction.user.send(file=f, embed=e)
         except:
-            f = discord.File("aestron/dmEnable.png", filename="dmEnable.png")
+            f = discord.File("./dmEnable.png", filename="dmEnable.png")
             e = discord.Embed(title=f"Dms disabled")
             e.add_field(name="Command author",
                         value=f"{interaction.user.mention}", inline=False)
-            e.set_image(url="attachment://aestron/dmEnable.png")
+            e.set_image(url="attachment://dmEnable.png")
             mentionMes = await interaction.user.send(content=interaction.user.mention)
             await asyncio.sleep(1)
             await mentionMes.delete()
@@ -5452,12 +5455,12 @@ targeted attacks using automated user accounts.""")
             return
         if verifyrole in ctx.author.roles:
             await ctx.author.send(
-                content="You are already verified.",delete_after=4)
+                content="You are already verified.", delete_after=4)
             return
         captchaMessage = randStr()
         image = ImageCaptcha()
         image.write(captchaMessage, 'captcha.png')
-        f = discord.File("aestron/captcha.png", filename="captcha.png")
+        f = discord.File("./captcha.png", filename="captcha.png")
         e = discord.Embed(
             title=f"{ctx.guild} Verification",
             description="""Hello! You are required to complete a captcha before entering the server.
@@ -5467,15 +5470,15 @@ Why?
 This is to protect the server against
 targeted attacks using automated user accounts.""")
         e.add_field(name="Your captcha :", value="** **")
-        e.set_image(url="attachment://aestron/captcha.png")
+        e.set_image(url="attachment://captcha.png")
         try:
             await ctx.author.send(file=f, embed=e)
         except:
-            f = discord.File("aestron/dmEnable.png", filename="dmEnable.png")
+            f = discord.File("./dmEnable.png", filename="dmEnable.png")
             e = discord.Embed(title=f"Dms disabled")
             e.add_field(name="Command author",
                         value=f"{ctx.author.mention}", inline=False)
-            e.set_image(url="attachment://aestron/dmEnable.png")
+            e.set_image(url="attachment://dmEnable.png")
             mentionMes = await ctx.send(ctx.author.mention)
             await asyncio.sleep(1)
             await mentionMes.delete()
@@ -6908,9 +6911,9 @@ class Leveling(commands.Cog):
             3: (723, 241),
             4: (954, 237),
         }
-        imgbackground = Image.open("aestron/levelleaderboard.png")
+        imgbackground = Image.open("./levelleaderboard.png")
         draw = ImageDraw.Draw(imgbackground)
-        font = ImageFont.truetype("aestron/consolasbold.ttf", 20)
+        font = ImageFont.truetype("./consolasbold.ttf", 20)
         for i in range(5):
             draw.text(levelcoords[i], str(
                 topmember[i]['level']), (0, 125, 232), font=font)
@@ -6918,10 +6921,10 @@ class Leveling(commands.Cog):
             draw.text(namecoords[i], str(
                 topmember[i]['name']), (255, 255, 255), font=font)
             imgbackground.paste(topmember[i]['avatar'], coords[i])
-        imgbackground.save('aestron/levelleaderboardresult.png')
-        file = discord.File("aestron/levelleaderboardresult.png")
+        imgbackground.save('./levelleaderboardresult.png')
+        file = discord.File("./levelleaderboardresult.png")
         embed = discord.Embed()
-        embed.set_image(url="attachment://aestron/levelleaderboardresult.png")
+        embed.set_image(url="attachment://levelleaderboardresult.png")
         await ctx.send(file=file, embed=embed)
 
     @commands.cooldown(1, 30, BucketType.member)
@@ -6978,14 +6981,14 @@ class Leveling(commands.Cog):
             async with pool.acquire() as con:
                 levelconfiglist = await con.fetchrow(f"SELECT * FROM levelconfig WHERE channelid = {ctx.channel.id}")
         levelmsgcount = levelconfiglist[1]
-        imgbackground = Image.open("aestron/levelimage.png")
+        imgbackground = Image.open("./levelimage.png")
         asset = member.display_avatar
         data = BytesIO(await asset.read())
         pfp = Image.open(data)
         pfp = pfp.resize((239, 222))
         imgbackground.paste(pfp, (71, 43))
         draw = ImageDraw.Draw(imgbackground)
-        font = ImageFont.truetype("aestron/consolasbold.ttf", 30)
+        font = ImageFont.truetype("./consolasbold.ttf", 30)
         draw.text((402, 123), member.name, (255, 255, 255), font=font)
         draw.text((796, 29), str(rank), (255, 255, 255), font=font)
         draw.text((1067, 25), str(msgcount//levelmsgcount),
@@ -6996,10 +6999,10 @@ class Leveling(commands.Cog):
             (1027, 122), f"{currentlevel}/{totallevel}", (240, 240, 240), font=font)
         percentcomplete = (currentlevel/totallevel)
         draw = drawProgressBar(draw, 401, 161, 737, 50, percentcomplete)
-        imgbackground.save('aestron/levelresult.png')
-        file = discord.File("aestron/levelresult.png")
+        imgbackground.save('./levelresult.png')
+        file = discord.File("./levelresult.png")
         embed = discord.Embed()
-        embed.set_image(url="attachment://aestron/levelresult.png")
+        embed.set_image(url="attachment://levelresult.png")
         await ctx.send(file=file, embed=embed)
 
     @commands.cooldown(1, 30, BucketType.member)
@@ -7088,7 +7091,7 @@ class ValorantAPI():
         return validQueueNames[queueId]
 
     def get_map_name_from_url(self, mapurl):
-        with open('aestron/mapinfo.json') as data_file:
+        with open('./mapinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapurl == i["mapUrl"]:
@@ -7096,7 +7099,7 @@ class ValorantAPI():
         return None
 
     def get_map_thumbnail(self, mapname):
-        with open('aestron/mapinfo.json') as data_file:
+        with open('./mapinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapname == i["displayName"]:
@@ -7104,7 +7107,7 @@ class ValorantAPI():
         return None
 
     def get_map_display_icon(self, mapname):
-        with open('aestron/mapinfo.json') as data_file:
+        with open('./mapinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapname == i["displayName"]:
@@ -7112,7 +7115,7 @@ class ValorantAPI():
         return None
 
     def get_map_mini_icon(self, mapname):
-        with open('aestron/mapinfo.json') as data_file:
+        with open('./mapinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapname == i["displayName"]:
@@ -7120,7 +7123,7 @@ class ValorantAPI():
         return None
 
     def get_name_from_id(self, id):
-        with open('aestron/valorantids.json') as data_file:
+        with open('./valorantids.json') as data_file:
             datajson = json.load(data_file)
             for category in datajson.keys():
                 for item in datajson[category]:
@@ -7129,7 +7132,7 @@ class ValorantAPI():
             return None
 
     def get_map_x_multiplier(self, mapname):
-        with open('aestron/mapinfo.json') as data_file:
+        with open('./mapinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapname == i["displayName"]:
@@ -7137,7 +7140,7 @@ class ValorantAPI():
         return None
 
     def get_map_y_multiplier(self, mapname):
-        with open('aestron/mapinfo.json') as data_file:
+        with open('./mapinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapname == i["displayName"]:
@@ -7145,7 +7148,7 @@ class ValorantAPI():
         return None
 
     def get_map_x_scalar(self, mapname):
-        with open('aestron/mapinfo.json') as data_file:
+        with open('./mapinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapname == i["displayName"]:
@@ -7153,7 +7156,7 @@ class ValorantAPI():
         return None
 
     def get_map_y_scalar(self, mapname):
-        with open('aestron/mapinfo.json') as data_file:
+        with open('./mapinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapname == i["displayName"]:
@@ -7162,7 +7165,7 @@ class ValorantAPI():
 
     def get_agent_abilities(self, agentname):
         jsongot = []
-        with open('aestron/agentinfo.json') as data_file:
+        with open('./agentinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if agentname == i["displayName"]:
@@ -7180,7 +7183,7 @@ class ValorantAPI():
         return newjson
 
     def get_agent_thumbnail(self, agentname):
-        with open('aestron/agentinfo.json') as data_file:
+        with open('./agentinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if agentname == i["displayName"]:
@@ -7188,7 +7191,7 @@ class ValorantAPI():
 
     def get_agents_abilities(self):
         agents = []
-        with open('aestron/agentinfo.json') as data_file:
+        with open('./agentinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 currentagent = Agent(i["displayName"])
@@ -7201,7 +7204,7 @@ class ValorantAPI():
         return agents
 
     def get_agent_ability(self, agentname):
-        with open('aestron/agentinfo.json') as data_file:
+        with open('./agentinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if i["displayName"] == agentname:
@@ -7218,7 +7221,7 @@ class ValorantAPI():
 
     def get_weapon_prices(self):
         weapons = []
-        with open('aestron/weaponinfo.json') as data_file:
+        with open('./weaponinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if i["displayName"] == "Melee":
@@ -7229,7 +7232,7 @@ class ValorantAPI():
         return weapons
 
     def get_weapon_price(self, weaponname):
-        with open('aestron/weaponinfo.json') as data_file:
+        with open('./weaponinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if i["displayName"] == weaponname:
@@ -8606,12 +8609,12 @@ class Call(commands.Cog):
             messageonesent = await ctx.author.send(embed=embed)
         except:
             if ctx.channel.permissions_for(ctx.guild.me).attach_files:
-                f = discord.File("aestron/dmEnable.png",
+                f = discord.File("./dmEnable.png",
                                  filename="dmEnable.png")
                 e = discord.Embed(title=f"Dms disabled")
                 e.add_field(name="Command author",
                             value=f"{ctx.author.mention}", inline=False)
-                e.set_image(url="attachment://aestron/dmEnable.png")
+                e.set_image(url="attachment://dmEnable.png")
                 mentionMes = await ctx.send(ctx.author.mention)
                 await asyncio.sleep(1)
                 await mentionMes.delete()
@@ -9123,7 +9126,7 @@ class Social(commands.Cog):
         check_ensure_permissions(ctx, ctx.guild.me, ["attach_files"])
         if member is None:
             member = ctx.author
-        imgbackground = Image.open("aestron/testingimage.jpg")
+        imgbackground = Image.open("./testingimage.jpg")
         assetAuth = ctx.author.display_avatar.with_size(512)
         dataAuth = BytesIO(await assetAuth.read())
         pfpAuth = Image.open(dataAuth)
@@ -9135,7 +9138,7 @@ class Social(commands.Cog):
         imgbackground.paste(pfpMember, (892, 360))
         draw = ImageDraw.Draw(imgbackground)
         # font = ImageFont.truetype(<font-file>, <font-size>)
-        font = ImageFont.truetype("aestron/consolasbold.ttf", 51)
+        font = ImageFont.truetype("./consolasbold.ttf", 51)
         # draw.text((x, y),"Sample Text",(r,g,b))
         idOne = ctx.author.id
         idTwo = member.id
@@ -9160,10 +9163,10 @@ class Social(commands.Cog):
             f"{member.name}",
             (255, 255, 255),
             font=font)
-        imgbackground.save('aestron/testingresult.jpg')
-        file = discord.File("aestron/testingresult.jpg")
+        imgbackground.save('./testingresult.jpg')
+        file = discord.File("./testingresult.jpg")
         embed = discord.Embed()
-        embed.set_image(url="attachment://aestron/testingresult.jpg")
+        embed.set_image(url="attachment://testingresult.jpg")
         await ctx.send(file=file, embed=embed)
 
     @commands.cooldown(1, 30, BucketType.member)
@@ -9176,7 +9179,7 @@ class Social(commands.Cog):
         check_ensure_permissions(ctx, ctx.guild.me, ["attach_files"])
         if member is None:
             member = ctx.author
-        imgbackground = Image.open("aestron/background.jpg")
+        imgbackground = Image.open("./background.jpg")
         asset = member.display_avatar
         data = BytesIO(await asset.read())
         pfp = Image.open(data)
@@ -9184,7 +9187,7 @@ class Social(commands.Cog):
         imgbackground.paste(pfp, (388, 195))
         draw = ImageDraw.Draw(imgbackground)
         # font = ImageFont.truetype(<font-file>, <font-size>)
-        font = ImageFont.truetype("aestron/consolasbold.ttf", 18)
+        font = ImageFont.truetype("./consolasbold.ttf", 18)
         # draw.text((x, y),"Sample Text",(r,g,b))
         draw.text(
             (8, 465),
@@ -9192,10 +9195,10 @@ class Social(commands.Cog):
             (255, 255, 255),
             font=font)
 
-        imgbackground.save('aestron/backgroundone.jpg')
-        file = discord.File("aestron/backgroundone.jpg")
+        imgbackground.save('./backgroundone.jpg')
+        file = discord.File("./backgroundone.jpg")
         embed = discord.Embed()
-        embed.set_image(url="attachment://aestron/backgroundone.jpg")
+        embed.set_image(url="attachment://backgroundone.jpg")
         await ctx.send(file=file, embed=embed)
 
     @commands.cooldown(1, 30, BucketType.member)
@@ -9208,16 +9211,16 @@ class Social(commands.Cog):
         check_ensure_permissions(ctx, ctx.guild.me, ["attach_files"])
         if member is None:
             member = ctx.author
-        wanted = Image.open("aestron/wanted.png")
+        wanted = Image.open("./wanted.png")
         asset = member.display_avatar
         data = BytesIO(await asset.read())
         pfp = Image.open(data)
         pfp = pfp.resize((139, 172))
         wanted.paste(pfp, (114, 153))
-        wanted.save("aestron/backgroundone.png")
-        file = discord.File("aestron/backgroundone.png")
+        wanted.save("./backgroundone.png")
+        file = discord.File("./backgroundone.png")
         embed = discord.Embed()
-        embed.set_image(url="attachment://aestron/backgroundone.png")
+        embed.set_image(url="attachment://backgroundone.png")
         try:
             await ctx.send(file=file, embed=embed)
         except:
@@ -12964,7 +12967,7 @@ class ValorantRoundStats(discord.ui.View):
 
             try:
                 embed.set_image(
-                    url=f"attachment://aestron/{round.mapinfo.filename}")
+                    url=f"attachment://{round.mapinfo.filename}")
             except:
                 pass
             count += 1
