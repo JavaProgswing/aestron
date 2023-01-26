@@ -2434,11 +2434,12 @@ async def getFormattedOutput(url, authheader=None):
                     pass
     except:
         return None
+    formattedjson = respjson
     try:
-        respjson = json.loads(respjson)
+        formattedjson = json.loads(respjson)
     except:
         pass
-    return respjson
+    return formattedjson
 
 
 @tasks.loop(hours=4)
@@ -2469,97 +2470,52 @@ async def valorantSeasonCheck():
 
 @tasks.loop(minutes=15)
 async def valorantMatchSave():
-    #print(f"Match save ACTIVE!")
+    print(f"Match save started...")
     async with pool.acquire() as con:
         puuidlist = await con.fetch(f"SELECT * FROM riotaccount")
     for puuid in puuidlist:
-        #print(f"Starting FETCH MATCH for {puuid}...")
-        #start = time.time()
         puuidstr = puuid["accountpuuid"]
-        #currentregion = "ap"
+        print(f"\rGetting match history for {puuidstr}(0% complete)", end="")
         url = f"https://ap.api.riotgames.com/val/match/v1/matchlists/by-puuid/{puuidstr}"
         authheader = {'X-Riot-Token': valorant_api_key}
         respjson = await getFormattedOutput(url, authheader)
+        numberofmatches = len(respjson["history"])
+        count = 1
         for matchdetails in respjson["history"]:
             matchid = matchdetails["matchId"]
-            matchtime = matchdetails["gameStartTimeMillis"]//1000
-            async with pool.acquire() as con:
-                lastupdate = await con.fetchrow(f"SELECT lastupdate FROM riotmatches WHERE accountpuuid = '{puuidstr}'")
-            if lastupdate is not None:
-                lastupdate = lastupdate["lastupdate"]
-                try:
-                    timespent = abs(lastupdate - matchtime)
-                    # matchesinfo.matchlist[len(matchesinfo.matchlist)-1].start_raw//1000)
-                except Exception as error:
-                    etype = type(error)
-                    trace = error.__traceback__
-                    # 'traceback' is the stdlib module, `import traceback`.
-                    lines = traceback.format_exception(etype, error, trace)
-                    # format_exception returns a list with line breaks embedded in the lines, so let's just stitch the elements together
-                    traceback_text = ''.join(lines)
-                    print(f"Match last time got an exception : {error}")
-                    print(traceback_text)
-                    continue
-                if timespent < 10*60 and timespent > 0:
-                    continue
-            #start = time.time()
+            print(
+                f"\rGetting match history for {puuidstr}({((count/numberofmatches)*100):.2f}% complete)", end="")
+            count += 1
+            start = time.time()
             url = f"https://ap.api.riotgames.com/val/match/v1/matches/{matchid}"
             respjson = await getFormattedOutput(url, authheader)
             try:
-                matchesinfo = MatchesLite(respjson)
+                matchInfo = Match(respjson)
             except Exception as ex:
-                print(f" {ex} while parsing current match!")
+                print(f"Match error {ex}")
                 continue
-            #print(f"Fetching MATCH for {puuid} took {time.time() - start}s")
-            prevmatches = []
+            end = time.time()
             async with pool.acquire() as con:
-                matchjsons = await con.fetchrow(f"SELECT matchjsons FROM riotmatches WHERE accountpuuid = '{puuidstr}'")
-            firstTime = matchjsons is None
-            if firstTime:
-                matchjsons = json.loads('{"data": []}')
-            else:
-                matchjsons = matchjsons["matchjsons"]
-                matchjsons = json.loads(matchjsons)
-            # print(
-            # f"Fetching PREV DB MATCH for {puuid} took {time.time() - start}s")
-            #start = time.time()
-            for match in matchjsons["data"]:
-                prevmatches.append(valoMatchJson(
-                    match["matchInfo"]["matchId"], match))
-            #print(f"Parsing PREV MATCH for {puuid} took {time.time() - start}s")
-            #start = time.time()
-            currentmatches = []
-            for match in matchesinfo.matchlist:
-                matchid = match.id
-                matchjson = match.raw
-                currentmatches.append(valoMatchJson(matchid, matchjson))
-            #print(f"Parsing CURR MATCH for {puuid} took {time.time() - start}s")
-            #start = time.time()
-            newmatches = []
-            matchids = []
-            for match in currentmatches:
-                if match.id not in [x.id for x in prevmatches]:
-                    matchjsons["data"].append(match.mjson)
-                    newmatches.append(Match(match.mjson))
-                matchids.append(match.id)
-            #print(f"Adding new MATCHES for {puuid} took {time.time() - start}s")
-            results = (
-                f"INSERT INTO riotparsedmatches (id,data) VALUES($1, $2);"
-            )
-            for match in newmatches:
-                async with pool.acquire() as con:
-                    await con.execute(results, match.id, pickle.dumps(match))
-            if firstTime:
                 results = (
-                    f"INSERT INTO riotmatches (accountpuuid,matchjsons,matchids,lastupdate) VALUES($1,$2,$3,$4);")
-                async with pool.acquire() as con:
-                    await con.execute(results, puuidstr, json.dumps(matchjsons), matchids, time.time())
-            else:
+                    f"INSERT INTO riotparsedmatches (id, data) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING")
+                await con.execute(results, matchid, pickle.dumps(matchInfo))
 
+            async with pool.acquire() as con:
                 results = (
-                    f"UPDATE riotmatches SET matchjsons = $1 , lastupdate = $2 , matchids = $3 WHERE accountpuuid = $4")
+                    f"SELECT * FROM riotmatches WHERE discorduserid = {puuid['discorduserid']}")
+                matchids = await con.fetchrow(results)
+            if matchids is None:
+                matchid = [matchid]
                 async with pool.acquire() as con:
-                    await con.execute(results, json.dumps(matchjsons), time.time(), matchids, puuidstr)
+                    results = (
+                        "INSERT INTO riotmatches (discorduserid, accountpuuid, matchids) VALUES ($1, $2, $3)")
+                    await con.execute(results, puuid["discorduserid"], puuidstr, matchid)
+            elif matchid not in matchids["matchids"]:
+                async with pool.acquire() as con:
+                    results = (
+                        f"UPDATE riotmatches SET matchids = array_append(matchids, $1) WHERE discorduserid = $2")
+                    await con.execute(results, matchid, puuid["discorduserid"])
+        print(f"\rGetting match history for {puuidstr}(100% complete)", end="")
 
 
 def check_ensure_permissions(ctx, member, perms):
@@ -7004,26 +6960,6 @@ class Matches():
         return ".".join(matchnames.rsplit(",", 1))
 
 
-class MatchesLite():
-    def __init__(self, mdict):
-        self.matchlist = []
-        self.raw = mdict
-        matchdata = MatchLite(self.raw)
-        self.matchlist.append(matchdata)
-
-
-class MatchLite():
-    def __init__(self, mdict):
-        self.raw = mdict
-        mapName = ValorantAPI().get_map_name_from_url(
-            mdict["matchInfo"]["mapId"])
-        self.name = mapName
-        self.id = mdict["matchInfo"]["matchId"]
-        self.mode = ValorantAPI().get_formatted_queue_name(
-            mdict["matchInfo"]["queueId"])
-        self.start_raw = mdict["matchInfo"]["gameStartMillis"]
-
-
 class Match():
     def __init__(self, mdict):
         self.raw = mdict
@@ -7036,7 +6972,7 @@ class Match():
             mdict["matchInfo"]["queueId"])
         self.start_raw = mdict["matchInfo"]["gameStartMillis"]
         self.start = datetime.fromtimestamp(self.start_raw//1000)
-        self.rounds = Rounds(mdict, self.name)
+        self.rounds = Rounds(mdict, self.name, self)
         self.winningteam = FormatData().get_rounds_won(self.rounds.roundlist)
         self.players = Players(mdict["players"])
 
@@ -7137,8 +7073,9 @@ class Player():
 
 
 class Rounds():
-    def __init__(self, mdict, mapname=None):
+    def __init__(self, mdict, mapname=None, match=None):
         self.roundlist = []
+        self.match = match
         try:
             self.mapname = mapname
         except:
@@ -7172,7 +7109,6 @@ class Round():
             def __init__(self, mdict):
                 self.raw = mdict
                 self.id = mdict["puuid"]
-                #self.display_name = mdict["player_display_name"]
                 self.damagelist = []
                 self.killist = []
                 for damage in mdict["damage"]:
@@ -7777,12 +7713,12 @@ class Valorant(commands.Cog):
             await ctx.send(f"Your stats could not be fetched as they haven't been loaded yet!")
             return
         count = 0
-        for matchid in matchidslist:
+        for matchid in matchidslist["matchids"]:
             if count == 10:
                 break
             async with pool.acquire() as con:
-                pickledmatch = await con.fetchrow(f"SELECT data FROM riotparsedmatches where id = {matchid}")
-            match = pickle.loads(pickledmatch)
+                pickledmatch = await con.fetchrow(f"SELECT data FROM riotparsedmatches where id = '{matchid}'")
+            match = pickle.loads(pickledmatch["data"])
             matchesinfo.add_match(match)
             count += 1
         async with aiohttp.ClientSession() as session:
@@ -9001,8 +8937,8 @@ async def vstats(ctx, member: typing.Union[discord.Member, discord.User] = None)
         if count == 10:
             break
         async with pool.acquire() as con:
-            pickledmatch = await con.fetchrow(f"SELECT data FROM riotparsedmatches where id = {matchid}")
-        match = pickle.loads(pickledmatch)
+            pickledmatch = await con.fetchrow(f"SELECT data FROM riotparsedmatches where id = '{matchid}'")
+        match = pickle.loads(pickledmatch["data"])
         matchesinfo.add_match(match)
         count += 1
     async with aiohttp.ClientSession() as session:
@@ -12386,30 +12322,25 @@ class ValorantRoundStats(discord.ui.View):
         self.currentcharactername = currentcharactername
         self.embeds = []
         count = 1
+        currentplayerteam = None
+        for player in self.rounds.roundlist[0].match.players.playerlist:
+            if player.id == self.currentplayerid:
+                self.currentplayername = player.name
+                currentplayerteam = player.team_id
+
         for round in rounds.roundlist:
-            currentplayerteam = "None"
             currentplayername = "Unknown"
             currentplayerkills = []
             currentplayerassists = []
-            currentplayerhs = 0
-            currentplayerecospent = 0
             playerability = self.DemoAbility()
             for playerdata in round.stats.playerlist:
-                playerteam = playerdata.team
-                playername = playerdata.display_name
                 playerkills = playerdata.killist
                 playerassists = playerdata.damagelist
-                playerhs = playerdata.totalheadshots
                 playerability = playerdata.ability
-                playerecospent = playerdata.ecospent
                 if playerdata.id == currentplayerid:
-                    currentplayerteam = playerteam
-                    currentplayername = playername
                     currentplayerkills = playerkills
                     currentplayerassists = playerassists
-                    currentplayerhs = playerhs
                     currentplayerability = playerability
-                    currentplayerecospent = playerecospent
                     break
             newplayerassists = []
             for assist in currentplayerassists:
@@ -12444,17 +12375,12 @@ class ValorantRoundStats(discord.ui.View):
             if assists == 0:
                 assists = 1
             ka = kills/assists
-            try:
-                hspercent = currentplayerhs//kills*100
-            except:
-                hspercent = 0
             roundwon = round.winnerteam.raw_name == currentplayerteam
             if roundwon:
                 embed = discord.Embed(title=currentplayername, description=f"""
                 **Round {count} Overview**
                 **Agent**: {currentcharactername}
                 **K/A**: {ka}
-                **HS%**: {hspercent}
                 **Side**: {FormatData().format_side(currentplayerteam)}
                 **Result**: {FormatData().format_team(round.winnerteam.raw_name)} won - {roundlosingreason}
                 
@@ -12473,7 +12399,6 @@ class ValorantRoundStats(discord.ui.View):
                 **Round {count} Overview**
                 **Agent**: {currentcharactername}
                 **K/A**: {ka}
-                **HS%**: {hspercent}
                 **Side**: {FormatData().format_side(currentplayerteam)}
                 **Result**: {FormatData().format_team(round.winnerteam.raw_name)} won - {roundlosingreason}
                 
@@ -13808,9 +13733,18 @@ async def on_message(message):
                             accountpuuid = jsonGot["puuid"]
                             accountname = jsonGot["gameName"]
                             accounttag = jsonGot["tagLine"]
-                            statement = """INSERT INTO riotaccount (discorduserid,accountpuuid,accountname,accounttag) VALUES($1,$2,$3,$4);"""
+                            statement = """SELECT * FROM riotaccount WHERE discorduserid = $1;"""
                             async with pool.acquire() as con:
-                                await con.execute(statement, reqid, accountpuuid, accountname, accounttag)
+                                riotaccount = await con.fetchrow(statement, reqid)
+                            if riotaccount is not None:
+                                statement="""UPDATE riotaccount SET accountpuuid = $1, accountname = $2, accounttag = $3 WHERE discorduserid = $4;"""
+                                async with pool.acquire() as con:
+                                    await con.execute(statement, accountpuuid, accountname, accounttag, reqid)
+                            else:
+                                statement = """INSERT INTO riotaccount (discorduserid,accountpuuid,accountname,accounttag) VALUES($1,$2,$3,$4);"""
+                                async with pool.acquire() as con:
+                                    await con.execute(statement, reqid, accountpuuid, accountname, accounttag)
+                            
                             await message.reply(f"Account {accountname} with tag {accounttag} and puuid {accountpuuid} has been added to the database.")
                             await message.add_reaction("✔️")
         if message.author == client.user:
@@ -15551,4 +15485,4 @@ except Exception as ex:
             print(f'Failed due to {ex}')
             errOcc = True
         if not errOcc:
-            print('Success!')
+            print('Bot restarted successfully!')
