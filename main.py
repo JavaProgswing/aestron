@@ -3048,6 +3048,12 @@ class Moderation(commands.Cog):
             read_messages=True,
             send_messages=False,
         )
+        for roleL in ctx.guild.roles:
+            overw[roleL]=discord.PermissionOverwrite(view_channel=True)
+            for pair in channel.overwrites_for(roleL):
+                if not pair[1]:
+                    overw[roleL]._set(pair[0], pair[1])
+        overw[role]._set("send_messages", False)
         await channel.edit(overwrites=overw)
         embed = discord.Embed(
             title=f"Channel locked", description=f"{channel.mention} locked by {ctx.author.mention} for {reason}.", color=0x2fa737)  # Green
@@ -3118,6 +3124,12 @@ class Moderation(commands.Cog):
             read_messages=True,
             send_messages=True,
         )
+        for roleL in ctx.guild.roles:
+            overw[roleL]=discord.PermissionOverwrite(view_channel=True)
+            for pair in channel.overwrites_for(roleL):
+                if not pair[1]:
+                    overw[roleL]._set(pair[0], pair[1])
+        overw[role]._set("send_messages", True)
         await channel.edit(overwrites=overw)
         embed = discord.Embed(title=f"Channel unlocked",
                               description=f"{channel.mention} unlocked by {ctx.author.mention} for {reason}.", color=0x2fa737)  # Green
