@@ -3671,7 +3671,7 @@ class Moderation(commands.Cog):
             loopexited = False
             for warning in warninglist:
                 embed.add_field(
-                    name=f"Warning #{count}", value=f"{warning[1]}")
+                    name=f"Warning #{count}", value=f"{warning["warning"]}")
                 count = count+1
                 if count >= 12:
                     count = 0
