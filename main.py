@@ -5065,7 +5065,7 @@ class Verification(discord.ui.View):
             return
         if verifyrole in interaction.user.roles:
             await interaction.response.send_message(
-                content="You are already verified.", ephemeral=True)
+                content="You are already verified.", ephemeral=True, delete_after=5)
             return
         captchaMessage = randStr()
         image = ImageCaptcha()
@@ -13222,7 +13222,7 @@ class Minecraftpvp(discord.ui.View):
         self, button: discord.ui.Button, interaction: discord.Interaction
     ):
         if not interaction.user.id in self.memberids:
-            await interaction.response.send_message("You are not participating in this pvp fight!", ephemeral=True)
+            await interaction.response.send_message("You are not participating in this pvp fight!", ephemeral=True, delete_after=2)
             return
         else:
             if interaction.user.id == self.memberoneid:
@@ -13261,11 +13261,11 @@ class Minecraftpvp(discord.ui.View):
         self, button: discord.ui.Button, interaction: discord.Interaction
     ):
         if not interaction.user.id in self.memberids:
-            await interaction.response.send_message("You are not participating in this pvp fight!", ephemeral=True)
+            await interaction.response.send_message("You are not participating in this pvp fight!", ephemeral=True,delete_after=2)
             return
         else:
             if not interaction.user.id == self.moveturn:
-                await interaction.response.send_message("Its not your turn in this pvp fight!", ephemeral=True)
+                await interaction.response.send_message("Its not your turn in this pvp fight!", ephemeral=True,delete_after=2)
                 return
             if interaction.user.id == self.memberoneid:
                 if not self.memberone_resiscooldown:
@@ -13273,7 +13273,7 @@ class Minecraftpvp(discord.ui.View):
                     self.memberone_resiscooldown = True
                     self.moveturn = self.membertwoid
                 else:
-                    await interaction.response.send_message("You cannot lift your shield , its on cooldown!", ephemeral=True)
+                    await interaction.response.send_message("You cannot lift your shield , its on cooldown!", ephemeral=True,delete_after=2)
                     return
             elif interaction.user.id == self.membertwoid:
                 if not self.membertwo_resiscooldown:
@@ -13281,7 +13281,7 @@ class Minecraftpvp(discord.ui.View):
                     self.membertwo_resiscooldown = True
                     self.moveturn = self.memberoneid
                 else:
-                    await interaction.response.send_message("You cannot lift your shield , its on cooldown!", ephemeral=True)
+                    await interaction.response.send_message("You cannot lift your shield , its on cooldown!", ephemeral=True,delete_after=2)
                     return
             message = interaction.message
             if not message is None:
@@ -13295,7 +13295,7 @@ class Minecraftpvp(discord.ui.View):
                     pass
                 embed.description = f"`{interaction.user.name} has equipped the shields and its on cooldown for the next move!`"
                 await message.edit(content=f"<@{self.moveturn}> 's turn to fight!", embed=embed)
-            await interaction.response.send_message("You have equipped your shields.", ephemeral=True)
+            await interaction.response.send_message("You have equipped your shields.", ephemeral=True, delete_after=2)
 
     @discord.ui.button(label="⚔️ Attack", style=discord.ButtonStyle.green)
     async def attack(
@@ -13324,12 +13324,12 @@ class Minecraftpvp(discord.ui.View):
             "withered away whilst fighting "
         ]
         if not interaction.user.id in self.memberids:
-            await interaction.response.send_message("You are not participating in this pvp fight!", ephemeral=True)
+            await interaction.response.send_message("You are not participating in this pvp fight!", ephemeral=True,delete_after=2)
             return
         else:
             if interaction.user.id == self.memberoneid:
                 if not interaction.user.id == self.moveturn:
-                    await interaction.response.send_message("Its not your turn in this pvp fight!", ephemeral=True)
+                    await interaction.response.send_message("Its not your turn in this pvp fight!", ephemeral=True,delete_after=2)
                     return
                 self.memberone_resiscooldown = False
                 self.moveturn = self.membertwoid
@@ -13343,7 +13343,7 @@ class Minecraftpvp(discord.ui.View):
                     damagevalue *= 0
                     self.membertwo_resistance = False
                 self.membertwo_healthpoint -= damagevalue
-                await interaction.response.send_message(f"You dealt {damagevalue} to {self.membertwoname}.", ephemeral=True)
+                await interaction.response.send_message(f"You dealt {damagevalue} to {self.membertwoname}.", ephemeral=True,delete_after=2)
                 try:
                     if self.vc.is_playing():
                         self.vc.stop()
@@ -13400,7 +13400,7 @@ class Minecraftpvp(discord.ui.View):
                     await message.edit(embed=embed, content=f"<@{self.moveturn}> 's turn to fight!")
             elif interaction.user.id == self.membertwoid:
                 if not interaction.user.id == self.moveturn:
-                    await interaction.response.send_message("Its not your turn in this pvp fight!", ephemeral=True)
+                    await interaction.response.send_message("Its not your turn in this pvp fight!", ephemeral=True,delete_after=2)
                     return
                 self.membertwo_resiscooldown = False
                 self.moveturn = self.memberoneid
@@ -13414,7 +13414,7 @@ class Minecraftpvp(discord.ui.View):
                     damagevalue *= 0
                     self.memberone_resistance = False
                 self.memberone_healthpoint -= damagevalue
-                await interaction.response.send_message(f"You dealt {damagevalue} to {self.memberonename}.", ephemeral=True)
+                await interaction.response.send_message(f"You dealt {damagevalue} to {self.memberonename}.", ephemeral=True, delete_after=2)
                 try:
                     if self.vc.is_playing():
                         self.vc.stop()
@@ -14804,9 +14804,12 @@ async def on_guild_channel_update(before, after):
     dirs = [a for a in dir(before) if not a.startswith('__')]
     changedetected = False
     for a in dirs:
-        attrbefore = getattr(before, a)
-        attrafter = getattr(after, a)
-        if not hasattr(attrbefore, a):
+        try:
+            attrbefore = getattr(before, a)
+            attrafter = getattr(after, a)
+            if not hasattr(attrbefore, a):
+                continue
+        except:
             continue
         if attrbefore != attrafter:
             changedetected = True
