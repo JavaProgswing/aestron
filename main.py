@@ -6907,6 +6907,13 @@ class ValorantAPI():
                 if agentname == i["displayName"]:
                     return i["displayIconSmall"]
 
+    def get_agent_from_id(self, id):
+        with open('./agentinfo.json') as data_file:
+            datajson = json.load(data_file)
+            for i in datajson["data"]:
+                if id == i["uuid"]:
+                    return i["displayName"]
+
     def get_agents_abilities(self):
         agents = []
         with open('./agentinfo.json') as data_file:
@@ -7090,7 +7097,7 @@ class Player():
         def __init__(self, mdict):
             self.raw = mdict
             self.id = mdict["characterId"]
-            self.name = ValorantAPI().get_name_from_id(self.id)
+            self.name = ValorantAPI().get_agent_from_id(self.id)
             #self.icon = mdict["assets"]["agent"]["small"]
             #self.full_icon = mdict["assets"]["agent"]["full"]
             #self.kill_icon = mdict["assets"]["agent"]["killfeed"]
