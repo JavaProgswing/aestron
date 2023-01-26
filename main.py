@@ -1700,7 +1700,7 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=False, userl
     traceback_text = ''.join(lines)
     pastecode_failed = False
     try:
-        pastecode = await mystbin_client.create_paste(content=traceback_text,filename=genrandomstr(10))
+        pastecode = await mystbin_client.create_paste(content=traceback_text, filename=genrandomstr(10))
     except:
         pass
     embederror = discord.Embed(
@@ -7033,7 +7033,7 @@ class Players():
         playernames = ""
         for player in self.playerlist:
             playernames += player.display_name + \
-                f"({player.currenttier_patched}),"
+                f"({player.currenttier}),"
         return ".".join(playernames.rsplit(",", 1))
 
 
@@ -7090,6 +7090,7 @@ class Player():
         def __init__(self, mdict):
             self.raw = mdict
             self.id = mdict["characterId"]
+            self.name = ValorantAPI().get_name_from_id(self.id)
             #self.icon = mdict["assets"]["agent"]["small"]
             #self.full_icon = mdict["assets"]["agent"]["full"]
             #self.kill_icon = mdict["assets"]["agent"]["killfeed"]
@@ -10311,7 +10312,7 @@ class Support(commands.Cog):
         usage="*Code*", aliases=["savecode", "sharecode"])
     async def pastebin(self, ctx, *, code: str):
         try:
-            pastecode = await mystbin_client.create_paste(content=code,filename=genrandomstr(10))
+            pastecode = await mystbin_client.create_paste(content=code, filename=genrandomstr(10))
         except:
             raise commands.CommandError("Posting to pastebin failed!")
         embedtwo = discord.Embed(title=f"{client.user.name} pasted your code.",
@@ -10415,7 +10416,7 @@ class Support(commands.Cog):
                                          f"{client.user.name} executed your code."),
                                      color=Color.green())
         try:
-            erroutput = await mystbin_client.create_paste(content=erroutput,filename=genrandomstr(10))
+            erroutput = await mystbin_client.create_paste(content=erroutput, filename=genrandomstr(10))
         except:
             erroutput = erroutput
         defaultembed.add_field(name="Error :", value=erroutput, inline=False)
@@ -10503,7 +10504,7 @@ class Support(commands.Cog):
                                  description=desc.content,
                                  color=Color.green())
         embedone.set_footer(
-            text=f"Created by {ctx.author.name} using createembed command.")
+            text=f"Created by {ctx.author.name} using embedcreate command.")
         await ctx.send(embed=embedone)
 
     @commands.command(
@@ -12558,7 +12559,7 @@ class ValorantStats(discord.ui.View):
                 if player.id == currentplayerid and firstmatch:
                     self.currentcharactername = player.character.name
                 playerinfoembed.add_field(
-                    name=f"{ct}. {player.name}\n({player.character.name})", value=player.currenttier_patched)
+                    name=f"{ct}. {player.name}\n({player.character.name})", value=player.currenttier)
             playerinfoembed.set_thumbnail(url=match.thumbnail)
             self.playerinfoembeds.append(playerinfoembed)
             firstmatch = False
@@ -12571,14 +12572,6 @@ class ValorantStats(discord.ui.View):
                     **Map**: {match.name}
                     **Character**: {player.character.name}
                     **K/D/A** : {player.stats.kills}/{player.stats.deaths}/{player.stats.assists}
-
-                    **Economy stats**
-                    **Total spent**: {player.economy_stats.spent_total}
-                    **Average spent**: {player.economy_stats.spent_average}
-
-                    **Damage stats**
-                    **Damage dealt**: {player.damage_made}
-                    **Damage received**: {player.damage_received}
 
                     **Abilities Used**
                     **{agentability["Ability1"].capitalize()}**: {player.ability_stats.c_casts}
@@ -13438,8 +13431,8 @@ async def on_raw_message_delete(payload):
         if not payload.guild_id:
             return
         channelid = payload.channel_id
-        if guildmusiccp[payload.guild_id] and payload.message_id==guildmusiccp[payload.guild_id][0]:
-            guildmusiccp[payload.guild_id]=False
+        if guildmusiccp[payload.guild_id] and payload.message_id == guildmusiccp[payload.guild_id][0]:
+            guildmusiccp[payload.guild_id] = False
         if payload.cached_message is not None:
             authorname = str(payload.cached_message.author.name) + \
                 "#"+str(payload.cached_message.author.discriminator)
