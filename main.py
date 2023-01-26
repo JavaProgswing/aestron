@@ -2543,7 +2543,7 @@ async def valorantMatchSave():
                     newmatches.append(Match(match.mjson))
                 matchids.append(match.id)
             #print(f"Adding new MATCHES for {puuid} took {time.time() - start}s")
-            results=(
+            results = (
                 f"INSERT INTO riotparsedmatches (id,data) VALUES($1, $2);"
             )
             for match in newmatches:
@@ -2555,11 +2555,12 @@ async def valorantMatchSave():
                 async with pool.acquire() as con:
                     await con.execute(results, puuidstr, json.dumps(matchjsons), matchids, time.time())
             else:
-                
+
                 results = (
                     f"UPDATE riotmatches SET matchjsons = $1 , lastupdate = $2 , matchids = $3 WHERE accountpuuid = $4")
                 async with pool.acquire() as con:
                     await con.execute(results, json.dumps(matchjsons), time.time(), matchids, puuidstr)
+
 
 def check_ensure_permissions(ctx, member, perms):
     for perm in perms:
@@ -6801,7 +6802,7 @@ class Weapon:
 
 
 class ValorantAPI():
-    def get_card_icon(self,cardId):
+    def get_card_icon(self, cardId):
         with open('./playercardinfo.json') as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
@@ -6992,8 +6993,10 @@ class ValorantAPI():
 class Matches():
     def __init__(self):
         self.matchlist = []
+
     def add_match(self, match):
         self.matchlist.append(match)
+
     def __str__(self):
         matchnames = ""
         for match in self.matchlist:
@@ -7767,17 +7770,21 @@ class Valorant(commands.Cog):
             except:
                 return ""
         url = f"https://api.henrikdev.xyz/valorant/v1/mmr/{currentregion}/{username}/{usertag}"
-        matchesinfo=Matches()
+        matchesinfo = Matches()
         async with pool.acquire() as con:
             matchidslist = await con.fetchrow(f"SELECT matchids FROM riotmatches where discorduserid = {ctx.author.id}")
         if matchidslist is None:
             await ctx.send(f"Your stats could not be fetched as they haven't been loaded yet!")
             return
+        count = 0
         for matchid in matchidslist:
+            if count == 10:
+                break
             async with pool.acquire() as con:
                 pickledmatch = await con.fetchrow(f"SELECT data FROM riotparsedmatches where id = {matchid}")
             match = pickle.loads(pickledmatch)
             matchesinfo.add_match(match)
+            count += 1
         async with aiohttp.ClientSession() as session:
             respjson = await fetchaiohttp(session, url)
         try:
@@ -8983,17 +8990,21 @@ async def vstats(ctx, member: typing.Union[discord.Member, discord.User] = None)
         except:
             return ""
     url = f"https://api.henrikdev.xyz/valorant/v1/mmr/{currentregion}/{username}/{usertag}"
-    matchesinfo=Matches()
+    matchesinfo = Matches()
     async with pool.acquire() as con:
         matchidslist = await con.fetchrow(f"SELECT matchids FROM riotmatches where discorduserid = {ctx.author.id}")
     if matchidslist is None:
         await ctx.respond(f"Your stats could not be fetched as they haven't been loaded yet!", ephemeral=True)
         return
+    count = 0
     for matchid in matchidslist:
+        if count == 10:
+            break
         async with pool.acquire() as con:
             pickledmatch = await con.fetchrow(f"SELECT data FROM riotparsedmatches where id = {matchid}")
         match = pickle.loads(pickledmatch)
         matchesinfo.add_match(match)
+        count += 1
     async with aiohttp.ClientSession() as session:
         respjson = await fetchaiohttp(session, url)
     try:
