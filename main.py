@@ -3963,7 +3963,7 @@ class Moderation(commands.Cog):
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
             return
-        bannedmembers = await ctx.guild.bans()
+        bannedmembers = await ctx.guild.bans(limit=None).flatten()
         for member in members:
             if member is None or member == ctx.author:
                 await on_command_error(ctx,
@@ -4018,7 +4018,7 @@ class Moderation(commands.Cog):
                         commands.has_permissions(ban_members=True))
     async def checkbans(self, ctx):
         check_ensure_permissions(ctx, ctx.guild.me, ["ban_members"])
-        bans = await ctx.guild.bans()
+        bans = await ctx.guild.bans(limit=None).flatten()
         embed = discord.Embed(title="Guild bans", description="** **")
         count = 0
         loopexited = False
@@ -4047,7 +4047,7 @@ class Moderation(commands.Cog):
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
             return
-        bannedmembers = await ctx.guild.bans()
+        bannedmembers = await ctx.guild.bans(limit=None).flatten()
         for member in members:
             if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author.id == ctx.guild.owner.id:
                 await on_command_error(ctx, "You cannot ban members having higher roles than your highest role.")
@@ -8742,7 +8742,7 @@ class Fun(commands.Cog):
         exists = False
         banperms = True
         try:
-            bannedmembers = await ctx.guild.bans()
+            bannedmembers = await ctx.guild.bans(limit=None).flatten()
         except:
             banperms = False
         if banperms:
@@ -12235,7 +12235,7 @@ async def constructmember(id, guild):
         member = guild.get_member(user.id)
         memberExists = member is not None
         exists = False
-        bannedmembers = await guild.bans()
+        bannedmembers = await guild.bans(limit=None).flatten()
         for loopmember in bannedmembers:
             if loopmember.user.id == member.id:
                 exists = True
@@ -12390,7 +12390,7 @@ async def profile(ctx, message: discord.Message):
     exists = False
     banperms = True
     try:
-        bannedmembers = await ctx.guild.bans()
+        bannedmembers = await ctx.guild.bans(limit=None).flatten()
     except:
         banperms = False
     if banperms:
