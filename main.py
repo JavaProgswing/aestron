@@ -1268,6 +1268,9 @@ class Songpanel(discord.ui.View):
         except:
             await interaction.response.send_message("No lyrics found for that song.", ephemeral=True)
             return
+        if output.get('error'):
+            await interaction.response.send_message("No lyrics found for that song.", ephemeral=True)
+            return
         try:
             embedtitle = (output['title'])
         except:
@@ -2774,7 +2777,7 @@ def convertSec(seconds):
 
 async def currentlyplayingslider(message, guild, playingmusic):
     try:
-        guildmusiccp[guild.id] = message.jump_url
+        guildmusiccp[guild.id] = (message.id, message.jump_url)
     except:
         pass
     embed = message.embeds[0]
@@ -3049,7 +3052,7 @@ class Moderation(commands.Cog):
             send_messages=False,
         )
         for roleL in ctx.guild.roles:
-            overw[roleL]=discord.PermissionOverwrite(view_channel=True)
+            overw[roleL] = discord.PermissionOverwrite(view_channel=True)
             for pair in channel.overwrites_for(roleL):
                 if not pair[1]:
                     overw[roleL]._set(pair[0], pair[1])
@@ -3125,7 +3128,7 @@ class Moderation(commands.Cog):
             send_messages=True,
         )
         for roleL in ctx.guild.roles:
-            overw[roleL]=discord.PermissionOverwrite(view_channel=True)
+            overw[roleL] = discord.PermissionOverwrite(view_channel=True)
             for pair in channel.overwrites_for(roleL):
                 if not pair[1]:
                     overw[roleL]._set(pair[0], pair[1])
@@ -10561,40 +10564,6 @@ class Music(commands.Cog):
         except:
             pass
 
-    @commands.command(aliases=["queue", "songs", "queuedsongs", "queuedsong"],
-                      brief='This command can be used to check the song queue',
-                      description='This command can be used to check the song queue.',
-                      usage="")
-    @commands.guild_only()
-    @commands.cooldown(1, 10, BucketType.member)
-    async def songqueue(self, ctx):
-        guild = ctx.guild
-        length = len(guildmusicqueue[guild.id])
-        if length < 1:
-            await ctx.send("No songs are queued in this guild.")
-            return
-        else:
-            embedVar = discord.Embed(
-                title=f"{ctx.guild} tracks", description="", color=0x00ff00)
-            listOfEmbeds = []
-            count = 0
-
-            for i in range(length):
-                count = count+1
-                player = guildmusicqueue[guild.id][i]
-                embedVar.description = embedVar.description + \
-                    f"{i+1}. {player.typeemoji} [`{timedelta(seconds=player.duration)}`] [{player.title}]({player.url}) : {player.requester.mention}\n"
-                if count == 10:
-                    listOfEmbeds.append(embedVar)
-                    embedVar = discord.Embed(
-                        title=f"{ctx.guild} tracks", description="", color=0x00ff00)
-                    count = 0
-            if length < 10:
-                listOfEmbeds.append(embedVar)
-            pagview = PaginateEmbed(listOfEmbeds)
-            msg = await ctx.send(view=pagview, embed=listOfEmbeds[0])
-            pagview.set_initial_message(msg)
-
     @commands.command(aliases=['vc', 'connect'],
                       brief='This command can be used to summon the bot in your voice channel.',
                       description='This command can be used to summon the bot in your voice channel.',
@@ -10623,61 +10592,6 @@ class Music(commands.Cog):
 
         await channel.connect()
 
-    @commands.cooldown(1, 90, BucketType.member)
-    @commands.command(
-        brief='This command can be used to loop a song.',
-        description='This command can be used to loop a song in a voice channel.',
-        usage="")
-    @commands.guild_only()
-    async def loop(self, ctx):
-        global guildmusicloop, guildmusiccurrentstate
-        author = ctx.author
-        if author.voice.self_deaf:
-            await on_command_error(ctx,
-                                   "You are deafened in the voice channel , you won't be able to hear the playing audio."
-                                   )
-        playingmusic = None
-        try:
-            playingmusic = guildmusicrecent[ctx.guild.id][ctx.author.id]
-        except:
-            pass
-        if playingmusic is None:
-            await on_command_error(ctx,
-                                   "I could not find the song that was requested by you earlier in this guild."
-                                   )
-            return
-        if not guildmusicloop[ctx.guild.id]:
-            guildmusicloop[ctx.guild.id] = True
-            await ctx.send(f"The loop has been activated by {ctx.author.mention}")
-            guildmusiccurrentstate[ctx.guild.id] = "🔁"
-        else:
-            if not ctx.channel.permissions_for(author).manage_channels and not checkstaff(author):
-                await on_command_error(ctx, "I am already looping music,you must have `manage_channels` permissions to stop music loop.")
-                return
-            guildmusicloop[ctx.guild.id] = False
-            await ctx.send(f"The loop has been de-activated by {ctx.author.mention}")
-            guildmusiccurrentstate[ctx.guild.id] = "▶️"
-            return
-        songname = playingmusic
-        voice = ctx.guild.voice_client
-        while voice.is_playing() or voice.is_paused():
-            voice = ctx.guild.voice_client
-            if voice is None:
-                break
-            await asyncio.sleep(1)
-        loopbool = True
-        while (author.voice):
-            """Streams from a url (same as yt, but doesn't predownload)"""
-            await playmusic(ctx, songname, nonotice=loopbool)
-            loopbool = False
-            while voice.is_playing() or voice.is_paused():
-                voice = ctx.guild.voice_client
-                if voice is None:
-                    break
-                await asyncio.sleep(1)
-            if ctx.guild.voice_client is None or not guildmusicloop[ctx.guild.id]:
-                break
-
     @commands.cooldown(1, 45, BucketType.member)
     @commands.command(aliases=["lyrics"],
                       brief='This command can be used to get subtitles/lyrics of a song.',
@@ -10695,6 +10609,9 @@ class Music(commands.Cog):
         try:
             output = extract_lyrics.get_lyrics(songname)
         except:
+            await on_command_error(ctx, "No lyrics found for the current song.")
+            return
+        if output.get('error'):
             await on_command_error(ctx, "No lyrics found for the current song.")
             return
         try:
@@ -10717,9 +10634,9 @@ class Music(commands.Cog):
     @commands.guild_only()
     async def currentlyplaying(self, ctx):
         global guildmusictotaltime, guildmusictime, guildmusiccurrent, guildmusiccp
-        if guildmusiccp[ctx.guild.id]:
+        if guildmusiccp[ctx.guild.id] and ctx.guild.get_message(guildmusiccp[ctx.guild.id][0]) is not None:
             embedVar = discord.Embed(title=f"Currently playing message",
-                                     description=f"[Jump to message]({guildmusiccp[ctx.guild.id]})")
+                                     description=f"[Jump to message]({guildmusiccp[ctx.guild.id][1]})")
             await ctx.send(embed=embedVar)
             return
         playingmusic = None
@@ -10766,28 +10683,8 @@ class Music(commands.Cog):
         """Streams from a url (same as yt, but doesn't predownload)"""
         await playmusic(ctx, songname)
 
-    @commands.cooldown(1, 20, BucketType.member)
-    @commands.command(aliases=["vol", "v"],
-                      brief='This command can be used to change volume of song playing.',
-                      description='This command can be used to  change volume of song playing in a voice channel.',
-                      usage="percentage")
-    @commands.guild_only()
-    async def volume(self, ctx, volume: int):
-        """Changes the player's volume"""
-        author = ctx.author
-        if ctx.voice_client is None or ctx.voice_client.source is None:
-            await on_command_error(ctx,
-                                   "No music is being played currently.")
-            return
-        ctx.voice_client.source.volume = volume / 100
-        try:
-            await ctx.send(f"{author.mention} has changed 🔉 to {volume}."
-                           )
-        except:
-            pass
-
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=['exit', 's'],
+    @commands.command(aliases=['exit', 's', 'leave', 'disconnect', 'dc'],
                       brief='This command can be used to stop the playing song.',
                       description='This command can be used to stop the playing song in a voice channel.',
                       usage="")
@@ -10815,7 +10712,6 @@ class Music(commands.Cog):
                                    "I am not connected to any voice channel.")
 
     @stop.before_invoke
-    @loop.before_invoke
     @play.before_invoke
     async def ensure_voice(self, ctx):
         if ctx.voice_client is None:
@@ -10831,82 +10727,6 @@ class Music(commands.Cog):
                 raise commands.CommandError(
                     "You are not connected to a voice channel.")
                 return
-
-    @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=['dc', 'disconnect'],
-                      brief='This command can be used to remove the bot from your voice channel.',
-                      description='This command can be used to remove the bot from your voice channel.',
-                      usage="")
-    @commands.guild_only()
-    async def leave(self, ctx):
-        voice = ctx.voice_client
-        try:
-            if voice.is_connected():
-                await voice.disconnect()
-                try:
-                    await ctx.send("I have left the voice channel.")
-                except:
-                    pass
-            else:
-                await on_command_error(ctx,
-                                       "I am not connected to a voice channel.")
-        except:
-            await on_command_error(ctx, "I cannot find any voice channels.")
-
-    @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
-        brief='This command can be used to pause the playing song.',
-        description='This command can be used to pause the playing song in a voice channel.',
-        usage="")
-    @commands.guild_only()
-    async def pause(self, ctx):
-        author = ctx.author
-        voice = ctx.voice_client
-        guild = ctx.guild
-        try:
-            if voice.is_playing():
-                guildmusiccurrentstate[guild.id] = "⏸️"
-                voice.pause()
-                try:
-                    await ctx.send(
-                        f"The audio has been paused by {author.mention}")
-                except:
-                    pass
-            else:
-                await on_command_error(ctx, "You didn't request a song to be played that can be paused.")
-        except:
-            await on_command_error(ctx, "I cannot find any voice channels.")
-
-    @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
-        brief='This command can be used to resume the playing song.',
-        description='This command can be used to resume the playing song in a voice channel.',
-        usage="")
-    @commands.guild_only()
-    async def resume(self, ctx):
-        author = ctx.author
-        voice = ctx.voice_client
-        guild = ctx.guild
-        if author.voice.self_deaf:
-            await on_command_error(ctx,
-                                   "You are deafened in the voice channel , you won't be able to hear the playing audio."
-                                   )
-        try:
-            if voice.is_paused():
-                if not guildmusicloop[guild.id]:
-                    guildmusiccurrentstate[guild.id] = "▶️"
-                else:
-                    guildmusiccurrentstate[guild.id] = "🔁"
-                voice.resume()
-                try:
-                    await ctx.send(
-                        f"The audio has been resumed by {author.mention}")
-                except:
-                    pass
-            else:
-                await on_command_error(ctx, "The audio is currently playing and cannot be resumed.")
-        except:
-            await on_command_error(ctx, "I cannot find any voice channels.")
 
 
 client.add_cog(Music(client))
@@ -11338,9 +11158,9 @@ async def shuffle(ctx):
 @commands.cooldown(1, 15, BucketType.member)
 async def currentlyplaying(ctx):
     global guildmusictotaltime, guildmusictime, guildmusiccurrent, guildmusiccp
-    if guildmusiccp[ctx.guild.id]:
+    if guildmusiccp[ctx.guild.id] and ctx.guild.get_message(guildmusiccp[ctx.guild.id][0]) is not None:
         embedVar = discord.Embed(title=f"Currently playing message",
-                                 description=f"[Jump to message]({guildmusiccp[ctx.guild.id]})")
+                                 description=f"[Jump to message]({guildmusiccp[ctx.guild.id][1]})")
         await ctx.respond(embed=embedVar, ephemeral=True)
         return
     playingmusic = None
@@ -13609,6 +13429,7 @@ async def on_raw_bulk_message_delete(payload):
 async def on_raw_message_delete(payload):
     try:
         channelid = payload.channel_id
+
         if payload.cached_message is not None:
             authorname = str(payload.cached_message.author.name) + \
                 "#"+str(payload.cached_message.author.discriminator)
