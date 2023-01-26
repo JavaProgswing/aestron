@@ -2866,7 +2866,7 @@ async def blacklisttimer(ctx, timecount, blacklistedmember, reason=None):
 
 gifcommands = {
     "settemplate": "https://i.imgur.com/TP3wdXW.gif"
-
+    "help": ""
 }
 
 
@@ -5090,9 +5090,6 @@ targeted attacks using automated user accounts.""")
             e.add_field(name="Command author",
                         value=f"{interaction.user.mention}", inline=False)
             e.set_image(url="attachment://dmEnable.png")
-            mentionMes = await interaction.user.send(content=interaction.user.mention)
-            await asyncio.sleep(1)
-            await mentionMes.delete()
             dmWarnings = await interaction.response.send_message(file=f, embed=e, ephemeral=True)
             await asyncio.sleep(5)
             await dmWarnings.delete()
@@ -8782,7 +8779,7 @@ class Fun(commands.Cog):
 
     @commands.cooldown(1, 3600, BucketType.member)
     @commands.guild_only()
-    @commands.group(invoke_without_command=True, brief=" This command can be used to play Chess in the Park (chess) / Betrayal.io (betrayalio) / Fishington.io (fishingtonio)", description=" This command can be used to play Chess in the Park / Betrayal.io / Fishington.io")
+    @commands.group(invoke_without_command=True, brief=" This command can be used to play Chess in the Park (chess)")
     async def playgame(self, ctx):
         await on_command_error(ctx, "No argument was provided in the playgame command.")
         return
@@ -8804,45 +8801,7 @@ class Fun(commands.Cog):
         embedVar.set_footer(
             text="This game is a discord beta feature only supported on desktop versions of discord.")
         await ctx.send(embed=embedVar)
-        # Alternatively, you can also use a bot variable to store and use DiscordTogether functions.
 
-    @commands.cooldown(1, 30, BucketType.member)
-    @playgame.command(brief='This command can be used to play Betrayal.io in a vc.',
-                      description='This command can be used to play Betrayal.io in a vc.',
-                      usage="", aliases=["betrayalgame", "betrayalio"])
-    async def betrayal(self, ctx):
-        check_ensure_permissions(ctx, ctx.guild.me, ["create_instant_invite"])
-        link = await togetherControl.create_link(ctx.author.voice.channel.id, 'betrayal', max_age=3600)
-        embedVar = discord.Embed(title="",
-                                 description=f"[Start playing]({link} \"Join your friends in a Betrayal.io activity.\")",
-                                 color=0x00ff00)
-        embedVar.set_author(
-            name=f"BetrayalIO Game",
-            icon_url="https://cdn.discordapp.com/avatars/856049884758278144/0cea7c51fb8568067f92d7826496dca2.png?size=1024"
-        )
-        embedVar.set_footer(
-            text="This game is a discord beta feature only supported on desktop versions of discord.")
-        await ctx.send(embed=embedVar)
-        # Alternatively, you can also use a bot variable to store and use DiscordTogether functions.
-
-    @commands.cooldown(1, 30, BucketType.member)
-    @playgame.command(brief='This command can be used to play Fishington.io in a vc.',
-                      description='This command can be used to play Fishington.io in a vc.',
-                      usage="", aliases=["fishinggame", "fishington", "fishingio", "fishingtonio"])
-    async def fishing(self, ctx):
-        check_ensure_permissions(ctx, ctx.guild.me, ["create_instant_invite"])
-        link = await togetherControl.create_link(ctx.author.voice.channel.id, "fishing", max_age=3600)
-        embedVar = discord.Embed(title="",
-                                 description=f"[Start playing]({link} \"Join your friends in a Fishington.io activity.\")",
-                                 color=0x00ff00)
-        embedVar.set_author(
-            name=f"FishingTon Game",
-            icon_url="https://cdn.discordapp.com/avatars/856049884758278144/0cea7c51fb8568067f92d7826496dca2.png?size=1024"
-        )
-        embedVar.set_footer(
-            text="This game is a discord beta feature only supported on desktop versions of discord.")
-        await ctx.send(embed=embedVar)
-        # Alternatively, you can also use a bot variable to store and use DiscordTogether functions.
 
     @fishing.before_invoke
     @betrayal.before_invoke
