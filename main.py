@@ -308,11 +308,14 @@ beforechannelupdate = []
 def get_example(command, guild):
     commandDict = dict(command.clean_params)
     exStr = ""
+    greedyType = False
+    optType = False
     for key in commandDict.keys():
         value = commandDict[key]
         if not value.default == None:
             exStr = exStr+" "
         else:
+            optType = True
             exStr = exStr+" (OPT.)"
         origvalue = value
         value = value.annotation
@@ -392,30 +395,35 @@ def get_example(command, guild):
             else:
                 exStr = exStr+":emojiname:"
         elif value == Greedy[discord.Member]:
+            greedyType = True
             if len(guild.members):
                 exStr = exStr + str(random.choice(guild.members)) + \
                     " " + str(random.choice(guild.members))+" ..."
             else:
                 exStr = exStr+"Member-A Member-B ..."
         elif value == Greedy[discord.User]:
+            greedyType = True
             if len(guild.members):
                 exStr = exStr + str(random.choice(guild.members)) + \
                     " " + str(random.choice(guild.members))+" ..."
             else:
                 exStr = exStr+"Member-A Member-B ..."
         elif value == Greedy[typing.Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel]]:
+            greedyType = True
             if len(guild.channels):
                 exStr = exStr + str(random.choice(guild.channels)) + \
                     " " + str(random.choice(guild.channels))+" ..."
             else:
                 exStr = exStr+"Channel-A VoiceChannel-B ..."
         elif value == commands.Greedy[discord.TextChannel]:
+            greedyType = True
             if len(guild.text_channels):
                 exStr = exStr+str(random.choice(guild.text_channels)) + \
                     " "+str(random.choice(guild.text_channels))+" ..."
             else:
                 exStr = exStr+"Channel-A Channel-B ..."
         elif value == commands.Greedy[discord.Guild]:
+            greedyType = True
             if len(client.guilds):
                 exStr = exStr + str(random.choice(client.guilds)) + \
                     " "+str(random.choice(client.guilds))+" ..."
@@ -425,7 +433,7 @@ def get_example(command, guild):
             print(
                 f"Logging the non detected argument type ({key}) {value} in {command}.")
             exStr = exStr+f" {origvalue.name}"
-    return exStr
+    return (exStr,greedyType,optType)
 
 
 async def get_guild_prefixid(guildid):
@@ -477,7 +485,7 @@ async def get_guild_prefix(guild):
 
 
 def get_command_signature(command, guild):
-    return '%s%s' % (command.qualified_name, get_example(command, guild))
+    return '%s%s' % (command.qualified_name, get_example(command, guild)[0])
 
 
 class MyHelp(commands.HelpCommand):
@@ -530,8 +538,14 @@ Features:
         prefix = None
         prefix = await get_guild_prefix(self.context.guild)
         aliases = ", ".join(command.aliases)+"** **"
+        example = get_example(command,self.context.guild)
+        exampleLine = example[0]
+        if example[1]:
+            exampleLine = exampleLine+"\nNote : **...** indicates all other members or channels or roles you want."
+        if example[2]:
+            exampleLine = exampleLine+"\nNote: (OPT.) means that argument in the command is optional."
         embed.add_field(
-            name="Usage", value=f"{prefix}{commandname} {get_example(command,self.context.guild)} \n Note: (OPT.) means that argument in the command is optional.")
+            name="Usage", value=f"{prefix}{commandname} {exampleLine}")
         embed.add_field(name="Aliases", value=aliases)
         channel = self.get_destination()
         embed.set_footer(text="Want support? Join here: https://discord.gg/TZDYSHSZgg",
@@ -545,8 +559,14 @@ Features:
         prefix = None
         prefix = await get_guild_prefix(self.context.guild)
         for c in command.commands:
+            example = get_example(c,self.context.guild)
+            exampleLine = example[0]
+            if example[1]:
+                exampleLine = exampleLine+"\nNote : **...** indicates all other members or channels or roles you want."
+            if example[2]:
+                exampleLine = exampleLine+"\nNote: (OPT.) means that argument in the command is optional."
             embed.add_field(
-                name=f"{prefix}{c.name} {get_example(c,self.context.guild)}\n Note: (OPT.) means that argument in the command is optional.", value=c.brief)
+                name=f"{prefix}{c.name} {exampleLine}", value=c.brief)
             aliases = ", ".join(c.aliases)+"** **"
             embed.add_field(name="Aliases", value=aliases)
         channel = self.get_destination()
@@ -594,8 +614,14 @@ class CommandHelpSelect(discord.ui.Select):
             title=f"{commandname} help", description=command.description)
         prefix = None
         prefix = await get_guild_prefix(interaction.guild)
+        example = get_example(command,interaction.guild)
+        exampleLine = example[0]
+        if example[1]:
+            exampleLine = exampleLine+"\nNote : **...** indicates all other members or channels or roles you want."
+        if example[2]:
+            exampleLine = exampleLine+"\nNote: (OPT.) means that argument in the command is optional."
         embed.add_field(
-            name="Usage", value=f"{prefix}{commandname} {get_example(command,interaction.guild)}")
+            name="Usage", value=f"{prefix}{commandname} {exampleLine}")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
@@ -1435,13 +1461,24 @@ async def on_application_command_error(ctx, error):
         errordata = f"You are lacking the {missingperms} permission to execute that command."
     if isinstance(error, commands.MissingRequiredArgument):
         errordata = f"Oops looks like you forgot to put the {str(error.param.name)} in the {ctx.command} command.\n"
+        example = get_example(ctx.commmand,ctx.guild)
+        exampleLine = example[0]
+        if example[1]:
+            exampleLine = exampleLine+"\nNote : **...** indicates all other members or channels or roles you want."
+        if example[2]:
+            exampleLine = exampleLine+"\nNote: (OPT.) means that argument in the command is optional."
         errordata = errordata + \
-            f"Example : {prefix}{ctx.command.qualified_name} {get_example(ctx.command,ctx.guild)}  \n Note : **...** indicates all other members or channels or roles you want."
+            f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
     if isinstance(error, commands.BadArgument):
-
         errordata = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
+        example = get_example(ctx.commmand,ctx.guild)
+        exampleLine = example[0]
+        if example[1]:
+            exampleLine = exampleLine+"\nNote : **...** indicates all other members or channels or roles you want."
+        if example[2]:
+            exampleLine = exampleLine+"\nNote: (OPT.) means that argument in the command is optional."
         errordata = errordata + \
-            f"Example : {prefix}{ctx.command.qualified_name} {get_example(ctx.command,ctx.guild)}  \n Note : **...** indicates all other members or channels or roles you want."
+            f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
     embedone = discord.Embed(title=f"🚫 Command Error ",
                              description=errordata,
                              color=Color.dark_red())
@@ -1591,13 +1628,24 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=False, userl
                 await statmsg.reply('Cancelled...')
     if isinstance(error, commands.MissingRequiredArgument):
         errordata = f"Oops looks like you forgot to put the {str(error.param.name)} in the {ctx.command} command.\n"
+        example = get_example(ctx.commmand,ctx.guild)
+        exampleLine = example[0]
+        if example[1]:
+            exampleLine = exampleLine+"\nNote : **...** indicates all other members or channels or roles you want."
+        if example[2]:
+            exampleLine = exampleLine+"\nNote: (OPT.) means that argument in the command is optional."
         errordata = errordata + \
-            f"Example : {prefix}{ctx.command.qualified_name} {get_example(ctx.command,ctx.guild)}  \n Note : **...** indicates all other members or channels or roles you want."
+            f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
     if isinstance(error, commands.BadArgument):
-
         errordata = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
+        example = get_example(ctx.commmand,ctx.guild)
+        exampleLine = example[0]
+        if example[1]:
+            exampleLine = exampleLine+"\nNote : **...** indicates all other members or channels or roles you want."
+        if example[2]:
+            exampleLine = exampleLine+"\nNote: (OPT.) means that argument in the command is optional."
         errordata = errordata + \
-            f"Example : {prefix}{ctx.command.qualified_name} {get_example(ctx.command,ctx.guild)}  \n Note : **...** indicates all other members or channels or roles you want."
+            f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
     if isinstance(error, commands.CommandOnCooldown):
         sendTimer = error.retry_after
         if sendTimer < 1:
@@ -2968,7 +3016,7 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def lock(self, ctx, channel: typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel], reason: str, role: discord.Role = None, duration: str = None):
+    async def lock(self, ctx, channel: typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel], reason: str="No reason provided.", role: discord.Role = None, duration: str = None):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
@@ -3038,7 +3086,7 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def unlock(self, ctx, channel: typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel], reason: str, role: discord.Role = None):
+    async def unlock(self, ctx, channel: typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel], reason: str = "No reason provided.", role: discord.Role = None):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_guild"])
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
