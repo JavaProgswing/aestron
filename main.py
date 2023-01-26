@@ -60,6 +60,7 @@ from youtubesearchpython.__future__ import *
 import shutil
 import long_responses as long
 from mainext import publicaexec
+import pickle
 
 
 def noglobal(f): return types.FunctionType(
@@ -2473,9 +2474,9 @@ async def valorantMatchSave():
         puuidlist = await con.fetch(f"SELECT * FROM riotaccount")
     for puuid in puuidlist:
         #print(f"Starting FETCH MATCH for {puuid}...")
-        start = time.time()
+        #start = time.time()
         puuidstr = puuid["accountpuuid"]
-        currentregion = "ap"
+        #currentregion = "ap"
         url = f"https://ap.api.riotgames.com/val/match/v1/matchlists/by-puuid/{puuidstr}"
         authheader = {'X-Riot-Token': valorant_api_key}
         respjson = await getFormattedOutput(url, authheader)
@@ -2498,17 +2499,17 @@ async def valorantMatchSave():
                     traceback_text = ''.join(lines)
                     print(f"Match last time got an exception : {error}")
                     print(traceback_text)
-                    break
-                if timespent < 5*60 and timespent > 0:
-                    break
-            start = time.time()
+                    continue
+                if timespent < 10*60 and timespent > 0:
+                    continue
+            #start = time.time()
             url = f"https://ap.api.riotgames.com/val/match/v1/matches/{matchid}"
             respjson = await getFormattedOutput(url, authheader)
             try:
                 matchesinfo = MatchesLite(respjson)
             except Exception as ex:
                 print(f" {ex} while parsing current match!")
-                break
+                continue
             #print(f"Fetching MATCH for {puuid} took {time.time() - start}s")
             prevmatches = []
             async with pool.acquire() as con:
@@ -2521,36 +2522,44 @@ async def valorantMatchSave():
                 matchjsons = json.loads(matchjsons)
             # print(
             # f"Fetching PREV DB MATCH for {puuid} took {time.time() - start}s")
-            start = time.time()
+            #start = time.time()
             for match in matchjsons["data"]:
                 prevmatches.append(valoMatchJson(
                     match["matchInfo"]["matchId"], match))
             #print(f"Parsing PREV MATCH for {puuid} took {time.time() - start}s")
-            start = time.time()
+            #start = time.time()
             currentmatches = []
             for match in matchesinfo.matchlist:
                 matchid = match.id
                 matchjson = match.raw
                 currentmatches.append(valoMatchJson(matchid, matchjson))
             #print(f"Parsing CURR MATCH for {puuid} took {time.time() - start}s")
-            start = time.time()
+            #start = time.time()
+            newmatches = []
+            matchids = []
             for match in currentmatches:
                 if match.id not in [x.id for x in prevmatches]:
                     matchjsons["data"].append(match.mjson)
+                    newmatches.append(Match(match.mjson))
+                matchids.append(match.id)
             #print(f"Adding new MATCHES for {puuid} took {time.time() - start}s")
-            start = time.time()
+            results=(
+                f"INSERT INTO riotparsedmatches (id,data) VALUES($1, $2);"
+            )
+            for match in newmatches:
+                async with pool.acquire() as con:
+                    await con.execute(results, match.id, pickle.dumps(match))
             if firstTime:
                 results = (
-                    f"INSERT INTO riotmatches (accountpuuid,matchjsons,lastupdate) VALUES($1, $2 ,$3);")
+                    f"INSERT INTO riotmatches (accountpuuid,matchjsons,matchids,lastupdate) VALUES($1,$2,$3,$4);")
                 async with pool.acquire() as con:
-                    await con.execute(results, puuidstr, json.dumps(matchjsons), time.time())
+                    await con.execute(results, puuidstr, json.dumps(matchjsons), matchids, time.time())
             else:
+                
                 results = (
-                    f"UPDATE riotmatches SET matchjsons = $1 , lastupdate = $2 WHERE accountpuuid = $3")
+                    f"UPDATE riotmatches SET matchjsons = $1 , lastupdate = $2 , matchids = $3 WHERE accountpuuid = $4")
                 async with pool.acquire() as con:
-                    await con.execute(results, json.dumps(matchjsons), time.time(), puuidstr)
-                    #print(f"Finished updating db for {puuid} in {time.time() - start}s")
-
+                    await con.execute(results, json.dumps(matchjsons), time.time(), matchids, puuidstr)
 
 def check_ensure_permissions(ctx, member, perms):
     for perm in perms:
@@ -6792,6 +6801,13 @@ class Weapon:
 
 
 class ValorantAPI():
+    def get_card_icon(self,cardId):
+        with open('./playercardinfo.json') as data_file:
+            datajson = json.load(data_file)
+            for i in datajson["data"]:
+                if i["uuid"] == cardId:
+                    return i["displayIcon"]
+
     def get_formatted_queue_name(self, queueId):
         validQueueNames = {
             'competitive': 'Competitive',
@@ -6974,13 +6990,10 @@ class ValorantAPI():
 
 
 class Matches():
-    def __init__(self, mdict):
+    def __init__(self):
         self.matchlist = []
-        self.raw = mdict
-        for match in self.raw:
-            matchdata = Match(match)
-            self.matchlist.append(matchdata)
-
+    def add_match(self, match):
+        self.matchlist.append(match)
     def __str__(self):
         matchnames = ""
         for match in self.matchlist:
@@ -7057,6 +7070,7 @@ class Player():
         self.party_id = mdict.get("party_id")
         self.playtime = self.MatchTime(mdict["stats"]["playtimeMillis"])
         self.cardId = mdict["playerCard"]
+        self.icon = ValorantAPI().get_card_icon(self.cardId)
         self.iconId = mdict["playerTitle"]
         self.stats = self.Stats(mdict["stats"])
         self.ability_stats = self.AbilityStats(mdict["stats"]["abilityCasts"])
@@ -7752,25 +7766,18 @@ class Valorant(commands.Cog):
                     n, "tsnrhtdd"[(n//10 % 10 != 1)*(n % 10 < 4)*n % 10::4])
             except:
                 return ""
-        respjson = None
-        try:
-            async with pool.acquire() as con:
-                respjson = await con.fetchrow(f"SELECT matchjsons FROM riotmatches WHERE accountpuuid = '{currentpuuid}'")
-        except:
-            pass
-        if respjson is None:
-            raise commands.CommandError(
-                "Your matches aren't synced, try again in a few minutes!")
-        try:
-            respjson = respjson["matchjsons"]
-            respjson = json.loads(respjson)
-            respjson = respjson["data"]
-        except Exception as ex:
-            await ctx.send(f"Your stats could not be fetched due to an error, try re-linking your account!")
-            await on_command_error(ctx, f"Exception in riot link cmd - {ex}", forcelog=True, userlog=False)
-            return
-        matchesinfo = Matches(respjson)
         url = f"https://api.henrikdev.xyz/valorant/v1/mmr/{currentregion}/{username}/{usertag}"
+        matchesinfo=Matches()
+        async with pool.acquire() as con:
+            matchidslist = await con.fetchrow(f"SELECT matchids FROM riotmatches where discorduserid = {ctx.author.id}")
+        if matchidslist is None:
+            await ctx.send(f"Your stats could not be fetched as they haven't been loaded yet!")
+            return
+        for matchid in matchidslist:
+            async with pool.acquire() as con:
+                pickledmatch = await con.fetchrow(f"SELECT data FROM riotparsedmatches where id = {matchid}")
+            match = pickle.loads(pickledmatch)
+            matchesinfo.add_match(match)
         async with aiohttp.ClientSession() as session:
             respjson = await fetchaiohttp(session, url)
         try:
@@ -8960,6 +8967,10 @@ async def vstats(ctx, member: typing.Union[discord.Member, discord.User] = None)
     if puuidlist is None:
         raise commands.CommandError(
             f"{member.mention} has not linked their riot account with discord.")
+    try:
+        await ctx.message.add_reaction("<a:loading:824193916818554960>")
+    except:
+        pass
     currentpuuid = puuidlist['accountpuuid']
     currentregion = "ap"
     username = puuidlist['accountname']
@@ -8971,25 +8982,18 @@ async def vstats(ctx, member: typing.Union[discord.Member, discord.User] = None)
                 n, "tsnrhtdd"[(n//10 % 10 != 1)*(n % 10 < 4)*n % 10::4])
         except:
             return ""
-    respjson = None
-    try:
-        async with pool.acquire() as con:
-            respjson = await con.fetchrow(f"SELECT matchjsons FROM riotmatches WHERE accountpuuid = '{currentpuuid}'")
-    except:
-        pass
-    if respjson is None:
-        raise commands.CommandError(
-            "Your matches aren't synced, try again in a few minutes!")
-    try:
-        respjson = respjson["matchjsons"]
-        respjson = json.loads(respjson)
-        respjson = respjson["data"]
-    except Exception as ex:
-        await ctx.send(f"Your stats could not be fetched due to an error, try re-linking your account!")
-        await on_command_error(ctx, f"Exception in riot link cmd - {ex}", forcelog=True, userlog=False)
-        return
-    matchesinfo = Matches(respjson)
     url = f"https://api.henrikdev.xyz/valorant/v1/mmr/{currentregion}/{username}/{usertag}"
+    matchesinfo=Matches()
+    async with pool.acquire() as con:
+        matchidslist = await con.fetchrow(f"SELECT matchids FROM riotmatches where discorduserid = {ctx.author.id}")
+    if matchidslist is None:
+        await ctx.respond(f"Your stats could not be fetched as they haven't been loaded yet!", ephemeral=True)
+        return
+    for matchid in matchidslist:
+        async with pool.acquire() as con:
+            pickledmatch = await con.fetchrow(f"SELECT data FROM riotparsedmatches where id = {matchid}")
+        match = pickle.loads(pickledmatch)
+        matchesinfo.add_match(match)
     async with aiohttp.ClientSession() as session:
         respjson = await fetchaiohttp(session, url)
     try:
