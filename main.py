@@ -433,7 +433,7 @@ def get_example(command, guild):
             print(
                 f"Logging the non detected argument type ({key}) {value} in {command}.")
             exStr = exStr+f" {origvalue.name}"
-    return (exStr,greedyType,optType)
+    return (exStr, greedyType, optType)
 
 
 async def get_guild_prefixid(guildid):
@@ -538,12 +538,14 @@ Features:
         prefix = None
         prefix = await get_guild_prefix(self.context.guild)
         aliases = ", ".join(command.aliases)+"** **"
-        example = get_example(command,self.context.guild)
+        example = get_example(command, self.context.guild)
         exampleLine = example[0]
         if example[1]:
-            exampleLine = exampleLine+"\nNote : **...** indicates all other members or channels or roles you want."
+            exampleLine = exampleLine + \
+                "\n\nNote: **...** indicates all other members or channels or roles you want."
         if example[2]:
-            exampleLine = exampleLine+"\nNote: (OPT.) means that argument in the command is optional."
+            exampleLine = exampleLine + \
+                "\n\nNote: (OPT.) means that argument in the command is optional."
         embed.add_field(
             name="Usage", value=f"{prefix}{commandname} {exampleLine}")
         embed.add_field(name="Aliases", value=aliases)
@@ -559,12 +561,14 @@ Features:
         prefix = None
         prefix = await get_guild_prefix(self.context.guild)
         for c in command.commands:
-            example = get_example(c,self.context.guild)
+            example = get_example(c, self.context.guild)
             exampleLine = example[0]
             if example[1]:
-                exampleLine = exampleLine+"\nNote : **...** indicates all other members or channels or roles you want."
+                exampleLine = exampleLine + \
+                    "\n\nNote: **...** indicates all other members or channels or roles you want."
             if example[2]:
-                exampleLine = exampleLine+"\nNote: (OPT.) means that argument in the command is optional."
+                exampleLine = exampleLine + \
+                    "\n\nNote: (OPT.) means that argument in the command is optional."
             embed.add_field(
                 name=f"{prefix}{c.name} {exampleLine}", value=c.brief)
             aliases = ", ".join(c.aliases)+"** **"
@@ -614,12 +618,14 @@ class CommandHelpSelect(discord.ui.Select):
             title=f"{commandname} help", description=command.description)
         prefix = None
         prefix = await get_guild_prefix(interaction.guild)
-        example = get_example(command,interaction.guild)
+        example = get_example(command, interaction.guild)
         exampleLine = example[0]
         if example[1]:
-            exampleLine = exampleLine+"\nNote : **...** indicates all other members or channels or roles you want."
+            exampleLine = exampleLine + \
+                "\n\nNote: **...** indicates all other members or channels or roles you want."
         if example[2]:
-            exampleLine = exampleLine+"\nNote: (OPT.) means that argument in the command is optional."
+            exampleLine = exampleLine + \
+                "\n\nNote: (OPT.) means that argument in the command is optional."
         embed.add_field(
             name="Usage", value=f"{prefix}{commandname} {exampleLine}")
         await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -1110,7 +1116,7 @@ class Songpanel(discord.ui.View):
                 voice.pause()
                 try:
                     await interaction.response.send_message(
-                        f"The audio has been paused by {interaction.user.mention}",delete_after=2)
+                        f"The audio has been paused by {interaction.user.mention}", delete_after=2)
                     await self.message.edit(view=self)
                 except:
                     pass
@@ -1153,7 +1159,7 @@ class Songpanel(discord.ui.View):
             return
         if not guildmusicloop[guild.id]:
             guildmusicloop[guild.id] = True
-            await interaction.response.send_message(f"The loop has been activated by {interaction.user.mention}",delete_after=2)
+            await interaction.response.send_message(f"The loop has been activated by {interaction.user.mention}", delete_after=2)
             guildmusiccurrentstate[guild.id] = "🔁"
         else:
             channel = self.channel
@@ -1161,7 +1167,7 @@ class Songpanel(discord.ui.View):
                 await interaction.response.send_message("I am already looping music,you must have `manage_channels` permissions to stop music loop.", ephemeral=True)
                 return
             guildmusicloop[guild.id] = False
-            await interaction.response.send_message(f"The loop has been de-activated by {interaction.user.mention}",delete_after=2)
+            await interaction.response.send_message(f"The loop has been de-activated by {interaction.user.mention}", delete_after=2)
             guildmusiccurrentstate[guild.id] = "▶️"
             return
         songname = playingmusic
@@ -1215,8 +1221,7 @@ class Songpanel(discord.ui.View):
         guild = self.guild
         try:
             guild.voice_client.source.volume = guild.voice_client.source.volume - 0.05
-            await interaction.response.send_message(f"{interaction.user.mention} has changed 🔉 to {int(guild.voice_client.source.volume*100)}."
-                                                    , delete_after=2)
+            await interaction.response.send_message(f"{interaction.user.mention} has changed 🔉 to {int(guild.voice_client.source.volume*100)}.", delete_after=2)
         except:
             pass
 
@@ -1245,7 +1250,7 @@ class Songpanel(discord.ui.View):
             if length < 10:
                 listOfEmbeds.append(embedVar)
             pagview = PaginateEmbed(listOfEmbeds)
-            await interaction.response.send_message(view=pagview, embed=listOfEmbeds[0],ephemeral=True)
+            await interaction.response.send_message(view=pagview, embed=listOfEmbeds[0], ephemeral=True)
             pagview.set_initial_message(interaction.response)
 
     @discord.ui.button(label='🎶', style=discord.ButtonStyle.green)
@@ -1461,22 +1466,26 @@ async def on_application_command_error(ctx, error):
         errordata = f"You are lacking the {missingperms} permission to execute that command."
     if isinstance(error, commands.MissingRequiredArgument):
         errordata = f"Oops looks like you forgot to put the {str(error.param.name)} in the {ctx.command} command.\n"
-        example = get_example(ctx.commmand,ctx.guild)
+        example = get_example(ctx.commmand, ctx.guild)
         exampleLine = example[0]
         if example[1]:
-            exampleLine = exampleLine+"\nNote : **...** indicates all other members or channels or roles you want."
+            exampleLine = exampleLine + \
+                "\n\nNote: **...** indicates all other members or channels or roles you want."
         if example[2]:
-            exampleLine = exampleLine+"\nNote: (OPT.) means that argument in the command is optional."
+            exampleLine = exampleLine + \
+                "\n\nNote: (OPT.) means that argument in the command is optional."
         errordata = errordata + \
             f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
     if isinstance(error, commands.BadArgument):
         errordata = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
-        example = get_example(ctx.commmand,ctx.guild)
+        example = get_example(ctx.commmand, ctx.guild)
         exampleLine = example[0]
         if example[1]:
-            exampleLine = exampleLine+"\nNote : **...** indicates all other members or channels or roles you want."
+            exampleLine = exampleLine + \
+                "\n\nNote: **...** indicates all other members or channels or roles you want."
         if example[2]:
-            exampleLine = exampleLine+"\nNote: (OPT.) means that argument in the command is optional."
+            exampleLine = exampleLine + \
+                "\n\nNote: (OPT.) means that argument in the command is optional."
         errordata = errordata + \
             f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
     embedone = discord.Embed(title=f"🚫 Command Error ",
@@ -1628,22 +1637,26 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=False, userl
                 await statmsg.reply('Cancelled...')
     if isinstance(error, commands.MissingRequiredArgument):
         errordata = f"Oops looks like you forgot to put the {str(error.param.name)} in the {ctx.command} command.\n"
-        example = get_example(ctx.commmand,ctx.guild)
+        example = get_example(ctx.commmand, ctx.guild)
         exampleLine = example[0]
         if example[1]:
-            exampleLine = exampleLine+"\nNote : **...** indicates all other members or channels or roles you want."
+            exampleLine = exampleLine + \
+                "\n\nNote: **...** indicates all other members or channels or roles you want."
         if example[2]:
-            exampleLine = exampleLine+"\nNote: (OPT.) means that argument in the command is optional."
+            exampleLine = exampleLine + \
+                "\n\nNote: (OPT.) means that argument in the command is optional."
         errordata = errordata + \
             f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
     if isinstance(error, commands.BadArgument):
         errordata = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
-        example = get_example(ctx.commmand,ctx.guild)
+        example = get_example(ctx.commmand, ctx.guild)
         exampleLine = example[0]
         if example[1]:
-            exampleLine = exampleLine+"\nNote : **...** indicates all other members or channels or roles you want."
+            exampleLine = exampleLine + \
+                "\n\nNote: **...** indicates all other members or channels or roles you want."
         if example[2]:
-            exampleLine = exampleLine+"\nNote: (OPT.) means that argument in the command is optional."
+            exampleLine = exampleLine + \
+                "\n\nNote: (OPT.) means that argument in the command is optional."
         errordata = errordata + \
             f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
     if isinstance(error, commands.CommandOnCooldown):
@@ -3016,7 +3029,7 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def lock(self, ctx, channel: typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel], reason: str="No reason provided.", role: discord.Role = None, duration: str = None):
+    async def lock(self, ctx, channel: typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel], reason: str = "No reason provided.", role: discord.Role = None, duration: str = None):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
@@ -8493,7 +8506,6 @@ class Fun(commands.Cog):
             text="This game is a discord beta feature only supported on desktop versions of discord.")
         await ctx.send(embed=embedVar)
 
-
     @chess.before_invoke
     async def ensure_voice(self, ctx):
 
@@ -12955,11 +12967,11 @@ class Minecraftpvp(discord.ui.View):
         self, button: discord.ui.Button, interaction: discord.Interaction
     ):
         if not interaction.user.id in self.memberids:
-            await interaction.response.send_message("You are not participating in this pvp fight!", ephemeral=True,delete_after=2)
+            await interaction.response.send_message("You are not participating in this pvp fight!", ephemeral=True, delete_after=2)
             return
         else:
             if not interaction.user.id == self.moveturn:
-                await interaction.response.send_message("Its not your turn in this pvp fight!", ephemeral=True,delete_after=2)
+                await interaction.response.send_message("Its not your turn in this pvp fight!", ephemeral=True, delete_after=2)
                 return
             if interaction.user.id == self.memberoneid:
                 if not self.memberone_resiscooldown:
@@ -12967,7 +12979,7 @@ class Minecraftpvp(discord.ui.View):
                     self.memberone_resiscooldown = True
                     self.moveturn = self.membertwoid
                 else:
-                    await interaction.response.send_message("You cannot lift your shield , its on cooldown!", ephemeral=True,delete_after=2)
+                    await interaction.response.send_message("You cannot lift your shield , its on cooldown!", ephemeral=True, delete_after=2)
                     return
             elif interaction.user.id == self.membertwoid:
                 if not self.membertwo_resiscooldown:
@@ -12975,7 +12987,7 @@ class Minecraftpvp(discord.ui.View):
                     self.membertwo_resiscooldown = True
                     self.moveturn = self.memberoneid
                 else:
-                    await interaction.response.send_message("You cannot lift your shield , its on cooldown!", ephemeral=True,delete_after=2)
+                    await interaction.response.send_message("You cannot lift your shield , its on cooldown!", ephemeral=True, delete_after=2)
                     return
             message = interaction.message
             if not message is None:
@@ -13018,12 +13030,12 @@ class Minecraftpvp(discord.ui.View):
             "withered away whilst fighting "
         ]
         if not interaction.user.id in self.memberids:
-            await interaction.response.send_message("You are not participating in this pvp fight!", ephemeral=True,delete_after=2)
+            await interaction.response.send_message("You are not participating in this pvp fight!", ephemeral=True, delete_after=2)
             return
         else:
             if interaction.user.id == self.memberoneid:
                 if not interaction.user.id == self.moveturn:
-                    await interaction.response.send_message("Its not your turn in this pvp fight!", ephemeral=True,delete_after=2)
+                    await interaction.response.send_message("Its not your turn in this pvp fight!", ephemeral=True, delete_after=2)
                     return
                 self.memberone_resiscooldown = False
                 self.moveturn = self.membertwoid
@@ -13037,7 +13049,7 @@ class Minecraftpvp(discord.ui.View):
                     damagevalue *= 0
                     self.membertwo_resistance = False
                 self.membertwo_healthpoint -= damagevalue
-                await interaction.response.send_message(f"You dealt {damagevalue} to {self.membertwoname}.", ephemeral=True,delete_after=2)
+                await interaction.response.send_message(f"You dealt {damagevalue} to {self.membertwoname}.", ephemeral=True, delete_after=2)
                 try:
                     if self.vc.is_playing():
                         self.vc.stop()
@@ -13094,7 +13106,7 @@ class Minecraftpvp(discord.ui.View):
                     await message.edit(embed=embed, content=f"<@{self.moveturn}> 's turn to fight!")
             elif interaction.user.id == self.membertwoid:
                 if not interaction.user.id == self.moveturn:
-                    await interaction.response.send_message("Its not your turn in this pvp fight!", ephemeral=True,delete_after=2)
+                    await interaction.response.send_message("Its not your turn in this pvp fight!", ephemeral=True, delete_after=2)
                     return
                 self.membertwo_resiscooldown = False
                 self.moveturn = self.memberoneid
