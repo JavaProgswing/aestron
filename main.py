@@ -2866,7 +2866,6 @@ async def blacklisttimer(ctx, timecount, blacklistedmember, reason=None):
 
 gifcommands = {
     "settemplate": "https://i.imgur.com/TP3wdXW.gif"
-    "help": ""
 }
 
 
@@ -8803,8 +8802,6 @@ class Fun(commands.Cog):
         await ctx.send(embed=embedVar)
 
 
-    @fishing.before_invoke
-    @betrayal.before_invoke
     @chess.before_invoke
     async def ensure_voice(self, ctx):
 
