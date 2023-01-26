@@ -3029,7 +3029,7 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def lock(self, ctx, channel: typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel], reason: str = "No reason provided.", role: discord.Role = None, duration: str = None):
+    async def lock(self, ctx, channel: typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel], reason: str = "no reason provided", role: discord.Role = None, duration: str = None):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
@@ -3099,7 +3099,7 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def unlock(self, ctx, channel: typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel], reason: str = "No reason provided.", role: discord.Role = None):
+    async def unlock(self, ctx, channel: typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel], reason: str = "no reason provided", role: discord.Role = None):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_guild"])
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
@@ -3223,7 +3223,7 @@ class Moderation(commands.Cog):
                         ctx,
                         numberstr: int, reason: str = None):
         if reason is None:
-            reason = "no reason provided."
+            reason = "no reason provided"
         try:
             number = int(numberstr)
         except:
@@ -3262,7 +3262,7 @@ class Moderation(commands.Cog):
         check_ensure_permissions(
             ctx, ctx.guild.me, ["manage_messages", "read_message_history"])
         if reason is None:
-            reason = "no reason provided."
+            reason = "no reason provided"
         if members is None:
             try:
                 number = int(numberstr)
@@ -3340,7 +3340,7 @@ class Moderation(commands.Cog):
                     pass
                 continue
             if reason is None:
-                reason = "no reason provided."
+                reason = "no reason provided"
             if timenum is None:
                 timelength = ""
             else:
@@ -3600,7 +3600,7 @@ class Moderation(commands.Cog):
     @commands.check_any(is_bot_staff())
     async def silentwarn(self, ctx, member: discord.Member, *, reason: str = None):
         if reason is None:
-            reason = "no reason provided."
+            reason = "no reason provided"
         statement = """INSERT INTO warnings (userid,guildid,warning,messageid) VALUES($1, $2 ,$3,$4);"""
         async with pool.acquire() as con:
             await con.execute(statement, member.id, ctx.guild.id, reason, ctx.message.id)
@@ -3911,7 +3911,7 @@ class Moderation(commands.Cog):
                 continue
             await mutedmember.remove_roles(muterole)
             if reason is None:
-                reason = "no reason provided."
+                reason = "no reason provided"
             async with pool.acquire() as con:
                 mutedlist = await con.fetchrow(f"SELECT * FROM mutedusers where userid = {mutedmember.id} AND guildid = {mutedmember.guild.id}")
             if not mutedlist == None:
