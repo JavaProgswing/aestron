@@ -2804,7 +2804,8 @@ async def currentlyplayingslider(message, guild, playingmusic):
             try:
                 await message.edit(embed=embed)
             except:
-                pass
+                guildmusiccp[guild.id] = False
+                return
             cplayingmusic = guildmusiccurrent[guild.id]
             await asyncio.sleep(5)
     except:
@@ -10634,7 +10635,7 @@ class Music(commands.Cog):
     @commands.guild_only()
     async def currentlyplaying(self, ctx):
         global guildmusictotaltime, guildmusictime, guildmusiccurrent, guildmusiccp
-        if guildmusiccp[ctx.guild.id] and ctx.guild.get_message(guildmusiccp[ctx.guild.id][0]) is not None:
+        if guildmusiccp[ctx.guild.id]:
             embedVar = discord.Embed(title=f"Currently playing message",
                                      description=f"[Jump to message]({guildmusiccp[ctx.guild.id][1]})")
             await ctx.send(embed=embedVar)
@@ -11158,7 +11159,7 @@ async def shuffle(ctx):
 @commands.cooldown(1, 15, BucketType.member)
 async def currentlyplaying(ctx):
     global guildmusictotaltime, guildmusictime, guildmusiccurrent, guildmusiccp
-    if guildmusiccp[ctx.guild.id] and ctx.guild.get_message(guildmusiccp[ctx.guild.id][0]) is not None:
+    if guildmusiccp[ctx.guild.id]:
         embedVar = discord.Embed(title=f"Currently playing message",
                                  description=f"[Jump to message]({guildmusiccp[ctx.guild.id][1]})")
         await ctx.respond(embed=embedVar, ephemeral=True)
@@ -13428,8 +13429,11 @@ async def on_raw_bulk_message_delete(payload):
 @client.event
 async def on_raw_message_delete(payload):
     try:
+        if not payload.guild_id:
+            return
         channelid = payload.channel_id
-
+        if guildmusiccp[payload.guild_id] and payload.message_id==guildmusiccp[payload.guild_id][0]:
+            guildmusiccp[payload.guild_id]=False
         if payload.cached_message is not None:
             authorname = str(payload.cached_message.author.name) + \
                 "#"+str(payload.cached_message.author.discriminator)
