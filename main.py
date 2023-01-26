@@ -1084,7 +1084,7 @@ class Songpanel(discord.ui.View):
                 voice.pause()
                 try:
                     await interaction.response.send_message(
-                        f"The audio has been paused by {interaction.user.mention}")
+                        f"The audio has been paused by {interaction.user.mention}",delete_after=2)
                     await self.message.edit(view=self)
                 except:
                     pass
@@ -1097,7 +1097,7 @@ class Songpanel(discord.ui.View):
                 voice.resume()
                 try:
                     await interaction.response.send_message(
-                        f"The audio has been resumed by {interaction.user.mention}")
+                        f"The audio has been resumed by {interaction.user.mention}", delete_after=2)
 
                     await self.message.edit(view=self)
                 except:
@@ -1123,11 +1123,11 @@ class Songpanel(discord.ui.View):
         except:
             pass
         if playingmusic is None:
-            await interaction.response.send_message("I could not find the song that was requested by you earlier in this guild.")
+            await interaction.response.send_message("I could not find the song that was requested by you earlier in this guild.", ephemeral=True)
             return
         if not guildmusicloop[guild.id]:
             guildmusicloop[guild.id] = True
-            await interaction.response.send_message(f"The loop has been activated by {interaction.user.mention}")
+            await interaction.response.send_message(f"The loop has been activated by {interaction.user.mention}",delete_after=2)
             guildmusiccurrentstate[guild.id] = "🔁"
         else:
             channel = self.channel
@@ -1135,7 +1135,7 @@ class Songpanel(discord.ui.View):
                 await interaction.response.send_message("I am already looping music,you must have `manage_channels` permissions to stop music loop.", ephemeral=True)
                 return
             guildmusicloop[guild.id] = False
-            await interaction.response.send_message(f"The loop has been de-activated by {interaction.user.mention}")
+            await interaction.response.send_message(f"The loop has been de-activated by {interaction.user.mention}",delete_after=2)
             guildmusiccurrentstate[guild.id] = "▶️"
             return
         songname = playingmusic
@@ -1190,7 +1190,7 @@ class Songpanel(discord.ui.View):
         try:
             guild.voice_client.source.volume = guild.voice_client.source.volume - 0.05
             await interaction.response.send_message(f"{interaction.user.mention} has changed 🔉 to {int(guild.voice_client.source.volume*100)}."
-                                                    )
+                                                    , delete_after=2)
         except:
             pass
 
@@ -1219,7 +1219,7 @@ class Songpanel(discord.ui.View):
             if length < 10:
                 listOfEmbeds.append(embedVar)
             pagview = PaginateEmbed(listOfEmbeds)
-            await interaction.response.send_message(view=pagview, embed=listOfEmbeds[0])
+            await interaction.response.send_message(view=pagview, embed=listOfEmbeds[0],ephemeral=True)
             pagview.set_initial_message(interaction.response)
 
     @discord.ui.button(label='🎶', style=discord.ButtonStyle.green)
@@ -1270,7 +1270,7 @@ class Songpanel(discord.ui.View):
             guildmusicqueue[guild.id].clear()
             try:
                 await interaction.response.send_message(
-                    f"The audio has been stopped by {interaction.user.mention}")
+                    f"The audio has been stopped by {interaction.user.mention}", delete_after=2)
             except:
                 pass
             guildmusicskipped[guild.id] = True
@@ -5844,360 +5844,6 @@ class MinecraftFun(commands.Cog):
         except:
             pass
         await ctx.send(content=f"{memberone.mention}'s turn to fight!", embed=embed, view=Minecraftpvp(memberone.id, membertwo.id, memberone.name, membertwo.name, memberone_healthpoint, membertwo_healthpoint, memberone_armor_resist, membertwo_armor_resist, memberone_sword_attack, membertwo_sword_attack, vc))
-
-    @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
-        brief='This command is used to fight other users with sound effects(minecraft pvp mechanics).',
-        description='This command is used to fight other users with sound effects(minecraft pvp mechanics).',
-        usage="@member")
-    @commands.guild_only()
-    async def pvpOld(self, ctx, member: discord.Member = None):
-        check_ensure_permissions(ctx, ctx.guild.me, ["add_reactions"])
-        global leaderBoard
-        if member == ctx.author:
-            await ctx.send(
-                "Trying to battle yourself will only have major consequences !"
-            )
-            return
-        if member == None:
-            member = ctx.guild.me
-        selfCombat = False
-        if (client.user.id == member.id):
-            selfCombat = True
-        orechoice = ["Netherite", "Diamond", "Iron", "Leather"]
-        swordchoice = ["Netherite", "Diamond",
-                       "Iron", "Stone", "Gold", "Wooden"]
-        armorresist = [85.0, 75.0, 60.0, 28.0]
-        swordattack = [12.0, 10.0, 9.0, 8.0, 6.0, 5.0]
-        memberone = ctx.author
-        membertwo = member
-        escapelist = [
-            "ran away like a coward.", "was scared of a terrible defeat.",
-            "didn't know how to fight.",
-            "escaped in the midst of a battle.",
-            f"was too weak for battling {ctx.author.mention}.",
-            f"was scared of fighting {ctx.author.mention}."
-        ]
-
-        if not selfCombat:
-            messagereact = await ctx.send(
-                f'React with that 👍 reaction in 60 seconds, {member.mention} to start the pvp match !'
-            )
-            await messagereact.add_reaction("👍")
-
-            def check(reaction, user):
-                return user == member and str(reaction.emoji) == '👍' and reaction.message == messagereact
-
-            try:
-                reaction, user = await client.wait_for('reaction_add',
-                                                       timeout=60.0,
-                                                       check=check)
-
-            except asyncio.TimeoutError:
-                await ctx.send(f'{member.mention} {random.choice(escapelist)}')
-                return
-            else:
-                try:
-                    await ctx.send('Let the battle preparations take place !')
-                except:
-                    pass
-        else:
-            try:
-                await ctx.send('Let the battle preparations take place !')
-            except:
-                pass
-        memberone_healthpoint = 30 + random.randint(-10, 10)
-        memberone_healthpoint += 1
-        memberone_armor = random.choice(orechoice)
-        memberone_armor_resist = armorresist[orechoice.index(memberone_armor)]
-        memberone_sword = random.choice(swordchoice)
-        memberone_sword_attack = swordattack[swordchoice.index(
-            memberone_sword)]
-        membertwo_healthpoint = 30 + random.randint(-10, 10)
-        membertwo_healthpoint += 1
-        membertwo_armor = random.choice(orechoice)
-        membertwo_armor_resist = armorresist[orechoice.index(membertwo_armor)]
-        membertwo_sword = random.choice(swordchoice)
-        membertwo_sword_attack = swordattack[swordchoice.index(
-            membertwo_sword)]
-        await ctx.send(
-            f"{ctx.author.mention}({memberone_healthpoint} Hitpoints) prepared a {memberone_armor} armor and a {memberone_sword} sword to obliterate {member.mention}."
-        )
-        await ctx.send(
-            f"{member.mention}({membertwo_healthpoint} Hitpoints) prepared a {membertwo_armor} armor and a {membertwo_sword} sword to obliterate {ctx.author.mention}."
-        )
-        await ctx.send(
-            f'(No spamming)👍 Let the battle commence between {member.mention} and {ctx.author.mention}.'
-        )
-        await ctx.send(
-            ' Type `f` to fight with sword and `d` to defend. `(NOTE: This is instantaneous and the member to obliterate other wins !)`'
-        )
-        voicechannel = ctx.voice_client
-        voicechannel.play(discord.FFmpegPCMAudio("Random_levelup.ogg"))
-        memberone_resistance = False
-        membertwo_resistance = False
-        memberone_resistances = 0
-        memberone_critical = 0
-        memberone_strong = 0
-        memberone_weak = 0
-        membertwo_resistances = 0
-        membertwo_critical = 0
-        membertwo_strong = 0
-        membertwo_weak = 0
-        autoFight = False
-        damagePending = False
-        matchCancelled = False
-        spamLimit = commands.CooldownMapping.from_cooldown(
-            2.0, 1.0, commands.BucketType.member)
-        # await asyncio.sleep(1)
-
-        def check(m):
-            user = m.author
-            message = m.content
-            nonlocal memberone, membertwo, memberone_healthpoint, membertwo_healthpoint, memberone_armor_resist, memberone_sword_attack, membertwo_armor_resist, membertwo_sword_attack, memberone_resistance, membertwo_resistance, voicechannel, memberone_resistances, memberone_critical, memberone_strong, memberone_weak, membertwo_resistances, membertwo_critical, membertwo_strong, membertwo_weak, autoFight, damagePending, matchCancelled
-            if user == memberone or user == membertwo and user != ctx.guild.me:
-                bucket = spamLimit.get_bucket(m)
-                retry_after = bucket.update_rate_limit()
-                asyncio.create_task(asyncio.sleep(0.25))
-                if retry_after:
-                    asyncio.create_task(ctx.send(
-                        f"{user.mention} You were spamming messages in the pvp command as a penalty , your score has been reduced and this match has been cancelled."))
-                    matchCancelled = True
-                    return True
-            if message == 'f' or message == 'd':
-
-                attack = ['weak', 'strong', 'critical']
-                attackdamage = [0.5, 1.5, 2.0]
-                winmessage = [
-                    "was shot by ", "was slain by ", "was pummeled by ",
-                    "drowned whilst trying to escape ", "was blown up by ",
-                    "hit the ground too hard whilst trying to escape ",
-                    "was squashed by a falling anvil whilst fighting ",
-                    "was squashed by a falling block whilst fighting ",
-                    "was skewered by a falling stalactite whilst fighting ",
-                    "walked into fire whilst fighting ",
-                    "was burnt to a crisp whilst fighting ",
-                    "went off with a bang due to a firework fired by ",
-                    "tried to swim in lava to escape ",
-                    "was struck by lightning whilst fighting ",
-                    "walked into danger zone due to ",
-                    "was killed by magic whilst trying to escape ",
-                    "was frozen to death by ", "was fireballed by ",
-                    "didn't want to live in the same world as ",
-                    "was impaled by ", "was killed trying to hurt ",
-                    "was poked to death by a sweet berry bush whilst trying to escape ",
-                    "withered away whilst fighting "
-                ]
-                autoFight = False
-                if user == memberone:
-                    if message == 'f' or message == 'd':
-                        if selfCombat:
-                            autoFight = True
-                    if message == 'f':
-
-                        attackchoice = random.choice(attack)
-                        if voicechannel.is_playing():
-                            voicechannel.stop()
-                        if attackchoice == "weak":
-                            memberone_weak += 1
-                            voicechannel.play(
-                                discord.FFmpegPCMAudio("Weak_attack1.ogg"))
-                        if attackchoice == "strong":
-                            memberone_strong += 1
-                            voicechannel.play(
-                                discord.FFmpegPCMAudio("Strong_attack1.ogg"))
-                        if attackchoice == "critical":
-                            memberone_critical += 1
-                            voicechannel.play(
-                                discord.FFmpegPCMAudio("Critical_attack1.ogg"))
-                        attackvalue = attackdamage[attack.index(attackchoice)]
-                        armorresistvalue = 100.0 - membertwo_armor_resist
-                        damagevalue = (armorresistvalue / 100.0) * (
-                            memberone_sword_attack * attackvalue)
-                        if membertwo_resistance:
-                            asyncio.create_task(
-                                ctx.send(
-                                    f"The shield protected {membertwo.mention} from {(0.4*damagevalue)} hitpoints."
-                                ))
-                            damagevalue *= 0.6
-                            membertwo_resistance = False
-                        asyncio.create_task(
-                            ctx.send(
-                                f"{memberone.mention} dealt {damagevalue} to {membertwo.mention} with a {attackchoice} hit."
-                            ))
-                        membertwo_healthpoint -= damagevalue
-                        player_health = ""
-                        if (membertwo_healthpoint < 1.0 and membertwo_healthpoint > 0.0):
-                            player_health = ":heart:"
-                        for i in range(int(membertwo_healthpoint)):
-                            player_health += ":heart:"
-                        asyncio.create_task(
-                            ctx.send(
-                                f"{membertwo.mention} health : {player_health}."
-                            ))
-
-                        if membertwo_healthpoint <= 0.0:
-                            asyncio.create_task(
-                                ctx.send(
-                                    f"{membertwo.mention} {random.choice(winmessage)}{memberone.mention}."
-                                ))
-                            if voicechannel.is_playing():
-                                voicechannel.stop()
-                            voicechannel.play(
-                                discord.FFmpegPCMAudio("Player_hurt1.ogg"))
-                            return True
-                    elif message == 'd':
-                        memberone_resistances += 1
-                        asyncio.create_task(
-                            ctx.send(
-                                f"{memberone.mention} has equipped the shield."
-                            ))
-                        memberone_resistance = True
-                        if voicechannel.is_playing():
-                            voicechannel.stop()
-                        voicechannel.play(
-                            discord.FFmpegPCMAudio("Shield_block5.ogg"))
-                if user == membertwo or autoFight:
-                    if damagePending:
-                        message = 'f'
-                        damagePending = False
-                    elif autoFight:
-                        if membertwo_healthpoint < 20:
-                            message = 'd'
-                            damagePending = True
-                        else:
-                            message = 'f'
-                    if message == 'f':
-                        attackchoice = random.choice(attack)
-                        if voicechannel.is_playing():
-                            voicechannel.stop()
-                        if attackchoice == "weak":
-                            membertwo_weak += 1
-                            voicechannel.play(
-                                discord.FFmpegPCMAudio("Weak_attack1.ogg"))
-                        if attackchoice == "strong":
-                            membertwo_strong += 1
-                            voicechannel.play(
-                                discord.FFmpegPCMAudio("Strong_attack1.ogg"))
-                        if attackchoice == "critical":
-                            membertwo_critical += 1
-                            voicechannel.play(
-                                discord.FFmpegPCMAudio("Critical_attack1.ogg"))
-                        attackvalue = attackdamage[attack.index(attackchoice)]
-                        armorresistvalue = 100.0 - memberone_armor_resist
-                        damagevalue = (armorresistvalue / 100) * (
-                            membertwo_sword_attack * attackvalue)
-                        if memberone_resistance:
-                            asyncio.create_task(
-                                ctx.send(
-                                    f"The shield protected {memberone.mention} from {(0.4*damagevalue)} hitpoints."
-                                ))
-                            damagevalue *= 0.6
-                            memberone_resistance = False
-                        asyncio.create_task(
-                            ctx.send(
-                                f"{membertwo.mention} dealt {damagevalue} to {memberone.mention} with a {attackchoice} hit."
-                            ))
-
-                        memberone_healthpoint -= damagevalue
-                        player_health = ""
-                        if (memberone_healthpoint < 1.0 and memberone_healthpoint > 0.0):
-                            player_health = ":heart:"
-                        for i in range(int(memberone_healthpoint)):
-                            player_health += ":heart:"
-                        asyncio.create_task(
-                            ctx.send(
-                                f"{memberone.mention} health : {player_health}."
-                            ))
-                        if memberone_healthpoint <= 0.0:
-                            asyncio.create_task(
-                                ctx.send(
-                                    f"{memberone.mention} {random.choice(winmessage)}{membertwo.mention}."
-                                ))
-                            if voicechannel.is_playing():
-                                voicechannel.stop()
-                            voicechannel.play(
-                                discord.FFmpegPCMAudio("Player_hurt1.ogg"))
-                            return True
-                    elif message == 'd':
-                        membertwo_resistances += 1
-                        asyncio.create_task(
-                            ctx.send(
-                                f"{membertwo.mention} has equipped the shield."
-                            ))
-                        membertwo_resistance = True
-                        if voicechannel.is_playing():
-                            voicechannel.stop()
-                        voicechannel.play(
-                            discord.FFmpegPCMAudio("Shield_block5.ogg"))
-            return False
-        try:
-            msg = await client.wait_for('message', check=check, timeout=120)
-        except:
-            pass
-        if voicechannel.is_playing():
-            voicechannel.stop()
-        embedOne = discord.Embed(
-            title="Battle results",
-            description=f"{memberone.name} and {membertwo.name}",
-            color=Color.green())
-        embedOne.add_field(
-            name=f"{memberone.name} ",
-            value=f"{memberone_armor} Armor({memberone_armor_resist}% resistance) ,{memberone_sword} Sword({memberone_sword_attack} attack damage).",
-            inline=False)
-        embedOne.add_field(
-            name=(f"{memberone.name} Battle Stats "),
-            value=f"Shield used: {memberone_resistances} , Critical damage : {memberone_critical} , Strong damage : {memberone_strong} , Weak Damage : {memberone_weak}.",
-            inline=False)
-        embedOne.add_field(
-            name=f"{membertwo.name} ",
-            value=f"{membertwo_armor} Armor({membertwo_armor_resist}% resistance) ,{membertwo_sword} Sword({membertwo_sword_attack} attack damage).",
-            inline=False)
-        embedOne.add_field(
-            name=(f"{membertwo.name} Battle Stats "),
-            value=f"Shield used: {membertwo_resistances} , Critical damage : {membertwo_critical} , Strong damage : {membertwo_strong} , Weak Damage : {membertwo_weak}.",
-            inline=False)
-        if matchCancelled:
-            embedOne.add_field(name=f"Match Cancelled",
-                               value=f"** **",
-                               inline=True)
-
-        elif memberone_healthpoint <= 0:
-            embedOne.add_field(name=f"Winner {membertwo.name}",
-                               value=f"Health: {membertwo_healthpoint}",
-                               inline=True)
-            if not membertwo == ctx.guild.me:
-                statement = """INSERT INTO leaderboard (mention) VALUES($1);"""
-                async with pool.acquire() as con:
-                    await con.execute(statement, str(membertwo.id))
-
-        elif membertwo_healthpoint <= 0:
-            embedOne.add_field(name=f"Winner {memberone.name}",
-                               value=f"Health: {memberone_healthpoint}",
-                               inline=True)
-            statement = """INSERT INTO leaderboard (mention) VALUES($1);"""
-            async with pool.acquire() as con:
-                await con.execute(statement, str(memberone.id))
-
-        else:
-            embedOne.add_field(name=f"Match Tied",
-                               value=f"** **",
-                               inline=True)
-        voicechannel.play(discord.FFmpegPCMAudio("Firework_twinkle_far.ogg"))
-        await ctx.send(embed=embedOne)
-
-    @pvpOld.before_invoke
-    async def ensure_voice(self, ctx):
-        if ctx.voice_client is None:
-            if ctx.author.voice:
-                await ctx.author.voice.channel.connect()
-            else:
-                ctx.command.reset_cooldown(ctx)
-                raise commands.CommandError(
-                    "You are not connected to a voice channel.")
-                return
-        elif ctx.voice_client.is_playing():
-            ctx.voice_client.stop()
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(
