@@ -1700,7 +1700,7 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=False, userl
     traceback_text = ''.join(lines)
     pastecode_failed = False
     try:
-        pastecode = await mystbin_client.post(traceback_text, syntax="python")
+        pastecode = await mystbin_client.create_paste(content=traceback_text,filename=genrandomstr(10))
     except:
         pass
     embederror = discord.Embed(
@@ -7877,6 +7877,7 @@ class Misc(commands.Cog):
                       brief='This command can be used to rtfm search on nextcord.',
                       description='This command can be used to rtfm search on nextcord.',
                       usage="search-term")
+    @commands.check_any(is_bot_staff())
     async def nextcordrtfm(self, ctx, *, query: str):
         try:
             await ctx.message.add_reaction("<a:loading:824193916818554960>")
@@ -7923,6 +7924,7 @@ class Misc(commands.Cog):
                       brief='This command can be used to rtfm search on discord.py.',
                       description='This command can be used to rtfm search on discord.py.',
                       usage="search-term")
+    @commands.check_any(is_bot_staff())
     async def discordpyrtfm(self, ctx, *, query: str):
         try:
             await ctx.message.add_reaction("<a:loading:824193916818554960>")
@@ -7969,6 +7971,7 @@ class Misc(commands.Cog):
                       brief='This command can be used to rtfm search on pycord.',
                       description='This command can be used to rtfm search on pycord.',
                       usage="search-term")
+    @commands.check_any(is_bot_staff())
     async def pycordrtfm(self, ctx, *, query: str):
         try:
             await ctx.message.add_reaction("<a:loading:824193916818554960>")
@@ -8196,6 +8199,7 @@ class Misc(commands.Cog):
         description='This command can be used to get user permissions in a guild.',
         usage="@member")
     @commands.guild_only()
+    @commands.check_any(is_bot_staff())
     async def checkp(self, ctx, member: discord.Member = None, channel: discord.TextChannel = None):
         if member is None:
             member = ctx.author
@@ -10028,6 +10032,7 @@ class Support(commands.Cog):
         brief='This command can be used for generating a real looking token for a user.',
         description='This command can be used for generating a real looking token for a user.',
         usage="", aliases=["randomtoken", "guesstoken", "gentoken", "generatetoken"])
+    @commands.check_any(is_bot_staff())
     async def newtoken(self, ctx, member: discord.User):
         timel = member.created_at
         tuplea = timel.timetuple()
@@ -10066,6 +10071,7 @@ class Support(commands.Cog):
         brief='This command can be used for checking a token.',
         description='This command can be used for checking a token.',
         usage="", aliases=["checktoken", "token"])
+    @commands.check_any(is_bot_staff())
     async def tokencheck(self, ctx, *, token):
         try:
             listData = token.split('.')
@@ -10305,7 +10311,7 @@ class Support(commands.Cog):
         usage="*Code*", aliases=["savecode", "sharecode"])
     async def pastebin(self, ctx, *, code: str):
         try:
-            pastecode = await mystbin_client.post(code, syntax="python")
+            pastecode = await mystbin_client.create_paste(content=code,filename=genrandomstr(10))
         except:
             raise commands.CommandError("Posting to pastebin failed!")
         embedtwo = discord.Embed(title=f"{client.user.name} pasted your code.",
@@ -10409,7 +10415,7 @@ class Support(commands.Cog):
                                          f"{client.user.name} executed your code."),
                                      color=Color.green())
         try:
-            erroutput = await mystbin_client.post(erroutput, syntax="python")
+            erroutput = await mystbin_client.create_paste(content=erroutput,filename=genrandomstr(10))
         except:
             erroutput = erroutput
         defaultembed.add_field(name="Error :", value=erroutput, inline=False)
