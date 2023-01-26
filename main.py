@@ -5089,9 +5089,7 @@ targeted attacks using automated user accounts.""")
             e.add_field(name="Command author",
                         value=f"{interaction.user.mention}", inline=False)
             e.set_image(url="attachment://dmEnable.png")
-            dmWarnings = await interaction.response.send_message(file=f, embed=e, ephemeral=True)
-            await asyncio.sleep(5)
-            await dmWarnings.delete()
+            dmWarnings = await interaction.response.send_message(file=f, embed=e, ephemeral=True, delete_after=5)
             return
         await interaction.response.send_message(content='Check your dms for verification!.', ephemeral=True)
 
