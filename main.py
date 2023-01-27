@@ -553,6 +553,13 @@ Features:
         channel = self.get_destination()
         embed.set_footer(text="Want support? Join here: https://discord.gg/TZDYSHSZgg",
                          icon_url=self.context.author.display_avatar)
+        try:
+            command_usage_list = gifcommands[command.name]
+            if not type(command_usage_list[0]) == list:
+                command_usage_list = [command_usage_list]
+            embed.set_image(url=command_usage_list[0])
+        except:
+            pass
         await channel.send(embed=embed, content="** **")
 
    # !help <group>
@@ -2895,9 +2902,8 @@ async def blacklisttimer(ctx, timecount, blacklistedmember, reason=None):
     embed.add_field(name="Reason", value=reason)
     await ctx.send(embed=embed)
 
-gifcommands = {
-    "settemplate": "https://i.imgur.com/TP3wdXW.gif"
-}
+gifcommands = {'activateantiraid': 'https://i.imgur.com/AIg1eyY.gif', 'addcommand': 'https://i.imgur.com/V7yRcmr.gif', 'afk': 'https://i.imgur.com/V5Sk9X7.gif', 'allowprofane': ['https://i.imgur.com/1p2MeCK.gif', 'https://i.imgur.com/nsSQ825.gif'], 'allowspam': ['https://i.imgur.com/BGwqYnI.gif', 'https://i.imgur.com/vuzY5jg.gif'], 'backuptemplate': 'https://i.imgur.com/A6CzSS1.gif', 'balance': 'https://i.imgur.com/7wGT5Mp.gif', 'ban': 'https://i.imgur.com/dPyhUkC.gif', 'blacklist': 'https://i.imgur.com/TTzxDdp.gif', 'botinfo': 'https://i.imgur.com/LFxLV2m.gif', 'calc': 'https://i.imgur.com/0rO1IcV.gif', 'call': 'https://i.imgur.com/AY5rXwE.gif', 'calltoggle': 'https://i.imgur.com/MtubZhd.gif', 'checkbans': 'https://i.imgur.com/gAN4Vqw.gif', 'communicate': 'https://i.imgur.com/DGAEGH9.gif', 'createticketpanel': 'https://i.imgur.com/1WDURle.gif', 'currentlyplaying': 'https://i.imgur.com/Wu7MLTO.gif', 'customcommands': 'https://i.imgur.com/JzvQOyB.gif', 'deactivateantiraid': 'https://i.imgur.com/GwyixIJ.gif', 'disable': 'https://i.imgur.com/zkK1ZIS.gif', 'disableall': 'https://i.imgur.com/8LRvA3w.gif', 'disallowlinks': ['https://i.imgur.com/vswRIBW.gif', 'https://i.imgur.com/FtS6sWt.gif'], 'disallowprofane': ['https://i.imgur.com/He8Mw4j.gif', 'https://i.imgur.com/K3Hj8pd.gif'], 'disallowspam': ['https://i.imgur.com/A8V1SfU.gif', 'https://i.imgur.com/yMgqpai.gif'], 'embedcreate': 'https://i.imgur.com/eVRWSko.gif', 'enable': 'https://i.imgur.com/KE1Daru.gif',
+               'enableall': 'https://i.imgur.com/4dt02Of.gif', 'execpublic': 'https://i.imgur.com/CsH1RcU.gif', 'fact': 'https://i.imgur.com/DfExdOK.gif', 'giveawaystart': 'https://i.imgur.com/isl77tD.gif', 'help': 'https://i.imgur.com/rFO49ga.gif', 'instantgiveaway': 'https://i.imgur.com/84tlt17.gif', 'inventory': 'https://i.imgur.com/bO6rZOU.gif', 'invite': 'https://i.imgur.com/SbII1QE.gif', 'join': 'https://i.imgur.com/OumClwg.gif', 'kick': 'https://i.imgur.com/vNRJdn2.gif', 'level': 'https://i.imgur.com/PJokS15.gif', 'levelmessage': 'https://i.imgur.com/FRTuX0W.gif', 'levelrank': 'https://i.imgur.com/eSbij68.gif', 'leveltoggle': 'https://i.imgur.com/BEdU97y.gif', 'likinguser': 'https://i.imgur.com/gn1s7hY.gif', 'linkaccount': 'https://i.imgur.com/A16vkRe.gif', 'lock': 'https://i.imgur.com/3GwzsIj.gif', 'mcservercheck': 'https://i.imgur.com/HV196lV.gif', 'modsettings': 'https://i.imgur.com/Y8S0GIR.gif', 'mute': 'https://i.imgur.com/2zih3pF.gif', 'pastebin': 'https://i.imgur.com/XjAjj5F.gif', 'payment': 'https://i.imgur.com/AqeUfyJ.gif', 'ping': 'https://i.imgur.com/cTJmk78.gif', 'play': 'https://i.imgur.com/GEQ3hDK.gif', 'playgame': 'https://i.imgur.com/zuSSthI.gif', 'poll': 'https://i.imgur.com/33vNRgi.gif', 'profile': 'https://i.imgur.com/gNrgXDZ.gif', 'purge': 'https://i.imgur.com/D24LqOC.gif', 'pvp': ['https://i.imgur.com/srBWrb5.gif', 'https://i.imgur.com/4OWDSOt.gif'], 'pvpleaderboard': 'https://i.imgur.com/HgDctSj.gif'}
 
 
 class AestronInfo(commands.Cog):
@@ -2908,16 +2914,36 @@ class AestronInfo(commands.Cog):
                       usage="")
     async def cmdusage(self, ctx, command: str):
         reqCommand = client.get_command(command)
-        if not reqCommand == None:
-            embedVar = discord.Embed(title=f"{command} usage",
-                                     description="",
-                                     color=0x00ff00)
-            try:
-                embedVar.set_image(url=gifcommands[command])
-            except:
-                await on_command_error(ctx, " This command usage is not yet listed on the bot.")
-                return
-            await ctx.send(embed=embedVar)
+        if reqCommand:
+            command_usage_list = gifcommands[command]
+            if not type(command_usage_list[0]) == list:
+                command_usage_list = [command_usage_list]
+            embedlist = []
+            for command_usage_gif in command_usage_list:
+                embedVar = discord.Embed(title=f"{command} usage",
+                                         description=reqCommand.description,
+                                         color=0x00ff00)
+                embedVar.set_footer(
+                    text=f"Page {command_usage_list.index(command_usage_gif)+1}/{len(command_usage_list)}")
+                example = get_example(reqCommand, ctx.guild)
+                exampleLine = example[0]
+                if example[1]:
+                    exampleLine = exampleLine + \
+                        "\n\nNote: **...** indicates all other members or channels or roles you want."
+                if example[2]:
+                    exampleLine = exampleLine + \
+                        "\n\nNote: (OPT.) means that argument in the command is optional."
+                embedVar.add_field(
+                    name="Usage", value=f"{ctx.prefix}{command} {exampleLine}")
+                try:
+                    embedVar.set_image(url=command_usage_gif)
+                except:
+                    pass
+                embedlist.append(embedVar)
+
+            pagview = PaginateEmbed(embedlist)
+            msg = await ctx.send(view=pagview, embed=embedlist[0])
+            pagview.set_initial_message(msg)
         else:
             await on_command_error(ctx, " The requested command with name was not found.")
             return
@@ -13737,14 +13763,14 @@ async def on_message(message):
                             async with pool.acquire() as con:
                                 riotaccount = await con.fetchrow(statement, reqid)
                             if riotaccount is not None:
-                                statement="""UPDATE riotaccount SET accountpuuid = $1, accountname = $2, accounttag = $3 WHERE discorduserid = $4;"""
+                                statement = """UPDATE riotaccount SET accountpuuid = $1, accountname = $2, accounttag = $3 WHERE discorduserid = $4;"""
                                 async with pool.acquire() as con:
                                     await con.execute(statement, accountpuuid, accountname, accounttag, reqid)
                             else:
                                 statement = """INSERT INTO riotaccount (discorduserid,accountpuuid,accountname,accounttag) VALUES($1,$2,$3,$4);"""
                                 async with pool.acquire() as con:
                                     await con.execute(statement, reqid, accountpuuid, accountname, accounttag)
-                            
+
                             await message.reply(f"Account {accountname} with tag {accounttag} and puuid {accountpuuid} has been added to the database.")
                             await message.add_reaction("✔️")
         if message.author == client.user:
