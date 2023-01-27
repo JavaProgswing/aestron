@@ -1,25 +1,18 @@
-table_commands = []
-table_name=None
-with open('tablebases.txt', 'r') as f:
-    for line in f:
-        if line.startswith('CREATE TABLE'):
-            parts = line.split()
-            table_name = parts[2]
-            #print(line)
-        elif line.startswith('('):
-                table_name = parts[2]
-                column_str = line
-                column_str = column_str.replace('(', '')
-                column_str = column_str.replace(')', '')
-                column_str = column_str.replace('`', '')
-                column_str = column_str.replace(';', '')
-                column_str = column_str.replace('\n', '')
-                columns = column_str.split(',')
-                print('DROP TABLE '+table_name+'; ', end='')
-                #print('CREATE TABLE '+table_name+' (', end='')
-                columns=columns[::-1]
-                #print(','.join(columns), end='')
-                #print(');')
+import os
+import json
 
-                    
-print('\n'.join(table_commands))
+folder_path = 'C:\\Users\\HP\\Videos'
+input_folder_path= os.path.join(folder_path, 'input')
+output_folder_path= os.path.join(folder_path, 'output')
+mapping = {}
+
+for file_name in os.listdir(input_folder_path):
+    if file_name.endswith('.mkv'):
+        original_file = os.path.join(folder_path, file_name)
+        new_file = os.path.join(output_folder_path, file_name.replace('.mkv', '.gif'))
+        os.system(
+            f'ffmpeg -i {original_file} -vf "fps=7,scale=-1:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" {new_file}')
+        mapping[original_file] = new_file
+
+with open(os.path.join(output_folder_path, 'mapping.json'), 'w') as f:
+    json.dump(mapping, f)

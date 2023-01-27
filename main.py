@@ -554,13 +554,11 @@ Features:
         embed.set_footer(text="Want support? Join here: https://discord.gg/TZDYSHSZgg",
                          icon_url=self.context.author.display_avatar)
         try:
-            command_usage_list = gifcommands[command.name]
-            if not type(command_usage_list[0]) == list:
-                command_usage_list = [command_usage_list]
-            embed.set_image(url=command_usage_list[0])
+            embed.set_image(url=f"attachment://{command.name}.gif")
+            file = discord.File(command.name, filename=f"{command.name}.gif")
         except:
             pass
-        await channel.send(embed=embed, content="** **")
+        await channel.send(embed=embed, content="** **", file=file)
 
    # !help <group>
     async def send_group_help(self, commandname):
@@ -2902,9 +2900,6 @@ async def blacklisttimer(ctx, timecount, blacklistedmember, reason=None):
     embed.add_field(name="Reason", value=reason)
     await ctx.send(embed=embed)
 
-gifcommands = {'activateantiraid': 'https://i.imgur.com/AIg1eyY.gif', 'addcommand': 'https://i.imgur.com/V7yRcmr.gif', 'afk': 'https://i.imgur.com/V5Sk9X7.gif', 'allowprofane': ['https://i.imgur.com/1p2MeCK.gif', 'https://i.imgur.com/nsSQ825.gif'], 'allowspam': ['https://i.imgur.com/BGwqYnI.gif', 'https://i.imgur.com/vuzY5jg.gif'], 'backuptemplate': 'https://i.imgur.com/A6CzSS1.gif', 'balance': 'https://i.imgur.com/7wGT5Mp.gif', 'ban': 'https://i.imgur.com/dPyhUkC.gif', 'blacklist': 'https://i.imgur.com/TTzxDdp.gif', 'botinfo': 'https://i.imgur.com/LFxLV2m.gif', 'calc': 'https://i.imgur.com/0rO1IcV.gif', 'call': 'https://i.imgur.com/AY5rXwE.gif', 'calltoggle': 'https://i.imgur.com/MtubZhd.gif', 'checkbans': 'https://i.imgur.com/gAN4Vqw.gif', 'communicate': 'https://i.imgur.com/DGAEGH9.gif', 'createticketpanel': 'https://i.imgur.com/1WDURle.gif', 'currentlyplaying': 'https://i.imgur.com/Wu7MLTO.gif', 'customcommands': 'https://i.imgur.com/JzvQOyB.gif', 'deactivateantiraid': 'https://i.imgur.com/GwyixIJ.gif', 'disable': 'https://i.imgur.com/zkK1ZIS.gif', 'disableall': 'https://i.imgur.com/8LRvA3w.gif', 'disallowlinks': ['https://i.imgur.com/vswRIBW.gif', 'https://i.imgur.com/FtS6sWt.gif'], 'disallowprofane': ['https://i.imgur.com/He8Mw4j.gif', 'https://i.imgur.com/K3Hj8pd.gif'], 'disallowspam': ['https://i.imgur.com/A8V1SfU.gif', 'https://i.imgur.com/yMgqpai.gif'], 'embedcreate': 'https://i.imgur.com/eVRWSko.gif', 'enable': 'https://i.imgur.com/KE1Daru.gif',
-               'enableall': 'https://i.imgur.com/4dt02Of.gif', 'execpublic': 'https://i.imgur.com/CsH1RcU.gif', 'fact': 'https://i.imgur.com/DfExdOK.gif', 'giveawaystart': 'https://i.imgur.com/isl77tD.gif', 'help': 'https://i.imgur.com/rFO49ga.gif', 'instantgiveaway': 'https://i.imgur.com/84tlt17.gif', 'inventory': 'https://i.imgur.com/bO6rZOU.gif', 'invite': 'https://i.imgur.com/SbII1QE.gif', 'join': 'https://i.imgur.com/OumClwg.gif', 'kick': 'https://i.imgur.com/vNRJdn2.gif', 'level': 'https://i.imgur.com/PJokS15.gif', 'levelmessage': 'https://i.imgur.com/FRTuX0W.gif', 'levelrank': 'https://i.imgur.com/eSbij68.gif', 'leveltoggle': 'https://i.imgur.com/BEdU97y.gif', 'likinguser': 'https://i.imgur.com/gn1s7hY.gif', 'linkaccount': 'https://i.imgur.com/A16vkRe.gif', 'lock': 'https://i.imgur.com/3GwzsIj.gif', 'mcservercheck': 'https://i.imgur.com/HV196lV.gif', 'modsettings': 'https://i.imgur.com/Y8S0GIR.gif', 'mute': 'https://i.imgur.com/2zih3pF.gif', 'pastebin': 'https://i.imgur.com/XjAjj5F.gif', 'payment': 'https://i.imgur.com/AqeUfyJ.gif', 'ping': 'https://i.imgur.com/cTJmk78.gif', 'play': 'https://i.imgur.com/GEQ3hDK.gif', 'playgame': 'https://i.imgur.com/zuSSthI.gif', 'poll': 'https://i.imgur.com/33vNRgi.gif', 'profile': 'https://i.imgur.com/gNrgXDZ.gif', 'purge': 'https://i.imgur.com/D24LqOC.gif', 'pvp': ['https://i.imgur.com/srBWrb5.gif', 'https://i.imgur.com/4OWDSOt.gif'], 'pvpleaderboard': 'https://i.imgur.com/HgDctSj.gif'}
-
 
 class AestronInfo(commands.Cog):
     """ Aestron bot information """
@@ -2915,16 +2910,19 @@ class AestronInfo(commands.Cog):
     async def cmdusage(self, ctx, command: str):
         reqCommand = client.get_command(command)
         if reqCommand:
-            command_usage_list = gifcommands[command]
-            if not type(command_usage_list[0]) == list:
-                command_usage_list = [command_usage_list]
-            embedlist = []
-            for command_usage_gif in command_usage_list:
-                embedVar = discord.Embed(title=f"{command} usage",
-                                         description=reqCommand.description,
-                                         color=0x00ff00)
-                embedVar.set_footer(
-                    text=f"Page {command_usage_list.index(command_usage_gif)+1}/{len(command_usage_list)}")
+            commandUsages = []
+            for i in range(9):
+                if i != 0:
+                    currentPath = f"./commandusages/{command}_{i}.gif"
+                else:
+                    currentPath = f"./commandusages/{command}.gif"
+                if os.path.exists(currentPath):
+                    commandUsages.append(currentPath)
+            embeds = []
+            files = []
+            for commandUsage in commandUsages:
+                embedVar = discord.Embed(title=f"{command} Usage",
+                                         description="", color=0x00ff00)
                 example = get_example(reqCommand, ctx.guild)
                 exampleLine = example[0]
                 if example[1]:
@@ -2935,15 +2933,14 @@ class AestronInfo(commands.Cog):
                         "\n\nNote: (OPT.) means that argument in the command is optional."
                 embedVar.add_field(
                     name="Usage", value=f"{ctx.prefix}{command} {exampleLine}")
-                try:
-                    embedVar.set_image(url=command_usage_gif)
-                except:
-                    pass
-                embedlist.append(embedVar)
-
-            pagview = PaginateEmbed(embedlist)
-            msg = await ctx.send(view=pagview, embed=embedlist[0])
+                embedVar.set_image(url=f"attachment://{commandUsage}")
+                embeds.append(embedVar)
+                files.append(discord.File(
+                    commandUsage, filename=f"{commandUsage}.gif"))
+            pagview = PaginateFileEmbed(embeds, files)
+            msg = await ctx.send(embed=embeds[0], file=files[0], view=pagview)
             pagview.set_initial_message(msg)
+
         else:
             await on_command_error(ctx, " The requested command with name was not found.")
             return
