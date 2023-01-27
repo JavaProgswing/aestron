@@ -555,10 +555,13 @@ Features:
                          icon_url=self.context.author.display_avatar)
         try:
             embed.set_image(url=f"attachment://{command.name}.gif")
-            file = discord.File(command.name, filename=f"{command.name}.gif")
+            file = discord.File(
+                f"./commandusages/{command.name}.gif", filename=f"{command.name}.gif")
+            await channel.send(embed=embed, content="** **", file=file)
+            return
         except:
             pass
-        await channel.send(embed=embed, content="** **", file=file)
+        await channel.send(embed=embed, content="** **")
 
    # !help <group>
     async def send_group_help(self, commandname):
@@ -1047,7 +1050,7 @@ guildids = []
 customCog = None
 timer = 0.005
 devtimer = 2
-botVersion = "2.0: Valorant fixes and leveling alerts!"
+botVersion = "2.1: Added cmdusage command, use it to check a command's usage."
 bot.cooldownself = commands.CooldownMapping.from_cooldown(
     1.0, 1.0, commands.BucketType.member)
 bot.cmdcooldownvar = commands.CooldownMapping.from_cooldown(
@@ -2675,7 +2678,6 @@ async def runBot():  # Bot START Aestron START
                 @commands.check_any(is_guild(guild, custom[1]))
                 async def cmd(self, ctx):
                     try:
-
                         async with pool.acquire() as con:
                             customlist = await con.fetchrow(f"SELECT * FROM customcommands WHERE guildid = {ctx.guild.id} AND commandname = '{custom[1]}'")
                     except:
@@ -2909,6 +2911,9 @@ class AestronInfo(commands.Cog):
                       usage="")
     async def cmdusage(self, ctx, command: str):
         reqCommand = client.get_command(command)
+        if reqCommand in customCog.__cog_commands__:
+            await on_command_error(ctx, "Custom commands don't have listed usages.")
+            return
         if reqCommand:
             commandUsages = []
             for i in range(9):
@@ -2942,7 +2947,7 @@ class AestronInfo(commands.Cog):
             pagview.set_initial_message(msg)
 
         else:
-            await on_command_error(ctx, " The requested command with name was not found.")
+            await on_command_error(ctx, "The requested command with name was not found.")
             return
 
     @commands.command(aliases=["info"],
@@ -13111,7 +13116,7 @@ class CustomCommands(commands.Cog):
     @commands.command(
         brief='This command can be used to add your own commands and a custom response.',
         description='This command can be used to add your own commands and a custom response and can be used by members having manage guild permission.',
-        usage="commandname output")
+        usage="commandname output",aliases=["addcustomcommand"])
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
@@ -13172,7 +13177,7 @@ class CustomCommands(commands.Cog):
     @commands.command(
         brief='This command can be used to remove your custom command.',
         description='This command can be used to remove your custom command an can be used by members having manage guild permission.',
-        usage="commandname")
+        usage="commandname",aliases=["removecustomcommand"])
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
