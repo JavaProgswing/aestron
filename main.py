@@ -61,6 +61,8 @@ import shutil
 import long_responses as long
 from mainext import publicaexec
 import pickle
+import sys
+import subprocess
 
 
 def noglobal(f): return types.FunctionType(
@@ -498,9 +500,16 @@ class MyHelp(commands.HelpCommand):
         }
         super().__init__(command_attrs=attrs)
 
+    async def on_help_command_error(self, ctx, error):
+        await super().on_help_command_error(ctx, error)
+        print(error)
+        print(type(error))
+        print(ctx)
+
     async def send_bot_help(self, mapping):
         global customCog
         filteredcmds = []
+        allcommands = []
         for cog, commands in mapping.items():
             try:
                 filcmds = await self.filter_commands(commands=commands, sort=True)
@@ -508,6 +517,12 @@ class MyHelp(commands.HelpCommand):
                 for cmd in filcmds:
                     if cog == customCog and (cmd.name == "addcommand" or cmd.name == "removecommand" or cmd.name == "customcommands") or cog != customCog:
                         filteredcmds.append(cmd.name)
+            except:
+                pass
+            try:
+                for cmd in commands:
+                    if not "is_bot_staff" in cmd.checks.__str__():
+                        allcommands.append(cmd.name)
             except:
                 pass
         embed = discord.Embed(title="Aestron help", description="""Aestron is a cool social bot having features such as Moderation, Logging, Music, Giveaways, Custom commands and more...
@@ -529,7 +544,7 @@ Features:
         embed.add_field(name="Version and info", value=f"v{botVersion}")
         embed.set_footer(text="Want support? Join here: https://discord.gg/TZDYSHSZgg",
                          icon_url=self.context.author.display_avatar)
-        await self.context.send(embed=embed, view=DefaultHelp(filteredcmds, self.context.author))
+        await self.context.send(embed=embed, view=DefaultHelp(filteredcmds, allcommands, self.context.author))
 
    # !help <command>
     async def send_command_help(self, commandname):
@@ -611,7 +626,7 @@ class CommandHelpSelect(discord.ui.Select):
             options.append(discord.SelectOption(
                 label=c.name, description=c.brief[:100]))
         super().__init__(placeholder='Select a help command.',
-                         min_values=1, max_values=1, options=options)
+                         min_values=1, max_values=1, options=options, custom_id="commandhelpselect:init")
 
     async def callback(self, interaction: discord.Interaction):
         if not interaction.user.id == self.author.id:
@@ -642,7 +657,7 @@ class CommandHelpSelect(discord.ui.Select):
 
 class CommandHelp(discord.ui.View):
     def __init__(self, cog, author):
-        super().__init__(timeout=300)
+        super().__init__(timeout=150)
         self.add_item(CommandHelpSelect(cog, author))
 
     async def on_timeout(self):
@@ -720,7 +735,7 @@ class CodingLanguageSelect(discord.ui.Select):
 
 
 class DefaultHelpSelect(discord.ui.Select):
-    def __init__(self, filteredcmds, cauthor):
+    def __init__(self, filteredcmds, cauthor, showingall):
 
         # Set the options that will be presented inside the dropdown
         options = [
@@ -765,9 +780,12 @@ class DefaultHelpSelect(discord.ui.Select):
         ]
         self.author = cauthor
         self.fcommands = filteredcmds
-        super().__init__(placeholder='Select a help category.',
-                         min_values=1, max_values=1, options=options)
-
+        if showingall:
+            super().__init__(placeholder='Select a help category(Showing all commands).',
+                         min_values=1, max_values=1, options=options, custom_id='defaulthelpselect:init')
+        else:
+            super().__init__(placeholder='Select a help category(Showing your commands).',
+                         min_values=1, max_values=1, options=options, custom_id='defaulthelpselect:init')
     async def callback(self, interaction: discord.Interaction):
         if not interaction.user.id == self.author.id:
             await interaction.response.send_message(content=f"You have not invoked this help command!", ephemeral=True)
@@ -809,9 +827,30 @@ class DefaultHelpSelect(discord.ui.Select):
 
 
 class DefaultHelp(discord.ui.View):
-    def __init__(self, filteredcmds, author):
-        super().__init__(timeout=300)
-        self.add_item(DefaultHelpSelect(filteredcmds, author))
+    def __init__(self, filteredcmds, allcommands,author):
+        super().__init__(timeout=150)
+        self.filteredcmds = filteredcmds
+        self.allcommands = allcommands
+        self.showAll = False
+        self.currentSelectMenu=DefaultHelpSelect(filteredcmds, author, self.showAll)
+        self.add_item(self.currentSelectMenu)
+
+    @discord.ui.button(label=':white_circle:',style=discord.ButtonStyle.green)
+    async def toggle(self, button: discord.ui.Button, interaction: discord.Interaction):
+        self.showAll = not self.showAll
+        if self.showAll:
+            button.label=":blue_circle:"
+            await interaction.response.send_message(content='Help toggled to show all commands!', ephemeral=True)
+            cmds=self.allcommands
+        else:
+            button.label=":white_circle:"
+            await interaction.response.send_message(content='Help toggled to show only commands you can use!', ephemeral=True)
+            cmds=self.filteredcmds
+
+        await self.message.edit(view=self)
+        self.remove_item(self.currentSelectMenu)
+        self.currentSelectMenu=DefaultHelpSelect(cmds, self.author, self.showAll)
+        self.add_item(self.currentSelectMenu)
 
     async def on_timeout(self):
         for child in self.children:
@@ -1127,7 +1166,7 @@ class Songpanel(discord.ui.View):
     def set_message(self, message):
         self.message = message
 
-    @discord.ui.button(label='⏸️', style=discord.ButtonStyle.green)
+    @discord.ui.button(label='⏸️', style=discord.ButtonStyle.green, custom_id="songpanel:playpause")
     async def playpause(self, button: discord.ui.Button, interaction: discord.Interaction):
         if not interaction.user.id == self.memberid and not songcheckperm(self.channel, interaction.user):
             await interaction.response.send_message("You have not invoked this song.", ephemeral=True)
@@ -1164,7 +1203,7 @@ class Songpanel(discord.ui.View):
         except:
             await interaction.response.send_message("I cannot find any voice channels.", ephemeral=True)
 
-    @discord.ui.button(label='🔁', style=discord.ButtonStyle.green)
+    @discord.ui.button(label='🔁', style=discord.ButtonStyle.green, custom_id="songpanel:loop")
     async def loop(self, button: discord.ui.Button, interaction: discord.Interaction):
         if not interaction.user.id == self.memberid and not songcheckperm(self.channel, interaction.user):
             await interaction.response.send_message("You have not invoked this song.", ephemeral=True)
@@ -1215,7 +1254,7 @@ class Songpanel(discord.ui.View):
             if guild.voice_client is None or not guildmusicloop[guild.id]:
                 break
 
-    @discord.ui.button(label='⬆️', style=discord.ButtonStyle.green)
+    @discord.ui.button(label='⬆️', style=discord.ButtonStyle.green, custom_id="songpanel:volumeup")
     async def volumeup(self, button: discord.ui.Button, interaction: discord.Interaction):
         if not interaction.user.id == self.memberid and not songcheckperm(self.channel, interaction.user):
             await interaction.response.send_message("You have not invoked this song.", ephemeral=True)
@@ -1233,7 +1272,7 @@ class Songpanel(discord.ui.View):
         except:
             pass
 
-    @discord.ui.button(label='⬇️', style=discord.ButtonStyle.green)
+    @discord.ui.button(label='⬇️', style=discord.ButtonStyle.green, custom_id="songpanel:volumedown")
     async def volumedown(self, button: discord.ui.Button, interaction: discord.Interaction):
         if not interaction.user.id == self.memberid and not songcheckperm(self.channel, interaction.user):
             await interaction.response.send_message("You have not invoked this song.", ephemeral=True)
@@ -1250,7 +1289,7 @@ class Songpanel(discord.ui.View):
         except:
             pass
 
-    @discord.ui.button(label='📖', style=discord.ButtonStyle.green)
+    @discord.ui.button(label='📖', style=discord.ButtonStyle.green, custom_id="songpanel:queue")
     async def queue(self, button: discord.ui.Button, interaction: discord.Interaction):
         guild = self.guild
         length = len(guildmusicqueue[guild.id])
@@ -1277,7 +1316,7 @@ class Songpanel(discord.ui.View):
             pagview = PaginateEmbed(listOfEmbeds)
             await interaction.response.send_message(view=pagview, embed=listOfEmbeds[0], ephemeral=True)
 
-    @discord.ui.button(label='🎶', style=discord.ButtonStyle.green)
+    @discord.ui.button(label='🎶', style=discord.ButtonStyle.green, custom_id="songpanel:lyrics")
     async def lyrics(self, button: discord.ui.Button, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         global guildmusicname
@@ -1310,7 +1349,7 @@ class Songpanel(discord.ui.View):
         except Exception as ex:
             print(ex)
 
-    @discord.ui.button(label='🛑', style=discord.ButtonStyle.red)
+    @discord.ui.button(label='🛑', style=discord.ButtonStyle.red, custom_id="songpanel:stop")
     async def stop(self, button: discord.ui.Button, interaction: discord.Interaction):
         if not interaction.user.id == self.memberid and not songcheckperm(self.channel, interaction.user):
             await interaction.response.send_message("You have not invoked this song.", ephemeral=True)
@@ -2581,6 +2620,8 @@ async def runBot():  # Bot START Aestron START
     channeldev = client.get_channel(843081057506426880)
     channelgitlogging = client.get_channel(895884797099008050)
     print(f"The logging channel has been set to {channelerrorlogging}.")
+    if len(sys.argv) > 1 and sys.argv[1] == "restart":
+        await channeldev.send("Successfully Restarted!")
     valorantMatchSave.start()
     valorantSeasonCheck.start()
     customCog = client.get_cog("CustomCommands")
@@ -2931,6 +2972,41 @@ async def blacklisttimer(ctx, timecount, blacklistedmember, reason=None):
     embed.add_field(name="Moderator", value=ctx.author.mention)
     embed.add_field(name="Reason", value=reason)
     await ctx.send(embed=embed)
+
+
+@client.command()
+@is_bot_staff()
+async def shutdown(ctx):
+    await ctx.send("Shutting down...")
+    sync_views = client._connection._view_store._synced_message_views
+    for view in sync_views:
+        viewobj = sync_views[view]
+        if viewobj._message:
+            viewobj.disable_all_items()
+            try:
+                await viewobj._message.edit(view=viewobj)
+            except:
+                pass
+    await client.close()
+    sys.exit(0)
+
+
+@client.command()
+@is_bot_staff()
+async def restart(ctx):
+    await ctx.send("Restarting...")
+    sync_views = client._connection._view_store._synced_message_views
+    for view in sync_views:
+        viewobj = sync_views[view]
+        if viewobj._message:
+            viewobj.disable_all_items()
+            try:
+                await viewobj._message.edit(view=viewobj)
+            except:
+                pass
+    await ctx.send(subprocess.run("python3.9 main.py restart", shell=True, stdout=subprocess.PIPE).stdout)
+    await client.close()
+    sys.exit(0)
 
 
 class AestronInfo(commands.Cog):
@@ -3636,7 +3712,7 @@ class Moderation(commands.Cog):
         brief='This command warns users for a given reason provided.',
         description='This command warns users for a given reason provided and can be used by bot staff.')
     @commands.guild_only()
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def silentwarn(self, ctx, member: discord.Member, *, reason: str = None):
         if reason is None:
             reason = "no reason provided"
@@ -7893,7 +7969,7 @@ class Misc(commands.Cog):
                       brief='This command can be used to rtfm search on nextcord.',
                       description='This command can be used to rtfm search on nextcord.',
                       usage="search-term")
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def nextcordrtfm(self, ctx, *, query: str):
         try:
             await ctx.message.add_reaction("<a:loading:824193916818554960>")
@@ -7939,7 +8015,7 @@ class Misc(commands.Cog):
                       brief='This command can be used to rtfm search on discord.py.',
                       description='This command can be used to rtfm search on discord.py.',
                       usage="search-term")
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def discordpyrtfm(self, ctx, *, query: str):
         try:
             await ctx.message.add_reaction("<a:loading:824193916818554960>")
@@ -7985,7 +8061,7 @@ class Misc(commands.Cog):
                       brief='This command can be used to rtfm search on pycord.',
                       description='This command can be used to rtfm search on pycord.',
                       usage="search-term")
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def pycordrtfm(self, ctx, *, query: str):
         try:
             await ctx.message.add_reaction("<a:loading:824193916818554960>")
@@ -8212,7 +8288,7 @@ class Misc(commands.Cog):
         description='This command can be used to get user permissions in a guild.',
         usage="@member")
     @commands.guild_only()
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def checkp(self, ctx, member: discord.Member = None, channel: discord.TextChannel = None):
         if member is None:
             member = ctx.author
@@ -9338,7 +9414,7 @@ class Support(commands.Cog):
         brief='This command can be used to add reaction to a message.',
         description='This command can be used to add reaction to a message.',
         usage="emoji messageid", aliases=["react", "addreact"])
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     @commands.guild_only()
     async def addreaction(self, ctx, emoji: discord.Emoji, messageid: int, channel: discord.TextChannel):
         if isinstance(messageid, int):
@@ -9452,7 +9528,7 @@ class Support(commands.Cog):
         brief='This command can be used for disabling a command by bot staff.',
         description='This command can be used for disabling a command by bot staff.',
         usage="command", aliases=["bug", "dstaff"])
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def disablestaff(self, ctx, command):
         command = client.get_command(command)
         if command is None:
@@ -9470,7 +9546,7 @@ class Support(commands.Cog):
         brief='This command can be used for enabling a command by bot staff.',
         description='This command can be used for enabling a command by bot staff.',
         usage="command", aliases=["unbug", "estaff"])
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def enablestaff(self, ctx, command):
         command = client.get_command(command)
         if command is None:
@@ -9489,7 +9565,7 @@ class Support(commands.Cog):
         description='This command can be used for sending a webhook message by developer.',
         usage="text webhookurl username avatarurl", aliases=["webhook"])
     @commands.guild_only()
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def sendwebhook(self,
                           ctx, text: str, hookurl: str,
                           userprovided: discord.Member = None,
@@ -9509,7 +9585,7 @@ class Support(commands.Cog):
         description='This command can be used for sending a announcement message by developer.',
         usage="text", aliases=["announce"])
     @commands.guild_only()
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def announcetext(self,
                            ctx, *, text: str,
                            hookurl: str = None):
@@ -9525,7 +9601,7 @@ class Support(commands.Cog):
         description='This command can be used to delete a embed and message.',
         usage="messageid")
     @commands.guild_only()
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def deletemessage(self, ctx, msgid: int = None):
         channel = ctx.channel
         if not msgid == None:
@@ -9556,7 +9632,7 @@ class Support(commands.Cog):
         description='This command can be used to approve a user to bypass TEMP bot staff access.',
         usage="@member")
     @commands.guild_only()
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def addtempstaff(self, ctx, member: discord.Member, timenum: str = None):
         if checkstaff(member):
             raise commands.CommandError(
@@ -9611,7 +9687,7 @@ class Support(commands.Cog):
         description='This command can be used to give response to a reported bug in the support server by bot staff.',
         usage="bug-id bug-solution", aliases=["solvedbug", "patchbug"])
     @commands.guild_only()
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def solveBug(self, ctx, bugid: int, *, solution: str):
         global channelbuglogging
         theBugMessage = await channelbuglogging.fetch_message(int(bugid))
@@ -9645,7 +9721,7 @@ class Support(commands.Cog):
         description='This command can be used to give response to a reported bug in the support server by bot staff.',
         usage="bug-id", aliases=["acknowlegedbug", "pendingbug"])
     @commands.guild_only()
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def seenBug(self, ctx, bugid: int):
         global channelbuglogging
         theBugMessage = await channelbuglogging.fetch_message(int(bugid))
@@ -9729,7 +9805,7 @@ class Support(commands.Cog):
         description='This command can be used to prompt a user to vote for accessing exclusive commands.',
         usage="@member")
     @commands.guild_only()
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def promptvote(self, ctx, member: discord.Member = None):
         if not member is None:
             mentionsent = await ctx.send(member.mention)
@@ -9752,7 +9828,7 @@ class Support(commands.Cog):
         brief='This command can be used to send messages in a certain channel.',
         description='This command can be used to send messages in a certain channel.',
         usage="channelid")
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def sendchannel(self, ctx, channels: Greedy[discord.TextChannel]):
         check_ensure_permissions(
             ctx, ctx.guild.me, ["manage_messages", "read_message_history"])
@@ -9817,7 +9893,7 @@ class Support(commands.Cog):
         brief='This command can be used to send messages in a certain guild.',
         description='This command can be used to send messages in a certain guild.',
         usage="guildid")
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def sendguild(self, ctx, guilds: Greedy[discord.Guild]):
         check_ensure_permissions(
             ctx, ctx.guild.me, ["manage_messages", "read_message_history"])
@@ -9878,7 +9954,7 @@ class Support(commands.Cog):
         brief='This command can be used for maintainence mode.',
         description='This command can be used for maintainence mode.',
         usage="")
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def maintenancemode(self, ctx):
         global maintenancemodestatus
         maintenancemodestatus = not maintenancemodestatus
@@ -9902,7 +9978,7 @@ class Support(commands.Cog):
         brief='This command can be used for generating a real looking token for a user.',
         description='This command can be used for generating a real looking token for a user.',
         usage="", aliases=["randomtoken", "guesstoken", "gentoken", "generatetoken"])
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def newtoken(self, ctx, member: discord.User):
         timel = member.created_at
         tuplea = timel.timetuple()
@@ -9941,7 +10017,7 @@ class Support(commands.Cog):
         brief='This command can be used for checking a token.',
         description='This command can be used for checking a token.',
         usage="", aliases=["checktoken", "token"])
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def tokencheck(self, ctx, *, token):
         try:
             listData = token.split('.')
@@ -10012,7 +10088,7 @@ class Support(commands.Cog):
         description='This command can be used for checking user votes.',
         usage="@member")
     @commands.guild_only()
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def checkvote(self, ctx, member: discord.Member = None):
         if member is None:
             member = ctx.author
@@ -10054,7 +10130,7 @@ class Support(commands.Cog):
             pass
 
     @commands.command(brief='This command can be used to get uptime of this bot.', description='This command can be used to get uptime of this bot.', usage="")
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def uptime(self, ctx):
         delta_uptime = datetime.utcnow() - bot.launch_time
         hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
@@ -10099,7 +10175,7 @@ class Support(commands.Cog):
         brief='This command can be used to see bot joined servers.',
         description='This command can be used to see bot joined servers.',
         usage="")
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def joinedservers(self, ctx):
         count = 0
         embedOne = discord.Embed(title="Joined servers",
@@ -10122,7 +10198,7 @@ class Support(commands.Cog):
         brief='This command can be used to make bot status offline.',
         description='This command can be used to make bot status offline.',
         usage="")
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def invisible(self, ctx):
         await client.change_presence(status=discord.Status.invisible)
         # print(f"Status was changed to invisible in {ctx.guild}")
@@ -10131,7 +10207,7 @@ class Support(commands.Cog):
                       brief='This command shows all bot builds.',
                       description='This command shows all bot builds and can be used by bot staff. ')
     @commands.guild_only()
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def builds(self, ctx):
         async with pool.acquire() as con:
             buildlist = await con.fetch(f"SELECT * FROM botbuilds")
@@ -10149,7 +10225,7 @@ class Support(commands.Cog):
         brief='This command can be used to patch a build.',
         description='This command can be used patch a build and can be used by bot staff.',
         usage="buildname buildchanges", aliases=["patch"])
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def patchbuild(self, ctx, buildname: str, *, buildchanges: str, showchanges=True):
         global channelbuildlogging
         if showchanges:
@@ -10207,7 +10283,7 @@ class Support(commands.Cog):
         brief='This command can be used to execute code in python.',
         description='This command can be used to execute code in python.',
         usage="*Code*", aliases=["exec", "runcode", "run"])
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def execcode(self, ctx, *, code: str = None):
         if code is None:
             try:
@@ -10312,7 +10388,7 @@ class Support(commands.Cog):
         brief='This command can be used to evaluate a expression in python by bot staff.',
         description='This command can be used to evaluate a expression in python by bot staff.',
         usage="Your ", aliases=["output"])
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def evalcode(self, ctx, *, cmd: str):
         output = ""
         try:
@@ -10380,7 +10456,7 @@ class Support(commands.Cog):
         brief='This command can be used to make bot status online.',
         description='This command can be used to make bot status online.',
         usage="")
-    @commands.check_any(is_bot_staff())
+    @is_bot_staff()
     async def visible(self, ctx):
         activity = discord.Activity(
             name="@Aestron for commands.",
@@ -12129,7 +12205,7 @@ class Minecraftpvp(discord.ui.View):
         self.vc = vc
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="🎌 Surrender", style=discord.ButtonStyle.red)
+    @discord.ui.button(label="🎌 Surrender", style=discord.ButtonStyle.red, custom_id="minecraftpvp:surrender")
     async def surrender(
         self, button: discord.ui.Button, interaction: discord.Interaction
     ):
@@ -12168,7 +12244,7 @@ class Minecraftpvp(discord.ui.View):
                 pass
             self.stop()
 
-    @discord.ui.button(label="🛡️ Defend", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="🛡️ Defend", style=discord.ButtonStyle.green, custom_id="minecraftpvp:defend")
     async def defend(
         self, button: discord.ui.Button, interaction: discord.Interaction
     ):
@@ -12209,7 +12285,7 @@ class Minecraftpvp(discord.ui.View):
                 await message.edit(content=f"<@{self.moveturn}> 's turn to fight!", embed=embed)
             await interaction.response.send_message("You have equipped your shields.", ephemeral=True, delete_after=2)
 
-    @discord.ui.button(label="⚔️ Attack", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="⚔️ Attack", style=discord.ButtonStyle.green, custom_id="minecraftpvp:attack")
     async def attack(
         self, button: discord.ui.Button, interaction: discord.Interaction
     ):
@@ -12393,7 +12469,7 @@ class ConfirmPrivate(discord.ui.View):
     # stop the View from listening to more input.
     # We also send the user an ephemeral message that we're confirming their choice.
 
-    @discord.ui.button(label="View Content", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="View Content", style=discord.ButtonStyle.green, custom_id="confirmprivate:green")
     async def green(
         self, button: discord.ui.Button, interaction: discord.Interaction
     ):
@@ -14788,26 +14864,6 @@ async def on_voice_state_update(member, before, after):
     except Exception as ex:
         print(f" on_voice_state_update Logging error {ex}")
 
-
-def shutdownhandler(signum, frame):
-    print("Shutting down to prevent crashing from Error R12 (Exit timeout).")
-    print("Closing all postgresql connections!")
-    try:
-        client.loop.create_task(conn.close())
-    except Exception as ex:
-        print(f"Got EXCEPTION ({type(ex)}){ex} while trying to close conn.")
-    try:
-        client.loop.create_task(newconn.close())
-    except Exception as ex:
-        print(f"Got EXCEPTION ({type(ex)}){ex} while trying to close newconn.")
-    embed = discord.Embed(title="HEROKU Auto-shutdown",
-                          description=f"Shutting down processes at <t:{int(time.time())}:R> .")
-    client.loop.create_task(channelerrorlogging.send(embed=embed))
-    print(f"Closing client to get ready for restart!")
-    client.close()
-
-
-signal.signal(signal.SIGTERM, shutdownhandler)
 try:
     client.run(token)
     # REQUIRES API KEY(BOT TOKEN)
