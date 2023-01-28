@@ -529,7 +529,7 @@ Features:
         embed.add_field(name="Version and info", value=f"v{botVersion}")
         embed.set_footer(text="Want support? Join here: https://discord.gg/TZDYSHSZgg",
                          icon_url=self.context.author.display_avatar)
-        await self.context.send(embed=embed, view=DefaultHelp(filteredcmds, self.context.author), content="** **")
+        await self.context.send(embed=embed, view=DefaultHelp(filteredcmds, self.context.author))
 
    # !help <command>
     async def send_command_help(self, commandname):
@@ -557,11 +557,11 @@ Features:
             embed.set_image(url=f"attachment://{command.name}.gif")
             file = discord.File(
                 f"./commandusages/{command.name}.gif", filename=f"{command.name}.gif")
-            await channel.send(embed=embed, content="** **", file=file)
+            await channel.send(embed=embed, file=file)
             return
         except:
             pass
-        await channel.send(embed=embed, content="** **")
+        await channel.send(embed=embed)
 
    # !help <group>
     async def send_group_help(self, commandname):
@@ -585,7 +585,7 @@ Features:
         channel = self.get_destination()
         embed.set_footer(text="Want support? Join here: https://discord.gg/TZDYSHSZgg",
                          icon_url=self.context.author.display_avatar)
-        await channel.send(embed=embed, content="** **")
+        await channel.send(embed=embed)
 
    # !help <cog>
     async def send_cog_help(self, cog):
@@ -598,7 +598,7 @@ Features:
             title=f"{cog.qualified_name} help", description=cogdes)
         embed.set_footer(text="Want support? Join here: https://discord.gg/TZDYSHSZgg",
                          icon_url=self.context.author.display_avatar)
-        await self.context.send(embed=embed, view=CommandHelp(cog, self.context.author), content="** **")
+        await self.context.send(embed=embed, view=CommandHelp(cog, self.context.author))
 
 
 class CommandHelpSelect(discord.ui.Select):
@@ -642,14 +642,24 @@ class CommandHelpSelect(discord.ui.Select):
 
 class CommandHelp(discord.ui.View):
     def __init__(self, cog, author):
-        super().__init__()
+        super().__init__(timeout=300)
         self.add_item(CommandHelpSelect(cog, author))
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
 
 
 class CodingLanguageView(discord.ui.View):
     def __init__(self, code, author, channel):
-        super().__init__()
+        super().__init__(timeout=60)
         self.add_item(CodingLanguageSelect(code, author, channel))
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
 
 
 class CodingLanguageSelect(discord.ui.Select):
@@ -800,10 +810,13 @@ class DefaultHelpSelect(discord.ui.Select):
 
 class DefaultHelp(discord.ui.View):
     def __init__(self, filteredcmds, author):
-        super().__init__()
-
-        # Adds the dropdown to our view object.
+        super().__init__(timeout=300)
         self.add_item(DefaultHelpSelect(filteredcmds, author))
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
 
 
 async def addmoney(userid, money):
@@ -933,10 +946,13 @@ class MCShopSelect(discord.ui.Select):
 
 class MCShop(discord.ui.View):
     def __init__(self, author):
-        super().__init__()
-
-        # Adds the dropdown to our view object.
+        super().__init__(timeout=120)
         self.add_item(MCShopSelect(author))
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
 
 
 async def get_prefix(client, message):
@@ -1260,7 +1276,6 @@ class Songpanel(discord.ui.View):
                 listOfEmbeds.append(embedVar)
             pagview = PaginateEmbed(listOfEmbeds)
             await interaction.response.send_message(view=pagview, embed=listOfEmbeds[0], ephemeral=True)
-            pagview.set_initial_message(interaction.response)
 
     @discord.ui.button(label='🎶', style=discord.ButtonStyle.green)
     async def lyrics(self, button: discord.ui.Button, interaction: discord.Interaction):
@@ -1326,13 +1341,18 @@ class Songpanel(discord.ui.View):
 
 class Translatemessage(discord.ui.View):
     def __init__(self, message):
-        super().__init__()
+        super().__init__(timeout=60)
         self.message = message
         origmessage = message.content
         origlanguage = detect(origmessage)
         translator = Translator(to_lang="en", from_lang=origlanguage)
         translatedmessage = translator.translate(origmessage)
         self.translatedmessage = translatedmessage
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
 
     @discord.ui.button(label='Translate to EN', style=discord.ButtonStyle.green)
     async def confirm(self, button: discord.ui.Button, interaction: discord.Interaction):
@@ -1341,9 +1361,14 @@ class Translatemessage(discord.ui.View):
 
 class Confirmpvp(discord.ui.View):
     def __init__(self, member):
-        super().__init__()
+        super().__init__(timeout=30)
         self.memberid = member
         self.value = None
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
 
     # When the confirm button is pressed, set the inner value to `True` and
     # stop the View from listening to more input.
@@ -1390,8 +1415,13 @@ class ConfirmDecline(discord.ui.View):
 
 class Confirm(discord.ui.View):
     def __init__(self):
-        super().__init__()
+        super().__init__(timeout=60)
         self.value = None
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
 
     # When the confirm button is pressed, set the inner value to `True` and
     # stop the View from listening to more input.
@@ -2944,7 +2974,6 @@ class AestronInfo(commands.Cog):
                     commandUsage, filename=f"{commandUsage}.gif"))
             pagview = PaginateFileEmbed(embeds, files)
             msg = await ctx.send(embed=embeds[0], file=files[0], view=pagview)
-            pagview.set_initial_message(msg)
 
         else:
             await on_command_error(ctx, "The requested command with name was not found.")
@@ -3680,7 +3709,6 @@ class Moderation(commands.Cog):
                 embedlist.append(embed)
             pagview = PaginateEmbed(embedlist)
             msg = await ctx.send(view=pagview, embed=embedlist[0])
-            pagview.set_initial_message(msg)
 
     @commands.command(
         brief='This command (mutes)prevents user from sending messages in any channel.',
@@ -5764,7 +5792,7 @@ class MinecraftFun(commands.Cog):
                 await con.execute(statement, ctx.author.id, 500, json.dumps(newjson))
         embed = discord.Embed(
             title="Minecraft shop", description="Click on dropdown to view items and buy them!")
-        await ctx.send(embed=embed, view=MCShop(ctx.author), content="** **")
+        await ctx.send(embed=embed, view=MCShop(ctx.author))
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(
@@ -5858,7 +5886,7 @@ class MinecraftFun(commands.Cog):
             embed.set_thumbnail(
                 url="https://cdn.discordapp.com/avatars/841268437824045096/2197577ab3bcee324b2e58bd3a1e3248.png?size=1024")
             view = Confirmpvp(member=membertwo.id)
-            statmsg = await ctx.send(embed=embed, view=view, content="** **")
+            statmsg = await ctx.send(embed=embed, view=view)
             await view.wait()
             if view.value is None:
                 try:
@@ -6275,87 +6303,87 @@ class PaginateSongEmbed(discord.ui.View):  # EMBED PAGINATOR
         self.embed = embeds[self.count]
         self.limit = len(embeds)-1
         self.embeds = embeds
-        self.msgobj = None
         self.value = None
 
     async def on_timeout(self):
-        try:
-            await self.msgobj.delete()
-        except:
-            pass
-
-    def set_initial_message(self, msgobj):
-        self.msgobj = msgobj
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
 
     @discord.ui.button(label="⏪", style=discord.ButtonStyle.green)
     async def firstmove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         self.count = 0
         self.embed = self.embeds[self.count]
         try:
-            if isinstance(self.msgobj, discord.InteractionResponse):
-                await self.msgobj.edit_message(embed=self.embed)
-            elif isinstance(self.msgobj, discord.Interaction):
-                await self.msgobj.edit_original_message(embed=self.embed)
+            if isinstance(self.message, discord.InteractionResponse):
+                await self.message.edit_message(embed=self.embed)
+            elif isinstance(self.message, discord.Interaction):
+                await self.message.edit_original_message(embed=self.embed)
             else:
-                await self.msgobj.edit(embed=self.embed)
+                await self.message.edit(embed=self.embed)
         except:
             pass
 
     @discord.ui.button(label="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         if not self.count == 0:
             self.count = self.count-1
         self.embed = self.embeds[self.count]
         try:
-            if isinstance(self.msgobj, discord.InteractionResponse):
-                await self.msgobj.edit_message(embed=self.embed)
-            elif isinstance(self.msgobj, discord.Interaction):
-                await self.msgobj.edit_original_message(embed=self.embed)
+            if isinstance(self.message, discord.InteractionResponse):
+                await self.message.edit_message(embed=self.embed)
+            elif isinstance(self.message, discord.Interaction):
+                await self.message.edit_original_message(embed=self.embed)
             else:
-                await self.msgobj.edit(embed=self.embed)
+                await self.message.edit(embed=self.embed)
         except:
             pass
 
     @discord.ui.button(label="▶️", style=discord.ButtonStyle.green)
     async def stopmove(self, button: discord.ui.Button, interaction: discord.Interaction):
-        if isinstance(self.msgobj, discord.InteractionResponse):
+        await interaction.response.defer()
+        if isinstance(self.message, discord.InteractionResponse):
             try:
-                await self.msgobj.edit_message(view=None)
+                await self.message.edit_message(view=None)
             except:
                 pass
-        elif isinstance(self.msgobj, discord.Interaction):
-            await self.msgobj.delete_original_message()
+        elif isinstance(self.message, discord.Interaction):
+            await self.message.delete_original_message()
         else:
-            await self.msgobj.edit(view=None)
+            await self.message.edit(view=None)
         self.value = self.players[self.count]
         self.stop()
 
     @discord.ui.button(label="➡️", style=discord.ButtonStyle.green)
     async def rightmove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         if not self.count == self.limit:
             self.count = self.count+1
         self.embed = self.embeds[self.count]
         try:
-            if isinstance(self.msgobj, discord.InteractionResponse):
-                await self.msgobj.edit_message(embed=self.embed)
-            elif isinstance(self.msgobj, discord.Interaction):
-                await self.msgobj.edit_original_message(embed=self.embed)
+            if isinstance(self.message, discord.InteractionResponse):
+                await self.message.edit_message(embed=self.embed)
+            elif isinstance(self.message, discord.Interaction):
+                await self.message.edit_original_message(embed=self.embed)
             else:
-                await self.msgobj.edit(embed=self.embed)
+                await self.message.edit(embed=self.embed)
         except:
             pass
 
     @discord.ui.button(label="⏩", style=discord.ButtonStyle.green)
     async def lastmove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         self.count = self.limit
         self.embed = self.embeds[self.count]
         try:
-            if isinstance(self.msgobj, discord.InteractionResponse):
-                await self.msgobj.edit_message(embed=self.embed)
-            elif isinstance(self.msgobj, discord.Interaction):
-                await self.msgobj.edit_original_message(embed=self.embed)
+            if isinstance(self.message, discord.InteractionResponse):
+                await self.message.edit_message(embed=self.embed)
+            elif isinstance(self.message, discord.Interaction):
+                await self.message.edit_original_message(embed=self.embed)
             else:
-                await self.msgobj.edit(embed=self.embed)
+                await self.message.edit(embed=self.embed)
         except:
             pass
 
@@ -6367,85 +6395,85 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
         self.embed = embeds[self.count]
         self.limit = len(embeds)-1
         self.embeds = embeds
-        self.msgobj = None
 
     async def on_timeout(self):
-        try:
-            await self.msgobj.delete()
-        except:
-            pass
-
-    def set_initial_message(self, msgobj):
-        self.msgobj = msgobj
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
 
     @discord.ui.button(emoji="⏪", style=discord.ButtonStyle.green)
     async def firstmove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         self.count = 0
         self.embed = self.embeds[self.count]
         try:
-            if isinstance(self.msgobj, discord.InteractionResponse):
-                await self.msgobj.edit_message(embed=self.embed)
-            elif isinstance(self.msgobj, discord.Interaction):
-                await self.msgobj.edit_original_message(embed=self.embed)
+            if isinstance(self.message, discord.InteractionResponse):
+                await self.message.edit_message(embed=self.embed)
+            elif isinstance(self.message, discord.Interaction):
+                await self.message.edit_original_message(embed=self.embed)
             else:
-                await self.msgobj.edit(embed=self.embed)
+                await self.message.edit(embed=self.embed)
         except:
             pass
 
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         if not self.count == 0:
             self.count = self.count-1
         self.embed = self.embeds[self.count]
         try:
-            if isinstance(self.msgobj, discord.InteractionResponse):
-                await self.msgobj.edit_message(embed=self.embed)
-            elif isinstance(self.msgobj, discord.Interaction):
-                await self.msgobj.edit_original_message(embed=self.embed)
+            if isinstance(self.message, discord.InteractionResponse):
+                await self.message.edit_message(embed=self.embed)
+            elif isinstance(self.message, discord.Interaction):
+                await self.message.edit_original_message(embed=self.embed)
             else:
-                await self.msgobj.edit(embed=self.embed)
+                await self.message.edit(embed=self.embed)
         except:
             pass
 
     @discord.ui.button(emoji="🛑", style=discord.ButtonStyle.green)
     async def stopmove(self, button: discord.ui.Button, interaction: discord.Interaction):
-        if isinstance(self.msgobj, discord.InteractionResponse):
+        await interaction.response.defer()
+        if isinstance(self.message, discord.InteractionResponse):
             try:
-                await self.msgobj.edit_message(view=None)
+                await self.message.edit_message(view=None)
             except:
                 pass
-        elif isinstance(self.msgobj, discord.Interaction):
-            await self.msgobj.delete_original_message()
+        elif isinstance(self.message, discord.Interaction):
+            await self.message.delete_original_message()
         else:
-            await self.msgobj.edit(view=None)
+            await self.message.edit(view=None)
         self.stop()
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
     async def rightmove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         if not self.count == self.limit:
             self.count = self.count+1
         self.embed = self.embeds[self.count]
         try:
-            if isinstance(self.msgobj, discord.InteractionResponse):
-                await self.msgobj.edit_message(embed=self.embed)
-            elif isinstance(self.msgobj, discord.Interaction):
-                await self.msgobj.edit_original_message(embed=self.embed)
+            if isinstance(self.message, discord.InteractionResponse):
+                await self.message.edit_message(embed=self.embed)
+            elif isinstance(self.message, discord.Interaction):
+                await self.message.edit_original_message(embed=self.embed)
             else:
-                await self.msgobj.edit(embed=self.embed)
+                await self.message.edit(embed=self.embed)
         except:
             pass
 
     @discord.ui.button(emoji="⏩", style=discord.ButtonStyle.green)
     async def lastmove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         self.count = self.limit
         self.embed = self.embeds[self.count]
         try:
-            if isinstance(self.msgobj, discord.InteractionResponse):
-                await self.msgobj.edit_message(embed=self.embed)
-            elif isinstance(self.msgobj, discord.Interaction):
-                await self.msgobj.edit_original_message(embed=self.embed)
+            if isinstance(self.message, discord.InteractionResponse):
+                await self.message.edit_message(embed=self.embed)
+            elif isinstance(self.message, discord.Interaction):
+                await self.message.edit_original_message(embed=self.embed)
             else:
-                await self.msgobj.edit(embed=self.embed)
+                await self.message.edit(embed=self.embed)
         except:
             pass
 
@@ -6459,37 +6487,34 @@ class PaginateFileEmbed(discord.ui.View):
         self.embeds = embeds
         self.file = files[self.count]
         self.files = files
-        self.msgobj = None
 
     async def on_timeout(self):
-        try:
-            await self.msgobj.delete()
-        except:
-            pass
-
-    def set_initial_message(self, msgobj):
-        self.msgobj = msgobj
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
 
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         if not self.count == 0:
             self.count = self.count-1
         self.embed = self.embeds[self.count]
         self.file = self.files[self.count]
         try:
-            await self.msgobj.edit(embed=self.embed, attachments=[], file=self.file)
+            await self.message.edit(embed=self.embed, attachments=[], file=self.file)
         except:
             pass
         self.files[self.count] = discord.File(self.files[self.count].filename)
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
     async def rightmove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         if not self.count == self.limit:
             self.count = self.count+1
         self.embed = self.embeds[self.count]
         self.file = self.files[self.count]
         try:
-            await self.msgobj.edit(embed=self.embed, attachments=[], file=self.file)
+            await self.message.edit(embed=self.embed, attachments=[], file=self.file)
         except:
             pass
         self.files[self.count] = discord.File(self.files[self.count].filename)
@@ -7502,7 +7527,7 @@ class FormatData():
                             "name": rplayer.weapon.name,
                             "kills": len(rplayer.killist)
                         }
-                        if rplayer.weapon is None:
+                        if rplayer.weapon is None or str(rplayer.weapon.name) == "None":
                             continue
                         dupdict = get_duplicate_json(
                             weaponsused, currentdata["name"])
@@ -7674,6 +7699,11 @@ class ValorantLink(discord.ui.View):
     def __init__(self, ctx):
         self.ctx = ctx
         super().__init__(timeout=600)
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
 
     @discord.ui.button(label="Login account", style=discord.ButtonStyle.green)
     async def login(self, button: discord.ui.Button, interaction: discord.Interaction):
@@ -7903,7 +7933,6 @@ class Misc(commands.Cog):
             pass
         pagview = PaginateFileEmbed(listOfEmbeds, listOfFiles)
         msg = await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview)
-        pagview.set_initial_message(msg)
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(aliases=["dpyrtfm", "drtfm"],
@@ -7950,7 +7979,6 @@ class Misc(commands.Cog):
             pass
         pagview = PaginateFileEmbed(listOfEmbeds, listOfFiles)
         msg = await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview)
-        pagview.set_initial_message(msg)
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(aliases=["pycrtfm", "pyrtfm", "rtfm"],
@@ -7997,7 +8025,6 @@ class Misc(commands.Cog):
             pass
         pagview = PaginateFileEmbed(listOfEmbeds, listOfFiles)
         msg = await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview)
-        pagview.set_initial_message(msg)
 
     @commands.cooldown(1, 60, BucketType.member)
     @commands.command(aliases=["search", "google"],
@@ -8902,150 +8929,6 @@ def constructslashephemeralctx(ctx):
         return await ctx.respond(*args, **kwargs, ephemeral=True)
     ctx.send = fakerespond
     return ctx
-
-
-@client.slash_command(aliases=["valunlink", "unlink"],
-                      brief='This command unlinks and removes your valorant username.',
-                      description='This command unlinks and removes your valorant username.',
-                      usage="")
-async def unlinkaccount(ctx):
-    await ctx.defer()
-    async with pool.acquire() as con:
-        await con.execute(f"DELETE FROM riotaccount WHERE discorduserid = {ctx.author.id}")
-    await ctx.respond(f"Your account was successfully unlinked from discord.", ephemeral=True)
-
-
-@client.slash_command(aliases=["vallink", "link"],
-                      brief='This command links and stores your valorant username.',
-                      description='This command links and stores your valorant username.',
-                      usage="RiotAcc#RiotTag")
-async def linkaccount(ctx):
-    embedOne = discord.Embed(
-        title="Link Valorant", description="To link your discord account with your valorant account, click on the button below.")
-    await ctx.respond(embed=embedOne, view=ValorantLink(ctx), ephemeral=True)
-
-
-@client.slash_command(aliases=["valstats"],
-                      brief='This command shows the stats of your linked account.',
-                      description='This command shows the stats of your linked account.',
-                      usage="@Coder.py")
-async def vstats(ctx, member: typing.Union[discord.Member, discord.User] = None):
-    await ctx.defer()
-    if member is None:
-        member = ctx.author
-    async with pool.acquire() as con:
-        puuidlist = await con.fetchrow(f"SELECT * FROM riotaccount WHERE discorduserid = {member.id}")
-    if puuidlist is None:
-        raise commands.CommandError(
-            f"{member.mention} has not linked their riot account with discord.")
-    try:
-        await ctx.message.add_reaction("<a:loading:824193916818554960>")
-    except:
-        pass
-    currentpuuid = puuidlist['accountpuuid']
-    currentregion = "ap"
-    username = puuidlist['accountname']
-    usertag = puuidlist['accounttag']
-
-    def ordinal(n):
-        try:
-            return "%d%s" % (
-                n, "tsnrhtdd"[(n//10 % 10 != 1)*(n % 10 < 4)*n % 10::4])
-        except:
-            return ""
-    url = f"https://api.henrikdev.xyz/valorant/v1/mmr/{currentregion}/{username}/{usertag}"
-    matchesinfo = Matches()
-    async with pool.acquire() as con:
-        matchidslist = await con.fetchrow(f"SELECT matchids FROM riotmatches where discorduserid = {ctx.author.id}")
-    if matchidslist is None:
-        await ctx.respond(f"Your stats could not be fetched as they haven't been loaded yet!", ephemeral=True)
-        return
-    count = 0
-    for matchid in matchidslist:
-        if count == 10:
-            break
-        async with pool.acquire() as con:
-            pickledmatch = await con.fetchrow(f"SELECT data FROM riotparsedmatches where id = '{matchid}'")
-        match = pickle.loads(pickledmatch["data"])
-        matchesinfo.add_match(match)
-        count += 1
-    async with aiohttp.ClientSession() as session:
-        respjson = await fetchaiohttp(session, url)
-    try:
-        respjson = json.loads(respjson)
-    except Exception as ex:
-        await ctx.respond(f"Your stats could not be fetched due to an error, try re-linking your account!", ephemeral=True)
-        await on_command_error(ctx, f"Exception in riot link cmd - {ex}", forcelog=True, userlog=False)
-        return
-    currentrank = respjson["data"]["currenttierpatched"]
-    currentrankindex = respjson["data"]["currenttier"]
-    currentrankpos = respjson["data"]["ranking_in_tier"]
-    isoldrank = respjson["data"]["old"]
-    if isoldrank:
-        currentrankindex = 0
-        currentrank = "Unranked"
-        currentrankpos = "Unranked"
-    if currentrank is None:
-        currentrank = "Unranked"
-    if currentrankpos is None:
-        currentrankpos = "Unranked"
-    currentrankthumbnail = f"https://trackercdn.com/cdn/tracker.gg/valorant/icons/tiers/{currentrankindex}.png"
-    embed = discord.Embed(
-        title=f"{username}'s Stats", description=f"You are {ordinal(currentrankpos)} in [{currentrank}]({currentrankthumbnail}) having a average K/D/A of {round(FormatData().get_average_kda(matchesinfo.matchlist,currentpuuid),2)} and an average econ of {round(FormatData().get_average_econ(matchesinfo.matchlist,currentpuuid),2)}.")
-    try:
-        embed.set_thumbnail(url=currentrankthumbnail)
-    except:
-        pass
-    try:
-        await ctx.message.remove_reaction("<a:loading:824193916818554960>", ctx.guild.me)
-    except:
-        pass
-    newctx = constructslashephemeralctx(ctx)
-    await ctx.respond(embed=embed, view=ValorantControls(matchesinfo, currentpuuid, newctx), ephemeral=True)
-
-
-@client.slash_command(
-    brief='This command can be used to get current user response time(ping).',
-    description='This command can be used to get current user response time(ping) in milliseconds.',
-    usage="")
-async def ping(ctx):
-    # f"Pong: **`{normalPing}ms`** | Websocket: **`{webPing}ms`**"
-    start = time.perf_counter()
-    message = await ctx.channel.send("Pinging")
-    end = time.perf_counter()
-    duration = (end - start) * 1000
-    duration = duration/2
-    normalPing = 0
-    webPing = 0
-    try:
-        normalPing = round(duration)
-        webPing = format(round(ctx.bot.latency*1000))
-    except:
-        pass
-    if normalPing <= 50:
-        embed = discord.Embed(
-            title="PING",
-            description=f":ping_pong: Pong! The ping is **{normalPing} and websocket ping is {webPing}** milliseconds!",
-            color=0x44ff44)
-    elif normalPing <= 100:
-        embed = discord.Embed(
-            title="PING",
-            description=f":ping_pong: Pong! The ping is **{normalPing} and websocket ping is {webPing}** milliseconds!",
-            color=0xffd000)
-    elif normalPing <= 200:
-        embed = discord.Embed(
-            title="PING",
-            description=f":ping_pong: Pong! The ping is **{normalPing} and websocket ping is {webPing}** milliseconds!",
-            color=0xff6600)
-    else:
-        embed = discord.Embed(
-            title="PING",
-            description=f":ping_pong: Pong! The ping is **{normalPing} and websocket ping is {webPing}** milliseconds!",
-            color=0x990000)
-    try:
-        await ctx.respond(embed=embed)
-    except:
-        pass
 
 
 def message_probability(user_message, recognised_words, single_response=False, required_words=[]):
@@ -10726,471 +10609,6 @@ class Music(commands.Cog):
 client.add_cog(Music(client))
 
 
-@client.slash_command(aliases=["vc", "connect"],
-                      brief='This command can be used to summon the bot in your voice channel.',
-                      description='This command can be used to summon the bot in your voice channel.',
-                      usage="")
-@commands.guild_only()
-@commands.cooldown(1, 10, BucketType.member)
-async def join(ctx, vc: Option(discord.abc.GuildChannel, "Choose a channel", required=False)):
-    """Joins a voice channel"""
-    channel = None
-    if vc is None:
-        try:
-            channel = ctx.author.voice.channel
-        except:
-            await on_command_error(ctx,
-                                   "You are not connected to a voice channel.")
-            return
-    else:
-        if not isinstance(vc, discord.VoiceChannel):
-            await on_command_error(ctx,
-                                   "The voice channel provided was invalid.")
-            return
-        if vc.guild != ctx.guild:
-            await on_command_error(ctx,
-                                   "The voice channel provided was not in this guild.")
-            return
-        channel = vc
-    if not channel.permissions_for(ctx.guild.me).connect:
-        await on_command_error(ctx, commands.BotMissingPermissions(["connect"]))
-        return
-
-    try:
-        if ctx.guild.voice_client is not None:
-            author = ctx.author
-            if not (channel.permissions_for(author).manage_channels or checkstaff(author)):
-                await on_command_error(ctx, f"I am already playing music in a channel , you must have `manage_channels` permissions to do so.")
-                return
-            return await ctx.voice_client.move_to(channel)
-        await channel.connect()
-    except:
-        pass
-    await ctx.respond(content=f'I have successfully connected to {channel.mention}')
-
-
-@client.slash_command(aliases=["syncqueue", "repeatqueue"],
-                      brief='This command can be used to loop queue.',
-                      description='This command can be used to loop queue in a voice channel.',
-                      usage="")
-@commands.guild_only()
-@commands.cooldown(1, 10, BucketType.member)
-async def loopqueue(ctx):
-    global guildmusicrecent, guildmusicname, guildmusicauthor, guildmusicloop
-    exOcc = await ensure_voice(ctx.guild, ctx.author)
-    if exOcc:
-        return
-    await ctx.defer()
-    author = ctx.author
-    if author.voice.self_deaf:
-        await on_command_error(ctx,
-                               "You are deafened in the voice channel , you won't be able to hear the playing audio."
-                               )
-    guildmusicloop[ctx.guild.id] = True
-    playingmusic = None
-    try:
-        playingmusic = guildmusicrecent[ctx.guild.id][ctx.author.id]
-    except:
-        pass
-    if playingmusic is None:
-        await on_command_error(ctx,
-                               "I could not find the song that was requested by you earlier in this guild."
-                               )
-        return
-    startindex = 0
-    songname = guildmusicname[ctx.guild.id][startindex]
-    limit = len(guildmusicname[ctx.guild.id])-1
-    while (author.voice):
-        """Streams from a url (same as yt, but doesn't predownload)"""
-        await playmusic(ctx, songname)
-        while voice.is_playing() or voice.is_paused():
-            voice = ctx.guild.voice_client
-            if voice is None:
-                break
-            await asyncio.sleep(1)
-        if startindex < limit:
-            startindex = startindex+1
-            songname = guildmusicname[ctx.guild.id][startindex]
-        else:
-            startindex = 0
-            songname = guildmusicname[ctx.guild.id][startindex]
-        if ctx.guild.voice_client is None or not guildmusicloop[ctx.guild.id]:
-            break
-
-
-@client.slash_command(aliases=["sync", "repeat"],
-                      brief='This command can be used to loop a song.',
-                      description='This command can be used to loop a song in a voice channel.',
-                      usage="")
-@commands.guild_only()
-@commands.cooldown(1, 10, BucketType.member)
-async def loop(ctx):
-    global guildmusicrecent, guildmusicname, guildmusicauthor, guildmusicloop, guildmusiccurrentstate
-    exOcc = await ensure_voice(ctx.guild, ctx.author)
-    if exOcc:
-        return
-    await ctx.defer()
-    author = ctx.author
-    guildmusicloop[ctx.guild.id] = True
-    playingmusic = None
-    try:
-        playingmusic = guildmusicrecent[ctx.guild.id][ctx.author.id]
-    except:
-        pass
-    if playingmusic is None:
-        await on_command_error(ctx,
-                               "I could not find the song that was requested by you earlier in this guild."
-                               )
-        return
-    if not guildmusicloop[ctx.guild.id]:
-        guildmusicloop[ctx.guild.id] = True
-        await ctx.send(f"The loop has been activated by {ctx.author.mention}")
-        guildmusiccurrentstate[ctx.guild.id] = "🔁"
-    else:
-        if not ctx.channel.permissions_for(author).manage_channels and not checkstaff(author):
-            await on_command_error(ctx, "I am already looping music,you must have `manage_channels` permissions to stop music loop.")
-            return
-        guildmusicloop[ctx.guild.id] = False
-        await ctx.send(f"The loop has been de-activated by {ctx.author.mention}")
-        guildmusiccurrentstate[ctx.guild.id] = "▶️"
-        return
-    songname = playingmusic
-    voice = ctx.guild.voice_client
-    while voice.is_playing() or voice.is_paused():
-        voice = ctx.guild.voice_client
-        if voice is None:
-            break
-        await asyncio.sleep(1)
-    loopbool = True
-    while (author.voice):
-        """Streams from a url (same as yt, but doesn't predownload)"""
-        await playmusic(ctx, songname, nonotice=loopbool)
-        loopbool = False
-        while voice.is_playing() or voice.is_paused():
-            voice = ctx.guild.voice_client
-            if voice is None:
-                break
-            await asyncio.sleep(1)
-        if ctx.guild.voice_client is None or not guildmusicloop[ctx.guild.id]:
-            break
-
-
-@client.slash_command(
-    brief='This command can be used to skip to a song in queue.',
-    description='This command can be used to edit queue and can be used by members having manage_channels permission.',
-    usage="")
-@commands.guild_only()
-@commands.cooldown(1, 10, BucketType.member)
-async def skipto(ctx, count: int):
-    exOcc = await ensure_voice(ctx.guild, ctx.author)
-    if exOcc:
-        return
-    playingmusic = None
-    global guildmusicloop
-    try:
-        playingmusic = guildmusicname[ctx.guild.id][0]
-    except:
-        await on_command_error(ctx, "I could not find any playing song.")
-        return
-    author = ctx.author
-    if guildmusicauthor[ctx.guild.id][0] != author.id and not ctx.channel.permissions_for(author).manage_channels and not checkstaff(author):
-        await on_command_error(ctx, f"You cannot skip the song played by <@{guildmusicauthor[ctx.guild.id][0]}>")
-        return
-    currentcount = len(guildmusiccount[ctx.guild.id])
-    if count > currentcount or count < 1:
-        await on_command_error(ctx, f"The queue no. {count} you tried to skipto is invalid.")
-        return
-    guildmusiccount[ctx.guild.id] = guildmusicids[ctx.guild.id][count-1]
-    try:
-        guildmusicloop[ctx.guild.id] = False
-        await ctx.guild.voice_client.stop()
-        await ctx.respond(
-            f"The song {playingmusic} was skipped by {ctx.author.mention} to the song {guildmusicname[ctx.guild.id][0]}.")
-        guildmusicskipped[ctx.guild.id] = True
-    except:
-        pass
-
-
-@client.slash_command(
-    brief='This command can be used to skip the currently playing song.',
-    description='This command can be used to skip song and can be used by members having manage_channels permission.',
-    usage="")
-@commands.guild_only()
-@commands.cooldown(1, 10, BucketType.member)
-async def skip(ctx):
-    exOcc = await ensure_voice(ctx.guild, ctx.author)
-    if exOcc:
-        return
-    playingmusic = None
-    global guildmusicloop
-    try:
-        playingmusic = guildmusicname[ctx.guild.id][0]
-    except:
-        await on_command_error(ctx, "I could not find any playing song.")
-        return
-    author = ctx.author
-    if guildmusicauthor[ctx.guild.id][0] != author.id and not ctx.channel.permissions_for(author).manage_channels and not checkstaff(author):
-        await on_command_error(ctx, f"You cannot skip the song played by <@{guildmusicauthor[ctx.guild.id][0]}>")
-        return
-    try:
-        await ctx.respond(
-            f"The song {playingmusic} was skipped by {author.mention} .")
-        guildmusicloop[ctx.guild.id] = False
-        guildmusicskipped[ctx.guild.id] = True
-        await ctx.guild.voice_client.stop()
-    except:
-        pass
-
-
-@client.slash_command(
-    brief='This command can be used to clear the song queue',
-    description='This command can be used to clear the song queue.',
-    usage="")
-@commands.guild_only()
-@commands.cooldown(1, 30, BucketType.member)
-async def clearqueue(ctx):
-    author = ctx.author
-    if ctx.channel.permissions_for(author).manage_channels and not checkstaff(author):
-        await on_command_error(ctx, f"You cannot clear the queue , you need `manage_channels` permission.")
-        return
-    await ctx.respond(f"The queued songs have been cleared by {ctx.author.mention}!")
-    try:
-        guildmusicname[ctx.guild.id] = collections.deque(
-            [guildmusicname[ctx.guild.id][0]])
-        guildmusiccount[ctx.guild.id] = 0
-    except:
-        pass
-
-
-@client.slash_command(
-    brief='This command can be used to check the song queue',
-    description='This command can be used to check the song queue.',
-    usage="")
-@commands.guild_only()
-@commands.cooldown(1, 10, BucketType.member)
-async def queue(ctx):
-    guild = ctx.guild
-    length = len(guildmusicqueue[guild.id])
-    if length < 1:
-        await ctx.send("No songs are queued in this guild.")
-        return
-    else:
-        embedVar = discord.Embed(
-            title=f"{ctx.guild} tracks", description="", color=0x00ff00)
-        listOfEmbeds = []
-        count = 0
-        for i in range(length):
-            count = count+1
-            player = guildmusicqueue[guild.id][i]
-            embedVar.description = embedVar.description + \
-                f"{i+1}. {player.typeemoji} [`{timedelta(seconds=player.duration)}`] [{player.title}]({player.url}) : {player.requester.mention}\n"
-            if count == 10:
-                listOfEmbeds.append(embedVar)
-                embedVar = discord.Embed(
-                    title=f"{ctx.guild} tracks", description="", color=0x00ff00)
-                count = 0
-        if length < 10:
-            listOfEmbeds.append(embedVar)
-        pagview = PaginateEmbed(listOfEmbeds)
-        msg = await ctx.send(view=pagview, embed=listOfEmbeds[0])
-        pagview.set_initial_message(msg)
-
-
-@client.slash_command(
-    brief='This command can be used to check the song queue',
-    description='This command can be used to check the song queue.',
-    usage="")
-@commands.guild_only()
-@commands.cooldown(1, 10, BucketType.member)
-async def songqueue(ctx):
-    guild = ctx.guild
-    length = len(guildmusicqueue[guild.id])
-    if length < 1:
-        await ctx.send("No songs are queued in this guild.")
-        return
-    else:
-        embedVar = discord.Embed(
-            title=f"{ctx.guild} tracks", description="", color=0x00ff00)
-        listOfEmbeds = []
-        count = 0
-        for i in range(length):
-            count = count+1
-            player = guildmusicqueue[guild.id][i]
-            embedVar.description = embedVar.description + \
-                f"{i+1}. {player.typeemoji} [`{timedelta(seconds=player.duration)}`] [{player.title}]({player.url}) : {player.requester.mention}\n"
-            if count == 10:
-                listOfEmbeds.append(embedVar)
-                embedVar = discord.Embed(
-                    title=f"{ctx.guild} tracks", description="", color=0x00ff00)
-                count = 0
-        if length < 10:
-            listOfEmbeds.append(embedVar)
-        pagview = PaginateEmbed(listOfEmbeds)
-        msg = await ctx.send(view=pagview, embed=listOfEmbeds[0])
-        pagview.set_initial_message(msg)
-
-
-@client.slash_command(
-    brief='This command can be used to play a song.',
-    description='This command can be used to play a song.',
-    usage="songname")
-@commands.guild_only()
-@commands.cooldown(1, 45, BucketType.member)
-async def play(ctx, songname: str, multiplesearch: Option(bool, "Search queue", required=False)):
-    await ctx.respond("Searching the track :cd: , this may take a while!", ephemeral=True)
-    if multiplesearch is None:
-        multiplesearch = False
-    exOcc = await ensure_voice(ctx.guild, ctx.author)
-    if exOcc:
-        return
-    await playmusic(ctx, songname, search=multiplesearch)
-
-
-@client.slash_command(
-    brief='This command can be used to play a part of a song.',
-    description='This command can be used to play a part of a song.',
-    usage="songname start end")
-@commands.guild_only()
-@commands.cooldown(1, 50, BucketType.member)
-async def seekplay(ctx, songname: str, start: int, end: int, multiplesearch: Option(bool, "Search queue", required=False)):
-    await ctx.respond("Trimming the track :cd: , this may take a while!", ephemeral=True)
-    if multiplesearch is None:
-        multiplesearch = False
-    exOcc = await ensure_voice(ctx.guild, ctx.author)
-    if exOcc:
-        return
-    await playmusic(ctx, songname, start=start, end=end, search=multiplesearch)
-
-
-@client.slash_command(
-    brief='This command can be used to get subtitles/lyrics of a song.',
-    description='This command can be used to get subtitles/lyrics of a song.',
-    usage="songname")
-@commands.guild_only()
-@commands.cooldown(1, 10, BucketType.member)
-async def lyrics(ctx):
-    global guildmusicname
-    try:
-        songname = guildmusicname[ctx.guild.id][0].title
-    except:
-        await on_command_error(ctx, "I could not find any playing song.")
-        return
-    try:
-        output = extract_lyrics.get_lyrics(songname)
-    except:
-        await on_command_error(ctx, "No lyrics found for the current song.")
-        return
-    try:
-        embedtitle = (output['title'])
-    except:
-        embedtitle = songname
-    embedlyrics = (output['lyrics'])
-    embed = discord.Embed(title=embedtitle, description=embedlyrics)
-    try:
-        embed.set_thumbnail(output['image'])
-    except:
-        pass
-    await ctx.send(embed=embed)
-
-
-@client.slash_command(
-    brief='This command can be used to get subtitles/lyrics of a song.',
-    description='This command can be used to get subtitles/lyrics of a song.',
-    usage="songname")
-@commands.guild_only()
-@commands.cooldown(1, 10, BucketType.member)
-async def subtitles(ctx):
-    global guildmusicname
-    try:
-        songname = guildmusicname[ctx.guild.id][0].title
-    except:
-        await on_command_error(ctx, "I could not find any playing song.")
-        return
-    try:
-        output = extract_lyrics.get_lyrics(songname)
-    except:
-        await on_command_error(ctx, "No lyrics found for the current song.")
-        return
-    try:
-        embedtitle = (output['title'])
-    except:
-        embedtitle = songname
-    embedlyrics = (output['lyrics'])
-    embed = discord.Embed(title=embedtitle, description=embedlyrics)
-    try:
-        embed.set_thumbnail(output['image'])
-    except:
-        pass
-    await ctx.send(embed=embed)
-
-
-@client.slash_command(
-    brief='This command can be used to shuffle the playing song.',
-    description='This command can be used to shuffle the song.',
-    usage="")
-@commands.guild_only()
-@commands.cooldown(1, 15, BucketType.member)
-async def shuffle(ctx):
-    length = len(guildmusicname[ctx.guild.id])
-    if length < 1:
-        await on_command_error(ctx, "No songs are queued in this guild.")
-        return
-    author = ctx.author
-    if not ctx.channel.permissions_for(author).manage_channels and not checkstaff(author):
-        await on_command_error(ctx, f"You cannot shuffle the song while its playing , you need `manage_channels` permission.")
-        return
-    await ctx.guild.voice_client.stop()
-    newsong = random.choice(guildmusicname[ctx.guild.id])
-    await playmusic(ctx, newsong.title)
-
-
-@client.slash_command(aliases=["np", "nowplaying"],
-                      brief='This command can be used to check the currently playing song.',
-                      description='This command can be used to check the currently playing song.',
-                      usage="")
-@commands.guild_only()
-@commands.cooldown(1, 15, BucketType.member)
-async def currentlyplaying(ctx):
-    global guildmusictotaltime, guildmusictime, guildmusiccurrent, guildmusiccp
-    if guildmusiccp[ctx.guild.id]:
-        embedVar = discord.Embed(title=f"Currently playing message",
-                                 description=f"[Jump to message]({guildmusiccp[ctx.guild.id][1]})")
-        await ctx.respond(embed=embedVar, ephemeral=True)
-        return
-    playingmusic = None
-    try:
-        playingmusic = guildmusiccurrent[ctx.guild.id]
-        if playingmusic == "":
-            raise Exception("NONE")
-    except:
-        await on_command_error(ctx, "I could not find any playing song.")
-        return
-    playingmusic = playingmusic.title
-    try:
-        playreq = guildmusiccurrent[ctx.guild.id].requester.mention
-    except:
-        playreq = "No author"
-    epochtime = f"<t:{guildmusiccurrent[ctx.guild.id].epochtime}:R>"
-    embedVar = discord.Embed(title=f"{guildmusiccurrentstate[ctx.guild.id]}  Now playing 🎶",
-                             description=f"Played by {playreq} at {epochtime}",
-                             color=0x00ff00)
-    pbar = ""
-
-    tlpbar = round(guildmusictotaltime[ctx.guild.id] // 15)
-    pppbar = round(guildmusictime[ctx.guild.id] // tlpbar)
-
-    for i in range(15):
-        if i == pppbar:
-            pbar += "🔘"
-        else:
-            pbar += "▬"
-    pbar = pbar + \
-        f" [`{timedelta(seconds=guildmusictime[ctx.guild.id])}`/`{timedelta(seconds=guildmusictotaltime[ctx.guild.id])}`]"
-    embedVar.add_field(name=playingmusic, value=pbar)
-    message = await ctx.respond(embed=embedVar, ephemeral=True)
-    await currentlyplayingslider(message, ctx.guild, guildmusiccurrent[ctx.guild.id])
-
-
 class YoutubeTogether(commands.Cog):
     """This youtube command can play a video"""
 
@@ -11931,7 +11349,7 @@ async def playmusic(ctx, songname, start=None, end=None, nonotice=False, search=
                 except:
                     pass
             pagview = PaginateSongEmbed(listOfEmbeds, playerlist)
-            pagview.set_initial_message(await ctx.send(view=pagview, embed=listOfEmbeds[0]))
+            await ctx.send(view=pagview, embed=listOfEmbeds[0])
             await pagview.wait()
             if pagview.value is None:
                 player = playerlist[0]
@@ -12307,44 +11725,9 @@ async def translate(ctx, message: discord.Message):  # message commands return t
     await ctx.respond(translatedmessage, ephemeral=True)
 
 
-@client.slash_command(
-    brief='This command can be used to execute code in python.',
-    description='This command can be used to execute code in python.',
-    usage="Your expression", guild_ids=[811864132470571038], default_permission=False)
-@commands.check_any(is_bot_staff())
-async def execcode(ctx, *, code: str):
-    code = getcodeblock(code)[1]
-    f = StringIO()
-    e = StringIO()
-    directout = None
-    with redirect_stderr(e):
-        with redirect_stdout(f):
-            try:
-                directout = await aexec(code, ctx)
-            except Exception as ex:
-                await on_command_error(ctx, ex, tracebackreq=True)
-                return
-    if directout is None:
-        directout = ""
-    output = f.getvalue()+f" {directout}"
-    erroutput = e.getvalue()
-    embedtwo = discord.Embed(title=f"",
-                             description=(
-                                 f"{client.user.name} executed your code."),
-                             color=Color.green())
-    embedtwo.add_field(name="Error :",
-                       value=erroutput + "** **",
-                       inline=False)
-    myFile = discord.File(io.StringIO(str(output)), filename="output.text")
-    embedtwo.add_field(name="Output :",
-                       value=f"Attached as a file** **",
-                       inline=False)
-    await ctx.respond(embed=embedtwo, file=myFile, ephemeral=True)
-
-
 class ValorantRoundStats(discord.ui.View):
     def __init__(self, rounds: Rounds, currentplayerid, currentcharactername):
-        super().__init__(timeout=600)
+        super().__init__(timeout=60)
         self.rounds = rounds
         self.currentplayerid = currentplayerid
         self.currentcharactername = currentcharactername
@@ -12449,16 +11832,14 @@ class ValorantRoundStats(discord.ui.View):
             count += 1
             self.embeds.append(embed)
         self.currentround = 0
-        self.msgobj = None
         self.embed = self.embeds[self.currentround]
         self.round = self.rounds.roundlist[self.currentround]
         self.limit = len(self.embeds)-1
 
     async def on_timeout(self):
-        try:
-            await self.msgobj.delete()
-        except:
-            pass
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
 
     class DemoAbility():
         def __init__(self):
@@ -12468,58 +11849,58 @@ class ValorantRoundStats(discord.ui.View):
             self.ultimate_casts = 0
             self.x_casts = 0
 
-    def set_initial_message(self, msgobj):
-        self.msgobj = msgobj
-
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         if not self.currentround == 0:
             self.currentround = self.currentround-1
         self.embed = self.embeds[self.currentround]
         self.round = self.rounds.roundlist[self.currentround]
         try:
-            if isinstance(self.msgobj, discord.InteractionResponse):
-                await self.msgobj.edit_message(embed=self.embed)
-            elif isinstance(self.msgobj, discord.Interaction):
-                await self.msgobj.edit_original_message(embed=self.embed)
+            if isinstance(self.message, discord.InteractionResponse):
+                await self.message.edit_message(embed=self.embed)
+            elif isinstance(self.message, discord.Interaction):
+                await self.message.edit_original_message(embed=self.embed)
             else:
-                await self.msgobj.edit(embed=self.embed)
+                await self.message.edit(embed=self.embed)
         except:
             pass
 
     @discord.ui.button(emoji="🛑", style=discord.ButtonStyle.green)
     async def stopmove(self, button: discord.ui.Button, interaction: discord.Interaction):
-        if isinstance(self.msgobj, discord.InteractionResponse):
+        await interaction.response.defer()
+        if isinstance(self.message, discord.InteractionResponse):
             try:
-                await self.msgobj.edit_message(view=None)
+                await self.message.edit_message(view=None)
             except:
                 pass
-        elif isinstance(self.msgobj, discord.Interaction):
-            await self.msgobj.delete_original_message()
+        elif isinstance(self.message, discord.Interaction):
+            await self.message.delete_original_message()
         else:
-            await self.msgobj.edit(view=None)
+            await self.message.edit(view=None)
         self.stop()
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
     async def rightmove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         if not self.currentround == self.limit:
             self.currentround = self.currentround+1
         self.embed = self.embeds[self.currentround]
         self.round = self.rounds.roundlist[self.currentround]
         try:
-            if isinstance(self.msgobj, discord.InteractionResponse):
-                await self.msgobj.edit_message(embed=self.embed)
-            elif isinstance(self.msgobj, discord.Interaction):
-                await self.msgobj.edit_original_message(embed=self.embed)
+            if isinstance(self.message, discord.InteractionResponse):
+                await self.message.edit_message(embed=self.embed)
+            elif isinstance(self.message, discord.Interaction):
+                await self.message.edit_original_message(embed=self.embed)
             else:
-                await self.msgobj.edit(embed=self.embed)
+                await self.message.edit(embed=self.embed)
         except Exception as ex:
             print(ex)
 
 
 class ValorantStats(discord.ui.View):
     def __init__(self, matches: Matches, currentplayerid):
-        super().__init__(timeout=600)
+        super().__init__(timeout=60)
         self.matches = matches
         self.currentplayerid = currentplayerid
         self.embeds = []
@@ -12564,10 +11945,11 @@ class ValorantStats(discord.ui.View):
         self.embed = self.embeds[self.currentmatch]
         self.match = self.matches.matchlist[self.currentmatch]
         self.limit = len(self.embeds)-1
-        self.msgobj = None
 
-    def set_initial_message(self, msgobj):
-        self.msgobj = msgobj
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
 
     @discord.ui.button(emoji="🙌", style=discord.ButtonStyle.green)
     async def playerinfostats(self, button: discord.ui.Button, interaction: discord.Interaction):
@@ -12579,10 +11961,10 @@ class ValorantStats(discord.ui.View):
         valoview = ValorantRoundStats(
             currentmatch.rounds, self.currentplayerid, self.currentcharactername)
         msg = await interaction.response.send_message(view=valoview, embed=valoview.embeds[0], ephemeral=True)
-        valoview.set_initial_message(msg)
 
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         if not self.currentmatch == 0:
             self.currentmatch = self.currentmatch-1
         self.embed = self.embeds[self.currentmatch]
@@ -12592,30 +11974,32 @@ class ValorantStats(discord.ui.View):
             if player.id == self.currentplayerid:
                 self.currentcharactername = player.character.name
         try:
-            if isinstance(self.msgobj, discord.InteractionResponse):
-                await self.msgobj.edit_message(embed=self.embed)
-            elif isinstance(self.msgobj, discord.Interaction):
-                await self.msgobj.edit_original_message(embed=self.embed)
+            if isinstance(self.message, discord.InteractionResponse):
+                await self.message.edit_message(embed=self.embed)
+            elif isinstance(self.message, discord.Interaction):
+                await self.message.edit_original_message(embed=self.embed)
             else:
-                await self.msgobj.edit(embed=self.embed)
+                await self.message.edit(embed=self.embed)
         except:
             pass
 
     @discord.ui.button(emoji="🛑", style=discord.ButtonStyle.green)
     async def stopmove(self, button: discord.ui.Button, interaction: discord.Interaction):
-        if isinstance(self.msgobj, discord.InteractionResponse):
+        await interaction.response.defer()
+        if isinstance(self.message, discord.InteractionResponse):
             try:
-                await self.msgobj.edit_message(view=None)
+                await self.message.edit_message(view=None)
             except:
                 pass
-        elif isinstance(self.msgobj, discord.Interaction):
-            await self.msgobj.delete_original_message()
+        elif isinstance(self.message, discord.Interaction):
+            await self.message.delete_original_message()
         else:
-            await self.msgobj.edit(view=None)
+            await self.message.edit(view=None)
         self.stop()
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
     async def rightmove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         if not self.currentmatch == self.limit:
             self.currentmatch = self.currentmatch+1
         self.embed = self.embeds[self.currentmatch]
@@ -12625,25 +12009,31 @@ class ValorantStats(discord.ui.View):
             if player.id == self.currentplayerid:
                 self.currentcharactername = player.character.name
         try:
-            if isinstance(self.msgobj, discord.InteractionResponse):
-                await self.msgobj.edit_message(embed=self.embed)
-            elif isinstance(self.msgobj, discord.Interaction):
-                await self.msgobj.edit_original_message(embed=self.embed)
+            if isinstance(self.message, discord.InteractionResponse):
+                await self.message.edit_message(embed=self.embed)
+            elif isinstance(self.message, discord.Interaction):
+                await self.message.edit_original_message(embed=self.embed)
             else:
-                await self.msgobj.edit(embed=self.embed)
+                await self.message.edit(embed=self.embed)
         except:
             pass
 
 
 class ValorantControls(discord.ui.View):
     def __init__(self, matches: Matches, currentplayerid, ctx):
-        super().__init__(timeout=600)
+        super().__init__(timeout=60)
         self.matches = matches
         self.currentplayerid = currentplayerid
         self.ctx = ctx
 
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
+
     @discord.ui.button(label="View recent matches", style=discord.ButtonStyle.green)
     async def roundstats(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         valoview = ValorantStats(self.matches, self.currentplayerid)
         msg = await self.ctx.send(embed=valoview.embeds[0], view=valoview)
         valoview.set_initial_message(msg)
@@ -12652,6 +12042,7 @@ class ValorantControls(discord.ui.View):
 
     @discord.ui.button(label="View detailed stats", style=discord.ButtonStyle.green)
     async def completestats(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         embed = discord.Embed(title="Detailed Stats", description="""
         1️⃣ Most used weapons
         2️⃣ Most kills with weapon
@@ -12664,12 +12055,18 @@ class ValorantControls(discord.ui.View):
 
 class ValorantDetailedStats(discord.ui.View):
     def __init__(self, matches: Matches, currentplayerid):
-        super().__init__(timeout=600)
+        super().__init__(timeout=60)
         self.matches = matches
         self.currentplayerid = currentplayerid
 
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
+
     @discord.ui.button(emoji="1️⃣", style=discord.ButtonStyle.green)
     async def mostusedweapons(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         embed = discord.Embed(title="Most Used Weapons", description="")
         weaponjson = FormatData().get_freq_weapon(
             self.matches.matchlist, self.currentplayerid)
@@ -12679,6 +12076,7 @@ class ValorantDetailedStats(discord.ui.View):
 
     @discord.ui.button(emoji="2️⃣", style=discord.ButtonStyle.green)
     async def mostkillswithweapon(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         embed = discord.Embed(title="Most Kills With Weapon", description="")
         killsjson = FormatData().get_most_kills_weapon(
             self.matches.matchlist, self.currentplayerid)
@@ -12689,6 +12087,7 @@ class ValorantDetailedStats(discord.ui.View):
 
     @discord.ui.button(emoji="3️⃣", style=discord.ButtonStyle.green)
     async def roundlosingreasons(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
         embed = discord.Embed(
             title="Common Round Losing Reasons", description="")
         roundlosingreasonsjson = FormatData().get_round_losing_reason(
@@ -12892,7 +12291,7 @@ class Minecraftpvp(discord.ui.View):
                         async with pool.acquire() as con:
                             await con.execute(statement, str(self.memberoneid))
                         await addmoney(self.membertwoid, 5)
-                        await message.edit(embed=embed, content="** **", view=None)
+                        await message.edit(embed=embed, view=None)
                         self.stop()
                         return
                 if not message is None:
@@ -12963,7 +12362,7 @@ class Minecraftpvp(discord.ui.View):
                         async with pool.acquire() as con:
                             await con.execute(statement, str(self.membertwoid))
                         await addmoney(self.memberoneid, 5)
-                        await message.edit(embed=embed, content="** **", view=None)
+                        await message.edit(embed=embed, view=None)
                         self.stop()
                         return
                 if not message is None:
@@ -13007,76 +12406,6 @@ class ConfirmPrivate(discord.ui.View):
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-@client.slash_command(aliases=["remind", "reminder", "alarm"],
-                      brief='This command can be used to create a reminder.',
-                      description='This command can be used to create a reminder.',
-                      usage="hours minutes seconds reason")
-@commands.guild_only()
-async def setreminder(ctx, seconds: Option(int, "Time in seconds", required=True), minutes: Option(int, "Time in minutes", required=False), hours: Option(int, "Time in hours", required=False), reason: Option(str, "Your reason", required=False)):
-    if reason is None:
-        reason = "⏰Reminder finished"
-    if hours is None:
-        hours = 0
-    if minutes is None:
-        minutes = 0
-    totalseconds = hours*3600+minutes*60+seconds
-    try:
-        totalseconds = int(totalseconds)
-    except:
-        await on_command_error(ctx,
-                               "Enter a valid number to set a timer.")
-        return
-    if totalseconds <= 0:
-        await on_command_error(ctx, " You cannot remind in negative/zero amount of time.")
-        return
-    await ctx.defer()
-    a_datetime = datetime.now()
-    added_seconds = timedelta(0, totalseconds)
-    new_datetime = a_datetime + added_seconds
-    await ctx.respond(f"{ctx.author.mention} Your reminder for {await discord.utils.sleep_until(when=new_datetime,result=reason)} was completed!")
-
-
-@client.slash_command(
-    brief='This command can be used to send a private message in any channel.',
-    description='This command can be used to send a private message in any channel.',
-    usage="")
-@commands.guild_only()
-async def sendprivatemessage(ctx, message: Option(str, "Your message", required=True), memberone: Option(discord.Member, "Members", required=True), membertwo: Option(discord.Member, "Members", required=False), memberthree: Option(discord.Member, "Members", required=False), memberfour: Option(discord.Member, "Members", required=False), memberfive: Option(discord.Member, "Members", required=False), membersix: Option(discord.Member, "Members", required=False), memberseven: Option(discord.Member, "Members", required=False), membereight: Option(discord.Member, "Members", required=False), membernine: Option(discord.Member, "Members", required=False), memberten: Option(discord.Member, "Members", required=False)):
-    await ctx.respond("Ok your message has been sent successfully!", ephemeral=True)
-    memberlist = [memberone.id]
-    count = 1
-    if membertwo:
-        memberlist.append(membertwo.id)
-        count = count+1
-    if memberthree:
-        memberlist.append(memberthree.id)
-        count = count+1
-    if memberfour:
-        memberlist.append(memberfour.id)
-        count = count+1
-    if memberfive:
-        memberlist.append(memberfive.id)
-        count = count+1
-    if membersix:
-        memberlist.append(membersix.id)
-        count = count+1
-    if memberseven:
-        memberlist.append(memberseven.id)
-        count = count+1
-    if membereight:
-        memberlist.append(membereight.id)
-        count = count+1
-    if membernine:
-        memberlist.append(membernine.id)
-        count = count+1
-    if memberten:
-        memberlist.append(memberten.id)
-        count = count+1
-    embed = discord.Embed(
-        title="Private chat", description=f"Click the button below to see the private message.")
-    await ctx.send(content="** **", embed=embed, view=ConfirmPrivate(memberlist, ctx.author.name, message))
-
-
 def is_guild(provguild, provname):
     async def predicate(ctx):
         async with pool.acquire() as con:
@@ -13116,7 +12445,7 @@ class CustomCommands(commands.Cog):
     @commands.command(
         brief='This command can be used to add your own commands and a custom response.',
         description='This command can be used to add your own commands and a custom response and can be used by members having manage guild permission.',
-        usage="commandname output",aliases=["addcustomcommand"])
+        usage="commandname output", aliases=["addcustomcommand"])
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
@@ -13177,7 +12506,7 @@ class CustomCommands(commands.Cog):
     @commands.command(
         brief='This command can be used to remove your custom command.',
         description='This command can be used to remove your custom command an can be used by members having manage guild permission.',
-        usage="commandname",aliases=["removecustomcommand"])
+        usage="commandname", aliases=["removecustomcommand"])
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
