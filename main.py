@@ -782,10 +782,11 @@ class DefaultHelpSelect(discord.ui.Select):
         self.fcommands = filteredcmds
         if showingall:
             super().__init__(placeholder='Select a help category(Showing all commands).',
-                         min_values=1, max_values=1, options=options, custom_id='defaulthelpselect:init')
+                             min_values=1, max_values=1, options=options, custom_id='defaulthelpselect:init')
         else:
             super().__init__(placeholder='Select a help category(Showing your commands).',
-                         min_values=1, max_values=1, options=options, custom_id='defaulthelpselect:init')
+                             min_values=1, max_values=1, options=options, custom_id='defaulthelpselect:init')
+
     async def callback(self, interaction: discord.Interaction):
         if not interaction.user.id == self.author.id:
             await interaction.response.send_message(content=f"You have not invoked this help command!", ephemeral=True)
@@ -827,30 +828,34 @@ class DefaultHelpSelect(discord.ui.Select):
 
 
 class DefaultHelp(discord.ui.View):
-    def __init__(self, filteredcmds, allcommands,author):
+    def __init__(self, filteredcmds, allcommands, author):
         super().__init__(timeout=150)
         self.filteredcmds = filteredcmds
         self.allcommands = allcommands
         self.showAll = False
-        self.currentSelectMenu=DefaultHelpSelect(filteredcmds, author, self.showAll)
+        self.author = author
+        self.currentSelectMenu = DefaultHelpSelect(
+            filteredcmds, self.author, self.showAll)
         self.add_item(self.currentSelectMenu)
 
-    @discord.ui.button(label='⚪',style=discord.ButtonStyle.green)
+    @discord.ui.button(label='⚪', style=discord.ButtonStyle.green)
     async def toggle(self, button: discord.ui.Button, interaction: discord.Interaction):
         self.showAll = not self.showAll
         if self.showAll:
             button.label = "🔵"
             await interaction.response.send_message(content='Help toggled to show all commands!', ephemeral=True)
-            cmds=self.allcommands
+            cmds = self.allcommands
         else:
-            button.label="⚪"
+            button.label = "⚪"
             await interaction.response.send_message(content='Help toggled to show only commands you can use!', ephemeral=True)
-            cmds=self.filteredcmds
+            cmds = self.filteredcmds
 
         await self.message.edit(view=self)
         self.remove_item(self.currentSelectMenu)
-        self.currentSelectMenu=DefaultHelpSelect(cmds, self.author, self.showAll)
+        self.currentSelectMenu = DefaultHelpSelect(
+            cmds, self.author, self.showAll)
         self.add_item(self.currentSelectMenu)
+        await self.message.edit(view=self)
 
     async def on_timeout(self):
         for child in self.children:
