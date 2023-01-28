@@ -835,15 +835,15 @@ class DefaultHelp(discord.ui.View):
         self.currentSelectMenu=DefaultHelpSelect(filteredcmds, author, self.showAll)
         self.add_item(self.currentSelectMenu)
 
-    @discord.ui.button(label=':white_circle:',style=discord.ButtonStyle.green)
+    @discord.ui.button(label='⚪',style=discord.ButtonStyle.green)
     async def toggle(self, button: discord.ui.Button, interaction: discord.Interaction):
         self.showAll = not self.showAll
         if self.showAll:
-            button.label=":blue_circle:"
+            button.label = "🔵"
             await interaction.response.send_message(content='Help toggled to show all commands!', ephemeral=True)
             cmds=self.allcommands
         else:
-            button.label=":white_circle:"
+            button.label="⚪"
             await interaction.response.send_message(content='Help toggled to show only commands you can use!', ephemeral=True)
             cmds=self.filteredcmds
 
