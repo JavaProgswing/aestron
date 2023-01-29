@@ -122,6 +122,14 @@ async def chatbotfetch(session, url):
         return ex
 
 
+async def fetch_json(session, url, headers={}):
+    async with session.get(url, headers=headers) as response:
+        if response.status == 200:
+            json_data = await response.json()
+            return (response.status, json_data)
+        return (response.status, None)
+
+
 class ChatExtractor():
     def __init__(self):
         pass
@@ -504,7 +512,7 @@ class MyHelp(commands.HelpCommand):
         await super().on_help_command_error(ctx, error)
         print(error)
         print(type(error))
-        print(ctx)
+        print(get_traceback(error))
 
     async def send_bot_help(self, mapping):
         global customCog
@@ -623,10 +631,11 @@ class CommandHelpSelect(discord.ui.Select):
         options = [
         ]
         for c in commands:
-            options.append(discord.SelectOption(
-                label=c.name, description=c.brief[:100]))
+            if not "is_bot_staff" in c.checks.__str__():
+                options.append(discord.SelectOption(
+                    label=c.name, description=c.brief[:100]))
         super().__init__(placeholder='Select a help command.',
-                         min_values=1, max_values=1, options=options, custom_id="commandhelpselect:init")
+                         min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
         if not interaction.user.id == self.author.id:
@@ -652,6 +661,14 @@ class CommandHelpSelect(discord.ui.Select):
                 "\n\nNote: (OPT.) means that argument in the command is optional."
         embed.add_field(
             name="Usage", value=f"{prefix}{commandname} {exampleLine}")
+        try:
+            embed.set_image(url=f"attachment://{command.name}.gif")
+            file = discord.File(
+                f"./commandusages/{command.name}.gif", filename=f"{command.name}.gif")
+            await interaction.response.send_message(embed=embed, file=file, ephemeral=True)
+            return
+        except:
+            pass
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
@@ -781,10 +798,10 @@ class DefaultHelpSelect(discord.ui.Select):
         self.author = cauthor
         self.fcommands = filteredcmds
         if showingall:
-            super().__init__(placeholder='Select a help category(Showing all commands).',
+            super().__init__(placeholder='Select a help category.',
                              min_values=1, max_values=1, options=options, custom_id='defaulthelpselect:init')
         else:
-            super().__init__(placeholder='Select a help category(Showing your commands).',
+            super().__init__(placeholder='Select a help category.',
                              min_values=1, max_values=1, options=options, custom_id='defaulthelpselect:init')
 
     async def callback(self, interaction: discord.Interaction):
@@ -838,15 +855,15 @@ class DefaultHelp(discord.ui.View):
             filteredcmds, self.author, self.showAll)
         self.add_item(self.currentSelectMenu)
 
-    @discord.ui.button(label='⚪', style=discord.ButtonStyle.green)
+    @discord.ui.button(label='⚪(Showing your commands)', style=discord.ButtonStyle.green)
     async def toggle(self, button: discord.ui.Button, interaction: discord.Interaction):
         self.showAll = not self.showAll
         if self.showAll:
-            button.label = "🔵"
+            button.label = "🔵(Showing all commands)"
             await interaction.response.send_message(content='Help toggled to show all commands!', ephemeral=True)
             cmds = self.allcommands
         else:
-            button.label = "⚪"
+            button.label = "⚪(Showing your commands)"
             await interaction.response.send_message(content='Help toggled to show only commands you can use!', ephemeral=True)
             cmds = self.filteredcmds
 
@@ -1503,14 +1520,17 @@ async def exception_catching_callback(task):
             title=f"❌ Error occured ({type(error)}) : **{error}**",
             description=f"Python Code",
             color=Color.dark_red())
-        etype = type(error)
-        trace = error.__traceback__
-        # 'traceback' is the stdlib module, `import traceback`.
-        lines = traceback.format_exception(etype, error, trace)
-        # format_exception returns a list with line breaks embedded in the lines, so let's just stitch the elements together
-        traceback_text = ''.join(lines)
+        traceback_text = get_traceback(error)
         embederror.add_field(name='Traceback: ', value=traceback_text)
         await channelerrorlogging.send(embed=embederror)
+
+
+def get_traceback(error):
+    etype = type(error)
+    trace = error.__traceback__
+    lines = traceback.format_exception(etype, error, trace)
+    traceback_text = ''.join(lines)
+    return traceback_text
 
 
 @client.event
@@ -1552,7 +1572,7 @@ async def on_application_command_error(ctx, error):
         errordata = f"You are lacking the {missingperms} permission to execute that command."
     if isinstance(error, commands.MissingRequiredArgument):
         errordata = f"Oops looks like you forgot to put the {str(error.param.name)} in the {ctx.command} command.\n"
-        example = get_example(ctx.commmand, ctx.guild)
+        example = get_example(ctx.command, ctx.guild)
         exampleLine = example[0]
         if example[1]:
             exampleLine = exampleLine + \
@@ -1564,7 +1584,7 @@ async def on_application_command_error(ctx, error):
             f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
     if isinstance(error, commands.BadArgument):
         errordata = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
-        example = get_example(ctx.commmand, ctx.guild)
+        example = get_example(ctx.command, ctx.guild)
         exampleLine = example[0]
         if example[1]:
             exampleLine = exampleLine + \
@@ -1577,12 +1597,7 @@ async def on_application_command_error(ctx, error):
     embedone = discord.Embed(title=f"🚫 Command Error ",
                              description=errordata,
                              color=Color.dark_red())
-    etype = type(error)
-    trace = error.__traceback__
-    # 'traceback' is the stdlib module, `import traceback`.
-    lines = traceback.format_exception(etype, error, trace)
-    # format_exception returns a list with line breaks embedded in the lines, so let's just stitch the elements together
-    traceback_text = ''.join(lines)
+    traceback_text = get_traceback(error)
 
     embederror = discord.Embed(
         title=f"🚫 Error occured ({type(error)}) : **{error}**",
@@ -1649,12 +1664,7 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=False, userl
     if maintenancemodestatus:
         print(
             f"{ctx.author} attempted {ctx.command} in {ctx.guild}/{ctx.channel} which has {error}.")
-        etype = type(error)
-        trace = error.__traceback__
-        # 'traceback' is the stdlib module, `import traceback`.
-        lines = traceback.format_exception(etype, error, trace)
-        # format_exception returns a list with line breaks embedded in the lines, so let's just stitch the elements together
-        traceback_text = ''.join(lines)
+        traceback_text = get_traceback(error)
         print(traceback_text)
     errordata = "Oops something went wrong while executing the command , if this keeps happening frequently report this on our support server."
     if isinstance(error, commands.CommandInvokeError):
@@ -1683,6 +1693,8 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=False, userl
                 return
             else:
                 await statmsg.reply('Cancelled :octagonal_sign:')
+        else:
+            errordata = "You do not have permission to run this command."
     if isinstance(error, commands.errors.CommandError) or isinstance(error, NoCooldownError):
         errordata = error
     else:
@@ -1723,7 +1735,7 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=False, userl
                 await statmsg.reply('Cancelled...')
     if isinstance(error, commands.MissingRequiredArgument):
         errordata = f"Oops looks like you forgot to put the {str(error.param.name)} in the {ctx.command} command.\n"
-        example = get_example(ctx.commmand, ctx.guild)
+        example = get_example(ctx.command, ctx.guild)
         exampleLine = example[0]
         if example[1]:
             exampleLine = exampleLine + \
@@ -1735,7 +1747,7 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=False, userl
             f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
     if isinstance(error, commands.BadArgument):
         errordata = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
-        example = get_example(ctx.commmand, ctx.guild)
+        example = get_example(ctx.command, ctx.guild)
         exampleLine = example[0]
         if example[1]:
             exampleLine = exampleLine + \
@@ -1775,12 +1787,7 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=False, userl
         embedone.set_footer(
             text="Trying again in 5 seconds,this command will re-invoke itself.")
 
-    etype = type(error)
-    trace = error.__traceback__
-    # 'traceback' is the stdlib module, `import traceback`.
-    lines = traceback.format_exception(etype, error, trace)
-    # format_exception returns a list with line breaks embedded in the lines, so let's just stitch the elements together
-    traceback_text = ''.join(lines)
+    traceback_text = get_traceback(error)
     pastecode_failed = False
     try:
         pastecode = await mystbin_client.create_paste(content=traceback_text, filename=genrandomstr(10))
@@ -1977,21 +1984,18 @@ def convertwords(lst):
     return ' '.join(lst).split()
 
 
-def uservoted(member: discord.Member):
-    link = f"https://top.gg/api/bots/1061480715172200498/check?userId={member.id}"
+async def uservoted(member: discord.Member):
+    url = f"https://top.gg/api/bots/1061480715172200498/check?userId={member.id}"
     try:
-        headerstoken = {
+        headers = {
             "authorization": dbltoken
         }
-        f = requests.get(link, headers=headerstoken)
-        ftext = f.text
-        myfile = json.loads(ftext)
-        votereceived = False
-        if myfile['voted'] >= 1:
-            votereceived = True
+        async with aiohttp.ClientSession() as session:
+            respjson = await fetch_json(session, url, headers)
+            assert respjson[0] == 200, f"{respjson[0]}"
+        return respjson[1]['voted'] >= 1
     except:
-        votereceived = False
-    return votereceived
+        return False
 
 
 def is_bot_staff():
@@ -5752,7 +5756,7 @@ class MinecraftFun(commands.Cog):
                 await con.execute(statement, ctx.author.id, 500, json.dumps(newjson))
             async with newpool.acquire() as con:
                 memberoneeco = await con.fetchrow(f"SELECT * FROM mceconomy WHERE memberid = {ctx.author.id}")
-        if uservoted(ctx.author) or checkstaff(ctx.author):
+        if await uservoted(ctx.author) or checkstaff(ctx.author):
             await ctx.send("Nice , you have claimed your weekly of 1500 for this week!")
             await addmoney(ctx.author.id, 1500)
         else:
@@ -6324,23 +6328,37 @@ def getCount(e):
     return e['count']
 
 
-def api_take_screenshot(ctx, url, save_fn="capture.png"):
+async def api_take_screenshot(ctx, url, save_fn="capture.png"):
     apiurl = f"https://screenshot.webdashboard.repl.co/screenshot?url={url}"
-    f = requests.get(apiurl, stream=True)
-    f.raw.decode_content = True
-    if f.status_code != 200:
-        raise commands.CommandError(
-            "The screenshot couldn't be taken, try again later!")
-    with open(save_fn, 'wb') as out_file:
-        shutil.copyfileobj(f.raw, out_file)
-    my_file = discord.File(save_fn)
-    return my_file
+    async with aiohttp.ClientSession(timeout=None) as session:
+        async with session.get(apiurl) as response:
+            if response.status != 200:
+                if(response.status == 429):
+                    raise commands.CommandError(
+                        "The screenshot couldn't be taken due to rate-limiting!")
+                elif(response.status == 400):
+                    raise commands.CommandError(
+                        "The screenshot couldn't be taken due to an invalid URL!")
+                elif(response.status == 523):
+                    raise commands.CommandError(
+                        "The screenshot couldn't be taken due to connection refusal!")
+                elif(response.status == 451):
+                    raise commands.CommandError(
+                        "The screenshot couldn't be taken due to unacceptable content!")
+                else:
+                    raise commands.CommandError(
+                        f"The screenshot couldn't be taken due to {response.reason}!")
+            bytesRead = await response.read()
+            with open(save_fn, 'wb') as out_file:
+                out_file.write(bytesRead)
+            my_file = discord.File(save_fn)
+            return my_file
 
 
-def take_screenshot(ctx, url, save_fn="capture.png"):
+async def take_screenshot(ctx, url, save_fn="capture.png"):
     global browser
     if browser is None:
-        return api_take_screenshot(ctx, url, save_fn)
+        return await api_take_screenshot(ctx, url, save_fn)
     if not url.startswith('http://') and not url.startswith('https://'):
         url = "https://"+url
     try:
@@ -6361,7 +6379,7 @@ def take_screenshot(ctx, url, save_fn="capture.png"):
             options.add_argument("--disable-infobars")
             options.add_argument("--disable-dev-shm-usage")
             browser = webdriver.Chrome(options=options)
-            take_screenshot(ctx, url)
+            await take_screenshot(ctx, url)
             return
         else:
             raise ex
@@ -7966,7 +7984,7 @@ class Misc(commands.Cog):
                       description='This command can be used to take a screenshot of a website url.',
                       usage="url")
     async def takescrn(self, ctx, url: str):
-        scrn = take_screenshot(ctx, url=url)
+        scrn = await take_screenshot(ctx, url=url)
         await ctx.send(file=scrn)
 
     @commands.cooldown(1, 30, BucketType.member)
@@ -7999,7 +8017,7 @@ class Misc(commands.Cog):
             embed.add_field(name=i, value=datajson[i])
             listOfEmbeds.append(embed)
             name = i.replace(" ", "")+".png"
-            scrn = take_screenshot(ctx, datajson[i], name)
+            scrn = await take_screenshot(ctx, datajson[i], name)
             listOfFiles.append(scrn)
             count = count+1
         if len(listOfEmbeds) == 0:
@@ -8045,7 +8063,7 @@ class Misc(commands.Cog):
             embed.add_field(name=i, value=datajson[i])
             listOfEmbeds.append(embed)
             name = i.replace(" ", "")+".png"
-            scrn = take_screenshot(ctx, datajson[i], name)
+            scrn = await take_screenshot(ctx, datajson[i], name)
             listOfFiles.append(scrn)
             count = count+1
         if len(listOfEmbeds) == 0:
@@ -8091,7 +8109,7 @@ class Misc(commands.Cog):
             embed.add_field(name=i, value=datajson[i])
             listOfEmbeds.append(embed)
             name = i.replace(" ", "")+".png"
-            scrn = take_screenshot(ctx, datajson[i], name)
+            scrn = await take_screenshot(ctx, datajson[i], name)
             listOfFiles.append(scrn)
             count = count+1
         if len(listOfEmbeds) == 0:
@@ -8121,14 +8139,15 @@ class Misc(commands.Cog):
                                 tld="co.in",
                                 num=number,
                                 stop=number,
-                                pause=2)
+                                pause=2, safe="on")
+        success = False
         for j in searchresults:
-            scrn = take_screenshot(ctx, j)
+            scrn = await take_screenshot(ctx, j)
             embedVar.title = f"Search Results({j})"
-            try:
-                await ctx.send(embed=embedVar, file=scrn)
-            except:
-                pass
+            await ctx.send(embed=embedVar, file=scrn)
+            success = True
+        if not success:
+            raise commands.CommandError(f"No results were found for {query}.")
 
     @commands.cooldown(1, 15, BucketType.member)
     @commands.command(
@@ -8143,8 +8162,10 @@ class Misc(commands.Cog):
         BASE_URL = "https://api.openweathermap.org/data/2.5/weather?"
         API_KEY = "fb1ef9466bf30ea33b7237826e3d1dc0"
         URL = BASE_URL + "q=" + city + "&appid=" + API_KEY
-        response = requests.get(URL)
-
+        async with aiohttp.ClientSession() as session:
+            respjson = await fetch_json(session, URL)
+            assert respjson[0] == 200, f"{respjson[0].status_code}"
+            response = respjson[1]
         # checking the status code of the request
         if response.status_code == 200:
             # getting data in the json format
@@ -8851,7 +8872,7 @@ class Fun(commands.Cog):
             detailstring += "Official Discord Staff \n"
         if checkstaff(member):
             detailstring += f"<a:checkmark:877399181285793842> Official {client.user.name} developer ! \n"
-        if uservoted(member):
+        if await uservoted(member):
             detailstring += f"<a:verified:875327156572532736> Voted on top.gg \n"
         exists = False
         banperms = True
@@ -10097,7 +10118,7 @@ class Support(commands.Cog):
     async def checkvote(self, ctx, member: discord.Member = None):
         if member is None:
             member = ctx.author
-        if uservoted(member):
+        if await uservoted(member):
             embedOne = discord.Embed(
                 title=f"{member.name}'s voting status on top.gg",
                 description="Vote registered",
@@ -11710,7 +11731,7 @@ async def profile(ctx, message: discord.Message):
         detailstring += "Official Discord Staff \n"
     if checkstaff(member):
         detailstring += f"<a:checkmark:877399181285793842> Official {client.user.name} developer ! \n"
-    if uservoted(member):
+    if await uservoted(member):
         detailstring += f"<a:verified:875327156572532736> Voted on top.gg \n"
     exists = False
     banperms = True
@@ -12720,12 +12741,7 @@ async def on_raw_reaction_add(payload):
                                supportroleid)
     except Exception as error:
         print(f"on_raw_reaction_add Error {error} ")
-        etype = type(error)
-        trace = error.__traceback__
-        # 'traceback' is the stdlib module, `import traceback`.
-        lines = traceback.format_exception(etype, error, trace)
-        # format_exception returns a list with line breaks embedded in the lines, so let's just stitch the elements together
-        traceback_text = ''.join(lines)
+        traceback_text = get_traceback(error)
         print(traceback_text)
 
 
@@ -12796,12 +12812,7 @@ async def on_guild_join(guild):
                 break
     except Exception as error:
         print(f"on_guild_join Error {error} ")
-        etype = type(error)
-        trace = error.__traceback__
-        # 'traceback' is the stdlib module, `import traceback`.
-        lines = traceback.format_exception(etype, error, trace)
-        # format_exception returns a list with line breaks embedded in the lines, so let's just stitch the elements together
-        traceback_text = ''.join(lines)
+        traceback_text = get_traceback(error)
         print(traceback_text)
 
 
@@ -12841,12 +12852,7 @@ async def on_raw_message_delete(payload):
 
     except Exception as error:
         print(f"on_raw_message delete Error {error}")
-        etype = type(error)
-        trace = error.__traceback__
-        # 'traceback' is the stdlib module, `import traceback`.
-        lines = traceback.format_exception(etype, error, trace)
-        # format_exception returns a list with line breaks embedded in the lines, so let's just stitch the elements together
-        traceback_text = ''.join(lines)
+        traceback_text = get_traceback(error)
         print(traceback_text)
 
 
@@ -13057,14 +13063,9 @@ async def on_message_edit(before, message):
                             await messagesent.delete()
     except Exception as error:
         print(f"on_message_edit Error {error}")
-        etype = type(error)
-        trace = error.__traceback__
-        # 'traceback' is the stdlib module, `import traceback`.
-        lines = traceback.format_exception(etype, error, trace)
-        # format_exception returns a list with line breaks embedded in the lines, so let's just stitch the elements together
-        traceback_text = ''.join(lines)
+        traceback_text = get_traceback(error)
         print(traceback_text)
-        # print("No language recognised.")
+        #print("No language recognised.")
 
 
 @client.event
@@ -13223,7 +13224,7 @@ async def on_message(message):
                     googleurl = f"https://www.google.com/search?q={question}"
                     embed = discord.Embed(
                         title="Google result", description=f"Scraping results for {title}")
-                    scrn = take_screenshot(ctx, url=googleurl)
+                    scrn = await take_screenshot(ctx, url=googleurl)
                     await ctx.send(file=scrn, embed=embed)
                 except Exception as ex:
                     print(f"Exception in trivia cmd : {ex}")
@@ -13589,12 +13590,7 @@ async def on_message(message):
         await client.process_commands(message)
     except Exception as error:
         print(f"on_message Error : {error}")
-        etype = type(error)
-        trace = error.__traceback__
-        # 'traceback' is the stdlib module, `import traceback`.
-        lines = traceback.format_exception(etype, error, trace)
-        # format_exception returns a list with line breaks embedded in the lines, so let's just stitch the elements together
-        traceback_text = ''.join(lines)
+        traceback_text = get_traceback(error)
         print(traceback_text)
 
 
