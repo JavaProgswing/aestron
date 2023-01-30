@@ -10423,7 +10423,7 @@ class Support(commands.Cog):
 
     @bridge.bridge_command(
         brief='This command can be used to create an embed with message.',
-        description='This command can be used to create an embed with message and can be used by members(requires manage guild).',
+        description='This command can be used to create an embed with message(requires manage guild).',
         usage="", aliases=["embed", "message", "createmessage", "messagecreate", "createembed"])
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
