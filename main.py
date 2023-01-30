@@ -57,7 +57,7 @@ from selenium.webdriver.chrome.service import Service
 from spotipy.oauth2 import SpotifyClientCredentials
 from translate import Translator
 from youtubesearchpython.__future__ import *
-import shutil
+import enum
 import long_responses as long
 from mainext import publicaexec
 import pickle
@@ -70,6 +70,7 @@ def noglobal(f): return types.FunctionType(
 
 
 load_dotenv()
+load_dotenv(dotenv_path="github.env")
 botowners = ["488643992628494347", "625265223250608138"]
 token = os.getenv("DISCORD_TOKEN")
 valorant_api_key = os.getenv("VAL_API_TOKEN")
@@ -89,6 +90,8 @@ sp = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials(
 # REQUIRES API KEY
 
 maintenancemodestatus = False
+maintenancemodereason = "fixing a bug"
+forcelogerrors = False
 youtube_dl.utils.bug_reports_message = lambda: ''
 
 ytdl_format_options = {
@@ -136,7 +139,7 @@ class ChatExtractor():
 
     async def aget_response(self, message, author):
         message = message.replace(" ", "%20")
-        session = aiohttp.ClientSession(trust_env=True)
+        session = client.session
         url = f"http://api.brainshop.ai/get?bid={CHATBOT_ID}&key={CHATBOT_TOKEN}&uid={author.id}&msg={message}"
         resp = await chatbotfetch(session, url)
         return resp
@@ -160,15 +163,15 @@ class LyricsExtractor():
     async def aget_lyrics(self, songname):
         songname = songname.replace(" ", "+")
         url = f"https://api.popcat.xyz/lyrics?song={songname}"
-        async with aiohttp.ClientSession() as session:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36'
-            }
-            timeout = ClientTimeout(total=0)
-            async with session.get(url, headers=headers, timeout=timeout) as resp:
-                assert resp.status == 200, f"{resp.status}"
-                resptext = await resp.json()
-            return resptext
+        session=client.session
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36'
+        }
+        timeout = ClientTimeout(total=0)
+        async with session.get(url, headers=headers, timeout=timeout) as resp:
+            assert resp.status == 200, f"{resp.status}"
+            resptext = await resp.json()
+        return resptext
 
     def get_lyrics(self, songname):
         songname = songname.replace(" ", "+")
@@ -1059,10 +1062,17 @@ class MyBot(commands.Bot):
         return checkstaff(user)
 
 
+class BotStartStatus(enum.Enum):
+    WAITING = 1
+    PROCESSING = 2
+    COMPLETED = 3
+
+
 client = MyBot(command_prefix=get_prefix,
                case_insensitive=True,
                intents=intents, activity=Dactivity, help_command=MyHelp(), strip_after_prefix=True)
 client._BotBase__cogs = commands.core._CaseInsensitiveDict()
+client.start_status = BotStartStatus.WAITING
 dashtoken = os.getenv("DASH_TOKEN")
 # ignore TOKEN FOR DASHBOARD webhooks.
 togetherControl = None
@@ -1641,7 +1651,7 @@ async def on_application_command_error(ctx, error):
 
 
 @client.event
-async def on_command_error(ctx, error, tracebackreq=False, forcelog=False, userlog=True):
+async def on_command_error(ctx, error, tracebackreq=False, forcelog=forcelogerrors, userlog=True):
     global channeldev, channelerrorlogging, verifyCommand, maintenancemodestatus, tempbotowners
     isSlashCmd = False
     verifyDelete = True
@@ -1990,9 +2000,9 @@ async def uservoted(member: discord.Member):
         headers = {
             "authorization": dbltoken
         }
-        async with aiohttp.ClientSession() as session:
-            respjson = await fetch_json(session, url, headers)
-            assert respjson[0] == 200, f"{respjson[0]}"
+        session=client.session
+        respjson = await fetch_json(session, url, headers)
+        assert respjson[0] == 200, f"{respjson[0]}"
         return respjson[1]['voted'] >= 1
     except:
         return False
@@ -2480,14 +2490,14 @@ def validurl(theurl):
 
 
 async def get_url_image(url):
-    async with aiohttp.ClientSession() as session:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36'
-        }
-        timeout = ClientTimeout(total=0)
-        async with session.get(url, headers=headers, timeout=timeout) as resp:
-            assert resp.status == 200, f"{resp.status}"
-            html = await resp.text()
+    session = client.session
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36'
+    }
+    timeout = ClientTimeout(total=0)
+    async with session.get(url, headers=headers, timeout=timeout) as resp:
+        assert resp.status == 200, f"{resp.status}"
+        html = await resp.text()
     soup = BeautifulSoup(html, "html.parser")
     meta_og_image = soup.find("meta", property="og:image")
     return meta_og_image.get("content") if meta_og_image else None
@@ -2513,11 +2523,11 @@ class valoMatchJson():
 
 async def getFormattedOutput(url, authheader=None):
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=authheader) as resp:
-                if resp.status == 200:
-                    respjson = await resp.json()
-                    pass
+        session=client.session
+        async with session.get(url, headers=authheader) as resp:
+            if resp.status == 200:
+                respjson = await resp.json()
+                pass
     except:
         return None
     formattedjson = respjson
@@ -2609,9 +2619,52 @@ def check_ensure_permissions(ctx, member, perms):
         if not getattr(ctx.channel.permissions_for(member), perm):
             raise discord.ext.commands.errors.BotMissingPermissions([perm])
 
+@tasks.loop(seconds=30)
+async def gitcommitcheck():
+    GITHUB_OWNER = os.getenv("GITHUB_OWNER")
+    GITHUB_REPO = os.getenv("GITHUB_REPO")
 
+    session=client.github_session
+    async with session.get(f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/commits", headers={"Authorization": os.getenv("GITHUB_TOKEN"), "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}) as response:
+        if response.status == 200:
+            response_json = await response.json()
+            commitsha = response_json[0]["sha"]
+            commiturl = response_json[0]["url"]
+            async with pool.acquire() as con:
+                githubcommitinfo = await con.fetchrow(f"SELECT * FROM githubcommits WHERE userid = {client.user.id}")
+            if githubcommitinfo["latestcommitsha"] != commitsha:
+                results = (
+                    f"INSERT INTO githubcommits (userid, latestcommitsha) VALUES($1, $2) ON CONFLICT (userid) DO UPDATE SET latestcommitsha = EXCLUDED.latestcommitsha;")
+                async with pool.acquire() as con:
+                    await con.execute(results, client.user.id, commitsha)
+                await channeldev.send(f"New commit detected! {commiturl}, restarting...")
+                changed_files=compare_local_remote_git_repo(files)
+                if len(changed_files) == 0:
+                    await channeldev.send("No file changes detected.")
+                else:
+                    await channeldev.send(f"Files changed: {', '.join(changed_files)}")
+                    for filedetails in changed_files:
+                        with open(filedetails[0], "wb") as f:
+                            f.write(base64.b64decode(filedetails[1]))
+                        await channeldev.send(f"({filedetails[3]})File {filedetails[0]} updated to size {filedetails[2]} in latest commit.")
+                sync_views = client._connection._view_store._synced_message_views
+                for view in sync_views:
+                    viewobj = sync_views[view]
+                    if viewobj._message:
+                        viewobj.disable_all_items()
+                        try:
+                            await viewobj._message.edit(view=viewobj)
+                        except:
+                            pass
+                await channeldev.send(subprocess.run(f"python3.9 main.py restart {channeldev.channel.id}", shell=True, stdout=subprocess.PIPE).stdout)
+                await client.close()
+                sys.exit(0)
+
+
+            
 async def runBot():  # Bot START Aestron START
     await client.wait_until_ready()
+    client.start_status = BotStartStatus.PROCESSING
     # Testing commit
     bot.launch_time = datetime.utcnow()
     global channeldev, channelerrorlogging, channelbuglogging, botVersion, verifyCommand, customCog, conn, pool, DATABASE_URL, guildids, guildmusiccount, guildmusicname, guildmusicrecent, guildmusicauthor, channelbuildlogging, guildmusicloop, newconn, newpool, guildmusicskipped, guildmusictime, guildmusictotaltime, guildmusiccurrent, token, togetherControl, dashtoken, browser, guildmusiccurrentstate, guildmusicqueue, guildmusicids, guildmusiccp, channelgitlogging
@@ -2623,6 +2676,9 @@ async def runBot():  # Bot START Aestron START
     newpool = await asyncpg.create_pool(DATABASE_URL, max_size=18, min_size=1)
     print(f'The database sql has been set to {conn}')
     print(f'The new database sql has been set to {newconn}')
+    client.session= aiohttp.ClientSession()
+    print(f'The session has been set to {client.session}')
+    client.github_session = aiohttp.ClientSession()
     channelerrorlogging = client.get_channel(840193232885121094)
     channelbuglogging = client.get_channel(855310400366444584)
     channelbuildlogging = client.get_channel(884741122616877086)
@@ -2630,7 +2686,12 @@ async def runBot():  # Bot START Aestron START
     channelgitlogging = client.get_channel(895884797099008050)
     print(f"The logging channel has been set to {channelerrorlogging}.")
     if len(sys.argv) > 1 and sys.argv[1] == "restart":
-        await channeldev.send("Successfully Restarted!")
+        if(len(sys.argv) > 2):
+            channelid = int(sys.argv[2])
+            channelmsg = client.get_channel(channelid)
+        else:
+            channelmsg = channeldev
+        await channelmsg.send("Successfully Restarted!")
     valorantMatchSave.start()
     valorantSeasonCheck.start()
     customCog = client.get_cog("CustomCommands")
@@ -2818,6 +2879,7 @@ async def runBot():  # Bot START Aestron START
         guilds = await con.fetch(f"SELECT * FROM cautionraid")
     for guild in guilds:
         await removeguildcaution(guild["guildid"])
+    client.start_status = BotStartStatus.COMPLETED
 # using create_task and passing the coro to it
 client.loop.create_task(runBot())
 
@@ -2998,8 +3060,56 @@ async def shutdown(ctx):
                 pass
     await client.close()
     sys.exit(0)
+def compare_local_remote_git_repo(files):
+    GITHUB_OWNER = os.getenv("GITHUB_OWNER")
+    GITHUB_REPO = os.getenv("GITHUB_REPO")
+    changed_files = []
+    for filename in files:
+        file_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{filename}"
+        file_response = requests.get(file_url, headers={"Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"})
+        if(file_response.status_code==404):
+            print(f"{filename} is not present in the remote repository.")
+            continue
+        parsed_file_response = file_response.json()
+        try:
+            remote_file_content = parsed_file_response["content"]
+        except KeyError:
+            print(f"{filename} doesn't have a content!?")
+            continue
+        # Get the content of the file from the local repository
+        with open(filename, "r", encoding="utf8") as file:
+            local_file_content = file.read()
 
+        # Compare the two file contents
+        if remote_file_content != local_file_content:
+            changed_files.append((filename, remote_file_content, parsed_file_response.get("size"), parsed_file_response.get("sha")))
+    return changed_files
 
+@client.command()
+@is_bot_staff()
+async def restartlatestcommit(ctx,files: Greedy[str] = ["main.py"]):
+    await ctx.send("Restarting to latest commit...")
+    changed_files=compare_local_remote_git_repo(files)
+    if len(changed_files) == 0:
+        await ctx.send("No file changes detected.")
+    else:
+        await ctx.send(f"Files changed: {', '.join(changed_files)}")
+        for filedetails in changed_files:
+            with open(filedetails[0], "wb") as f:
+                f.write(base64.b64decode(filedetails[1]))
+            await ctx.send(f"({filedetails[3]})File {filedetails[0]} updated to size {filedetails[2]} in latest commit.")
+    sync_views = client._connection._view_store._synced_message_views
+    for view in sync_views:
+        viewobj = sync_views[view]
+        if viewobj._message:
+            viewobj.disable_all_items()
+            try:
+                await viewobj._message.edit(view=viewobj)
+            except:
+                pass
+    await ctx.send(subprocess.run(f"python3.9 main.py restart {ctx.channel.id}", shell=True, stdout=subprocess.PIPE).stdout)
+    await client.close()
+    sys.exit(0)
 @client.command()
 @is_bot_staff()
 async def restart(ctx):
@@ -3013,7 +3123,7 @@ async def restart(ctx):
                 await viewobj._message.edit(view=viewobj)
             except:
                 pass
-    await ctx.send(subprocess.run("python3.9 main.py restart", shell=True, stdout=subprocess.PIPE).stdout)
+    await ctx.send(subprocess.run(f"python3.9 main.py restart {ctx.channel.id}", shell=True, stdout=subprocess.PIPE).stdout)
     await client.close()
     sys.exit(0)
 
@@ -6330,29 +6440,29 @@ def getCount(e):
 
 async def api_take_screenshot(ctx, url, save_fn="capture.png"):
     apiurl = f"https://screenshot.webdashboard.repl.co/screenshot?url={url}"
-    async with aiohttp.ClientSession(timeout=None) as session:
-        async with session.get(apiurl) as response:
-            if response.status != 200:
-                if(response.status == 429):
-                    raise commands.CommandError(
-                        "The screenshot couldn't be taken due to rate-limiting!")
-                elif(response.status == 400):
-                    raise commands.CommandError(
-                        "The screenshot couldn't be taken due to an invalid URL!")
-                elif(response.status == 523):
-                    raise commands.CommandError(
-                        "The screenshot couldn't be taken due to connection refusal!")
-                elif(response.status == 451):
-                    raise commands.CommandError(
-                        "The screenshot couldn't be taken due to unacceptable content!")
-                else:
-                    raise commands.CommandError(
-                        f"The screenshot couldn't be taken due to {response.reason}!")
-            bytesRead = await response.read()
-            with open(save_fn, 'wb') as out_file:
-                out_file.write(bytesRead)
-            my_file = discord.File(save_fn)
-            return my_file
+    session=client.session
+    async with session.get(apiurl) as response:
+        if response.status != 200:
+            if(response.status == 429):
+                raise commands.CommandError(
+                    "The screenshot couldn't be taken due to rate-limiting!")
+            elif(response.status == 400):
+                raise commands.CommandError(
+                    "The screenshot couldn't be taken due to an invalid URL!")
+            elif(response.status == 523):
+                raise commands.CommandError(
+                    "The screenshot couldn't be taken due to connection refusal!")
+            elif(response.status == 451):
+                raise commands.CommandError(
+                    "The screenshot couldn't be taken due to unacceptable content!")
+            else:
+                raise commands.CommandError(
+                    f"The screenshot couldn't be taken due to {response.reason}!")
+        bytesRead = await response.read()
+        with open(save_fn, 'wb') as out_file:
+            out_file.write(bytesRead)
+        my_file = discord.File(save_fn)
+        return my_file
 
 
 async def take_screenshot(ctx, url, save_fn="capture.png"):
@@ -7878,8 +7988,8 @@ class Valorant(commands.Cog):
             match = pickle.loads(pickledmatch["data"])
             matchesinfo.add_match(match)
             count += 1
-        async with aiohttp.ClientSession() as session:
-            respjson = await fetchaiohttp(session, url)
+        session=client.session
+        respjson = await fetchaiohttp(session, url)
         try:
             respjson = json.loads(respjson)
         except Exception as ex:
@@ -8162,10 +8272,10 @@ class Misc(commands.Cog):
         BASE_URL = "https://api.openweathermap.org/data/2.5/weather?"
         API_KEY = "fb1ef9466bf30ea33b7237826e3d1dc0"
         URL = BASE_URL + "q=" + city + "&appid=" + API_KEY
-        async with aiohttp.ClientSession() as session:
-            respjson = await fetch_json(session, URL)
-            assert respjson[0] == 200, f"{respjson[0].status_code}"
-            response = respjson[1]
+        session=client.session
+        respjson = await fetch_json(session, URL)
+        assert respjson[0] == 200, f"{respjson[0].status_code}"
+        response = respjson[1]
         # checking the status code of the request
         if response.status_code == 200:
             # getting data in the json format
@@ -9602,9 +9712,9 @@ class Support(commands.Cog):
             userprovided = ctx.author.name
         if avatarprovided is None:
             avatarprovided = ctx.author.display_avatar.url
-        async with aiohttp.ClientSession() as session:
-            webhook = Webhook.from_url(hookurl, session=session)
-            await webhook.send(text, username=userprovided, avatar_url=avatarprovided, discriminator=ctx.author.discriminator)
+        session=client.session
+        webhook = Webhook.from_url(hookurl, session=session)
+        await webhook.send(text, username=userprovided, avatar_url=avatarprovided, discriminator=ctx.author.discriminator)
 
     @commands.command(
         brief='This command can be used for sending a announcement message by developer.',
@@ -9617,9 +9727,9 @@ class Support(commands.Cog):
                            hookurl: str = None):
         if hookurl is None:
             hookurl = "https://discord.com/api/webhooks/877435984646639647/KKxN6pdOFjNv_cqg8uG_p7Xn52NZ8TYU9gj6AZ8krZIcq6FjosHXY3bR4uhC08EUPnAk"
-        async with aiohttp.ClientSession() as session:
-            webhook = Webhook.from_url(hookurl, session=session)
-            msg = await webhook.send(text)
+        session=client.session
+        webhook = Webhook.from_url(hookurl, session=session)
+        msg = await webhook.send(text)
         await ctx.send(f"Successfully sent annoucement with id {msg.id} .")
 
     @commands.command(
@@ -10792,8 +10902,8 @@ async def fetchaiohttp(session, url, authcontent=None):
 
 
 async def getimageurl(url):
-    async with aiohttp.ClientSession() as session:
-        html = await fetchaiohttp(session, url)
+    session=client.session
+    html = await fetchaiohttp(session, url)
     soup = BeautifulSoup(html, "html.parser")
     meta_og_image = soup.find("meta", property="og:image")
     return meta_og_image.get("content") if meta_og_image else None
@@ -13101,18 +13211,19 @@ async def restrict(guild, channel, member):
 
 @client.event
 async def on_message(message):
-    global maintenancemodestatus, verifyCommand, debugCode, yourCode, retryDebug, disabledChannels, dashtoken, channelgitlogging
+    global maintenancemodestatus, maintenancemodereason, verifyCommand, debugCode, yourCode, retryDebug, disabledChannels, dashtoken, channelgitlogging
     try:
         if pool is None:
-            print(
-                f"Could not process message {message.id} because of db problems!")
+            while client.start_status != BotStartStatus.COMPLETED:
+                await asyncio.sleep(0.5)
+            await on_message(message)
             return
         if maintenancemodestatus:
             if ("<@!1061480715172200498>"
                     in message.content) or ("<@1061480715172200498>"
                                             in message.content):
                 await message.reply(
-                    "The bot is currently in maintainence , adding new commands !"
+                    f"The bot is currently in maintainence , {maintenancemodereason}"
                 )
             # print(f" {message.author} sent {message.content} in {message.channel} .")
             if not checkstaff(message.author):
@@ -13165,27 +13276,27 @@ async def on_message(message):
                 reqjson = json.loads(reqjson)
                 access_token = reqjson["access_token"]
                 authheader = {'Authorization': f"Bearer  {access_token}"}
-                async with aiohttp.ClientSession() as session:
-                    async with session.get('https://asia.api.riotgames.com/riot/account/v1/accounts/me', headers=authheader) as resp:
-                        if resp.status == 200:
-                            jsonGot = await resp.json()
-                            accountpuuid = jsonGot["puuid"]
-                            accountname = jsonGot["gameName"]
-                            accounttag = jsonGot["tagLine"]
-                            statement = """SELECT * FROM riotaccount WHERE discorduserid = $1;"""
+                session=client.session
+                async with session.get('https://asia.api.riotgames.com/riot/account/v1/accounts/me', headers=authheader) as resp:
+                    if resp.status == 200:
+                        jsonGot = await resp.json()
+                        accountpuuid = jsonGot["puuid"]
+                        accountname = jsonGot["gameName"]
+                        accounttag = jsonGot["tagLine"]
+                        statement = """SELECT * FROM riotaccount WHERE discorduserid = $1;"""
+                        async with pool.acquire() as con:
+                            riotaccount = await con.fetchrow(statement, reqid)
+                        if riotaccount is not None:
+                            statement = """UPDATE riotaccount SET accountpuuid = $1, accountname = $2, accounttag = $3 WHERE discorduserid = $4;"""
                             async with pool.acquire() as con:
-                                riotaccount = await con.fetchrow(statement, reqid)
-                            if riotaccount is not None:
-                                statement = """UPDATE riotaccount SET accountpuuid = $1, accountname = $2, accounttag = $3 WHERE discorduserid = $4;"""
-                                async with pool.acquire() as con:
-                                    await con.execute(statement, accountpuuid, accountname, accounttag, reqid)
-                            else:
-                                statement = """INSERT INTO riotaccount (discorduserid,accountpuuid,accountname,accounttag) VALUES($1,$2,$3,$4);"""
-                                async with pool.acquire() as con:
-                                    await con.execute(statement, reqid, accountpuuid, accountname, accounttag)
+                                await con.execute(statement, accountpuuid, accountname, accounttag, reqid)
+                        else:
+                            statement = """INSERT INTO riotaccount (discorduserid,accountpuuid,accountname,accounttag) VALUES($1,$2,$3,$4);"""
+                            async with pool.acquire() as con:
+                                await con.execute(statement, reqid, accountpuuid, accountname, accounttag)
 
-                            await message.reply(f"Account {accountname} with tag {accounttag} and puuid {accountpuuid} has been added to the database.")
-                            await message.add_reaction("✔️")
+                        await message.reply(f"Account {accountname} with tag {accounttag} and puuid {accountpuuid} has been added to the database.")
+                        await message.add_reaction("✔️")
         if message.author == client.user:
             return
         async with pool.acquire() as con:

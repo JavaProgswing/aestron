@@ -1,4 +1,4 @@
-import os
+"""import os
 import json
 
 folder_path = 'C:\\Users\\HP\\Videos'
@@ -15,4 +15,40 @@ for file_name in os.listdir(input_folder_path):
         mapping[original_file] = new_file
 
 with open(os.path.join(output_folder_path, 'mapping.json'), 'w') as f:
-    json.dump(mapping, f)
+    json.dump(mapping, f)"""
+import os
+import requests
+from dotenv import load_dotenv
+load_dotenv(dotenv_path="github.env")
+def compare_local_remote_git_repo(files):
+    GITHUB_OWNER = os.getenv("GITHUB_OWNER")
+    GITHUB_REPO = os.getenv("GITHUB_REPO")
+
+    for filename in files:
+        # Get the content of the file from the remote repository
+        print(f"Comparing {filename}...")
+        file_url = f"https://requestsforward.webdashboard.repl.co/redirect?url=https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{filename}"
+        print(file_url)
+        file_response = requests.get(file_url, headers={"Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"})
+        if(file_response.status_code==404):
+            print(f"{filename} is not present in the remote repository.")
+            continue
+        parsed_file_response = file_response.json()
+        print(parsed_file_response)
+        try:
+            remote_file_content = parsed_file_response["content"]
+        except KeyError:
+            print(f"{filename} doesn't have a content!?")
+            continue
+        # Get the content of the file from the local repository
+        with open(filename, "r", encoding="utf8") as file:
+            local_file_content = file.read()
+
+        # Compare the two file contents
+        if remote_file_content != local_file_content:
+            print(f"{filename} differs from the remote version.")
+    print("Comparison complete.")
+
+
+files = ["testing.py","main.py"]
+compare_local_remote_git_repo(files)
