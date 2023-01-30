@@ -9819,7 +9819,7 @@ class Support(commands.Cog):
         usage="bug-id bug-solution", aliases=["solvedbug", "patchbug"])
     @commands.guild_only()
     @is_bot_staff()
-    async def solveBug(self, ctx, bugid: int, *, solution: str):
+    async def solvebug(self, ctx, bugid: int, *, solution: str):
         global channelbuglogging
         await ctx.interaction.response.defer()
         theBugMessage = await channelbuglogging.fetch_message(int(bugid))
@@ -9854,7 +9854,7 @@ class Support(commands.Cog):
         usage="bug-id", aliases=["acknowlegedbug", "pendingbug"])
     @commands.guild_only()
     @is_bot_staff()
-    async def seenBug(self, ctx, bugid: int):
+    async def seenbug(self, ctx, bugid: int):
         global channelbuglogging
         await ctx.interaction.response.defer()
         theBugMessage = await channelbuglogging.fetch_message(int(bugid))
@@ -9876,7 +9876,7 @@ class Support(commands.Cog):
         usage="command bug-description")
     @commands.guild_only()
     @commands.cooldown(1, 900, BucketType.member)
-    async def reportBug(self, ctx, commandname: str, *, report: str):
+    async def reportbug(self, ctx, commandname: str, *, report: str):
         global channelbuglogging
         cmdnames = []
         for c in client.commands:
