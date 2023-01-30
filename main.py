@@ -2388,7 +2388,7 @@ async def gitcommitcheck():
     GITHUB_REPO = os.getenv("GITHUB_REPO")
 
     session = client.github_session
-    async with session.get(f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/commits", headers={"Authorization":Bearer {os.getenv('GITHUB_TOKEN')}}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}) as response:
+    async with session.get(f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/commits", headers={"Authorization":f"Bearer {os.getenv('GITHUB_TOKEN')}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}) as response:
         if response.status == 200:
             response_json = await response.json()
             commitsha = response_json[0]["sha"]
@@ -10390,7 +10390,6 @@ class Music(commands.Cog):
 
     @stop.before_invoke
     @play.before_invoke
-    @multipleplay.before_invoke
     async def ensure_voice(self, ctx):
         if ctx.voice_client is None:
             if ctx.author.voice:
