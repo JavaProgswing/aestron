@@ -515,13 +515,14 @@ class MyHelp(commands.HelpCommand):
         for cog, commands in mapping.items():
             try:
                 filcmds = await self.filter_commands(commands=commands, sort=True)
-                filcmds  = [cmd for cmd in filcmds if isinstance(cmd, discord.ext.bridge.core.BridgeExtCommand)]
-                debugFile=discord.File(io.StringIO(
-                str(f"{cog}\n{filcmds}")), filename="output.text")
-                await channeldev.send(file=debugFile)
+                output = ""
                 for cmd in filcmds:
                     if cog == customCog and (cmd.name == "addcommand" or cmd.name == "removecommand" or cmd.name == "customcommands") or cog != customCog:
+                        output = output+f"{cmd.name} - {type(cmd)}\n"
                         filteredcmds.append(cmd.name)
+                debugFile=discord.File(io.StringIO(
+                str(output)), filename=f"{cog}.text")
+                await channeldev.send(file=debugFile)
             except:
                 pass
             try:
