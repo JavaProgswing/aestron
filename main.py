@@ -2880,6 +2880,7 @@ async def runBot():  # Bot START Aestron START
         guilds = await con.fetch(f"SELECT * FROM cautionraid")
     for guild in guilds:
         await removeguildcaution(guild["guildid"])
+    gitcommitcheck.start()
     client.start_status = BotStartStatus.COMPLETED
 # using create_task and passing the coro to it
 client.loop.create_task(runBot())
