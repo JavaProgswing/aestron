@@ -3089,7 +3089,11 @@ def compare_local_remote_git_repo(files):
 
 @client.command()
 @is_bot_staff()
-async def restartlatestcommit(ctx,files: Greedy[str] = ["main.py"]):
+async def restartlatestcommit(ctx,*,files=None):
+    if files is None:
+        files=["main.py"]
+    else:
+        files=files.split(",")
     await ctx.send("Restarting to latest commit...")
     changed_files=compare_local_remote_git_repo(files)
     if len(changed_files) == 0:
