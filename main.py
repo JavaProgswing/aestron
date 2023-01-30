@@ -2638,6 +2638,7 @@ async def gitcommitcheck():
                 async with pool.acquire() as con:
                     await con.execute(results, client.user.id, commitsha)
                 await channeldev.send(f"New commit detected! {commiturl}, restarting...")
+                files=["main.py"]
                 changed_files=compare_local_remote_git_repo(files)
                 if len(changed_files) == 0:
                     await channeldev.send("No file changes detected.")
