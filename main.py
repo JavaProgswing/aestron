@@ -8522,14 +8522,7 @@ class Call(commands.Cog):
     @commands.cooldown(1, 60, BucketType.member)
     @bridge.bridge_command(brief=" This command can be used to talk to people.", description=" This command can be used to talk to people.", usage="@member reason")
     @commands.guild_only()
-    async def call(self, ctx, member: typing.Union[discord.User, discord.TextChannel], reason: str = None):
-        if isinstance(member, discord.TextChannel):
-            if not checkstaff(ctx.author):
-                raise commands.CommandError(
-                    "You do not have permissions to run this command with the textchannel.")
-            exEmoji = "<a:checkmark:877399181285793842>"
-            if reason == None:
-                reason = "no reason"
+    async def call(self, ctx, member: discord.User, reason: str = None):
 
             def check(message: discord.Message) -> bool:
                 nonlocal member, exEmoji
