@@ -2419,7 +2419,7 @@ async def gitcommitcheck():
                             pass
 
                 await channeldev.send(subprocess.run(f"nohup python3.9 main.py restart {channeldev.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
-                subprocess.run(f"kill -9 {os.getpid()}", shell=True)
+                await asyncio.sleep(3)
                 sys.exit(0)
 
 
@@ -2821,7 +2821,6 @@ async def shutdown(ctx):
                 await viewobj._message.edit(view=viewobj)
             except:
                 pass
-    subprocess.run(f"kill -9 {os.getpid()}", shell=True)
     sys.exit(0)
 
 
@@ -2880,7 +2879,7 @@ async def restartlatestcommit(ctx, *, files=None):
             except:
                 pass
     await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
-    subprocess.run(f"kill -9 {os.getpid()}", shell=True)
+    await asyncio.sleep(3)
     sys.exit(0)
 
 
@@ -2897,8 +2896,8 @@ async def restart(ctx):
                 await viewobj._message.edit(view=viewobj)
             except:
                 pass
-    await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
-    subprocess.run(f"kill -9 {os.getpid()}", shell=True)
+    await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)   
+    await asyncio.sleep(3) 
     sys.exit(0)
 
 
