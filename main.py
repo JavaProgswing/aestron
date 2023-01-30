@@ -2388,7 +2388,7 @@ async def gitcommitcheck():
     GITHUB_REPO = os.getenv("GITHUB_REPO")
 
     session = client.github_session
-    async with session.get(f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/commits", headers={"Authorization": os.getenv("GITHUB_TOKEN"), "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}) as response:
+    async with session.get(f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/commits", headers={"Authorization":Bearer {os.getenv('GITHUB_TOKEN')}}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}) as response:
         if response.status == 200:
             response_json = await response.json()
             commitsha = response_json[0]["sha"]
@@ -2420,7 +2420,7 @@ async def gitcommitcheck():
                             await viewobj._message.edit(view=viewobj)
                         except:
                             pass
-                await channeldev.send(subprocess.run(f"python3.9 main.py restart {channeldev.channel.id}", shell=True, stdout=subprocess.PIPE).stdout)
+                await channeldev.send(subprocess.run(f"python3.9 main.py restart {channeldev.id}", shell=True, stdout=subprocess.PIPE).stdout)
                 await client.close()
                 sys.exit(0)
 
@@ -8201,23 +8201,20 @@ class Misc(commands.Cog):
             except:
                 pass
 
-    @commands.cooldown(1, 45, BucketType.member)
-    @client.slash_command(
-        brief='This command can be used to translate text into another language.',
-        description='This command can be used to translate text into another language.',
-        usage="language text", aliases=["translate", "lang", "convertlang"])
-    async def translatetext(self, ctx, text: str ,language: str = "en"):
-        origmessage = text
-        origlanguage = detect(text)
-        translator = Translator(to_lang=language, from_lang=origlanguage)
-        translatedmessage = translator.translate(origmessage)
-        embedOne = discord.Embed(title="Language : " + language,
-                                 description=translatedmessage)
-        await ctx.respond(embed=embedOne, ephemeral=True)
-
-
 client.add_cog(Misc(client))
-
+@commands.cooldown(1, 45, BucketType.member)
+@client.slash_command(
+    brief='This command can be used to translate text into another language.',
+    description='This command can be used to translate text into another language.',
+    usage="language text", aliases=["translate", "lang", "convertlang"])
+async def translatetext(self, ctx, text: str ,language: str = "en"):
+    origmessage = text
+    origlanguage = detect(text)
+    translator = Translator(to_lang=language, from_lang=origlanguage)
+    translatedmessage = translator.translate(origmessage)
+    embedOne = discord.Embed(title="Language : " + language,
+                                description=translatedmessage)
+    await ctx.respond(embed=embedOne, ephemeral=True)
 
 class Call(commands.Cog):
     """Call commands."""
@@ -10390,20 +10387,6 @@ class Music(commands.Cog):
         except:
             await on_command_error(ctx,
                                    "I am not connected to any voice channel.")
-    @client.slash_command(
-        brief='This command can be used to search and play a song.',
-        description='This command can be used to search and play a song.',
-        usage="songname start end")
-    @commands.guild_only()
-    @commands.cooldown(1, 50, BucketType.member)
-    async def multipleplay(ctx, songname: str, multiplesearch: discord.Option(bool, "Search queue", required=False)):
-        await ctx.respond("Trimming the track :cd: , this may take a while!", ephemeral=True)
-        if multiplesearch is None:
-            multiplesearch = False
-        exOcc = await ensure_voice(ctx.guild, ctx.author)
-        if exOcc:
-            return
-        await playmusic(ctx, songname, search=multiplesearch)
 
     @stop.before_invoke
     @play.before_invoke
@@ -10425,7 +10408,20 @@ class Music(commands.Cog):
 
 
 client.add_cog(Music(client))
-
+@client.slash_command(
+    brief='This command can be used to search and play a song.',
+    description='This command can be used to search and play a song.',
+    usage="songname start end")
+@commands.guild_only()
+@commands.cooldown(1, 50, BucketType.member)
+async def multipleplay(ctx, songname: str, multiplesearch: discord.Option(bool, "Search queue", required=False)):
+    await ctx.respond("Trimming the track :cd: , this may take a while!", ephemeral=True)
+    if multiplesearch is None:
+        multiplesearch = False
+    exOcc = await ensure_voice(ctx.guild, ctx.author)
+    if exOcc:
+        return
+    await playmusic(ctx, songname, search=multiplesearch)
 
 class YoutubeTogether(commands.Cog):
     """This youtube command can play a video"""
