@@ -10646,8 +10646,8 @@ class Music(commands.Cog):
 
     @commands.cooldown(1, 30, BucketType.member)
     @bridge.bridge_command(aliases=['exit', 's', 'leave', 'disconnect', 'dc'],
-                           brief='This command can be used to stop the playing song in a voice channel.',
-                           description='This command can be used to stop the playing song in a voice channel(track player/requires manage channels).',
+                           brief='This command can be used to stop the playing song.',
+                           description='This command can be used to stop the playing song(track player/requires manage channels).',
                            usage="")
     @commands.guild_only()
     async def stop(self, ctx):
