@@ -8202,11 +8202,11 @@ class Misc(commands.Cog):
                 pass
 
     @commands.cooldown(1, 45, BucketType.member)
-    @bridge.bridge_command(
+    @client.slash_command(
         brief='This command can be used to translate text into another language.',
         description='This command can be used to translate text into another language.',
         usage="language text", aliases=["translate", "lang", "convertlang"])
-    async def translatetext(self, ctx, language: str = "en", *, text: str):
+    async def translatetext(self, ctx, text: str ,language: str = "en"):
         origmessage = text
         origlanguage = detect(text)
         translator = Translator(to_lang=language, from_lang=origlanguage)
@@ -9982,9 +9982,9 @@ class Support(commands.Cog):
         brief='This command can be used to save text in a pastebin url.',
         description='This command can be used to save text in a pastebin url.',
         usage="*Text to post*", aliases=["savecode", "sharecode"])
-    async def pastebin(self, ctx, *, code: str):
+    async def pastebin(self, ctx, *, text: str):
         try:
-            pastecode = await mystbin_client.create_paste(content=code, filename=genrandomstr(10))
+            pastecode = await mystbin_client.create_paste(content=text, filename=genrandomstr(10))
         except:
             raise commands.CommandError("Posting to pastebin failed!")
         embedtwo = discord.Embed(title=f"{client.user.name} pasted your text.",
@@ -10390,9 +10390,24 @@ class Music(commands.Cog):
         except:
             await on_command_error(ctx,
                                    "I am not connected to any voice channel.")
+    @client.slash_command(
+        brief='This command can be used to search and play a song.',
+        description='This command can be used to search and play a song.',
+        usage="songname start end")
+    @commands.guild_only()
+    @commands.cooldown(1, 50, BucketType.member)
+    async def multipleplay(ctx, songname: str, multiplesearch: discord.Option(bool, "Search queue", required=False)):
+        await ctx.respond("Trimming the track :cd: , this may take a while!", ephemeral=True)
+        if multiplesearch is None:
+            multiplesearch = False
+        exOcc = await ensure_voice(ctx.guild, ctx.author)
+        if exOcc:
+            return
+        await playmusic(ctx, songname, search=multiplesearch)
 
     @stop.before_invoke
     @play.before_invoke
+    @multipleplay.before_invoke
     async def ensure_voice(self, ctx):
         if ctx.voice_client is None:
             if ctx.author.voice:
