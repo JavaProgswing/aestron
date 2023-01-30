@@ -2616,7 +2616,7 @@ async def gitcommitcheck():
                 if len(changed_files) == 0:
                     await channeldev.send("No file changes detected.")
                 else:
-                    await channeldev.send(f"Files changed: {', '.join(changed_files)}")
+                    await channeldev.send(f"Files changed: {', '.join(map(lambda x: x[0], changed_files))}")
                     for filedetails in changed_files:
                         with open(filedetails[0], "wb") as f:
                             f.write(base64.b64decode(filedetails[1]))
@@ -3072,7 +3072,7 @@ async def restartlatestcommit(ctx,*,files=None):
     if len(changed_files) == 0:
         await ctx.respond("No file changes detected.",ephemeral=True)
     else:
-        await ctx.respond(f"Files changed: {', '.join(changed_files)}",ephemeral=True)
+        await ctx.respond(f"Files changed: {', '.join(map(lambda x: x[0], changed_files))}",ephemeral=True)
         for filedetails in changed_files:
             with open(filedetails[0], "wb") as f:
                 f.write(base64.b64decode(filedetails[1]))
