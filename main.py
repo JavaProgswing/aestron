@@ -4557,22 +4557,16 @@ class AutoMod(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def allowspam(self, ctx, channel: typing.Union[discord.Guild, discord.TextChannel] = None):
+    async def allowspam(self, ctx, channel: discord.TextChannel = None):
         givenTitle = ""
         if channel is None:
             channel = ctx.guild
-        if isinstance(channel, discord.Guild):
-            if channel != ctx.guild:
-                await on_command_error(ctx, f"You cannot change {channel} guild settings from this guild.")
-                return
-            givenTitle = channel.name+" channels"
-            channel = channel.text_channels
-        else:
-            if channel.guild != ctx.guild:
-                await on_command_error(ctx, " The channel provided was not in this guild.")
-                return
-            givenTitle = channel.name
-            channel = [channel]
+
+        if channel.guild != ctx.guild:
+            await on_command_error(ctx, " The channel provided was not in this guild.")
+            return
+        givenTitle = channel.name
+        channel = [channel]
         embed = discord.Embed(title=f"{givenTitle}")
         count = 0
         loopexited = False
@@ -4605,20 +4599,14 @@ class AutoMod(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def disallowspam(self, ctx, channel: typing.Union[discord.Guild, discord.TextChannel] = None):
+    async def disallowspam(self, ctx, channel: discord.TextChannel = None):
         givenTitle = ""
         if channel is None:
             channel = ctx.guild
-        if isinstance(channel, discord.Guild):
-            if channel != ctx.guild:
-                await on_command_error(ctx, f"You cannot change {channel} guild settings from this guild.")
-                return
-            givenTitle = channel.name+" channels"
-            channel = channel.text_channels
-        else:
-            if channel.guild != ctx.guild:
-                await on_command_error(ctx, " The channel provided was not in this guild.")
-                return
+
+        if channel.guild != ctx.guild:
+            await on_command_error(ctx, " The channel provided was not in this guild.")
+            return
             givenTitle = channel.name
             channel = [channel]
         embed = discord.Embed(title=f"{givenTitle}")
@@ -4654,7 +4642,7 @@ class AutoMod(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def modsettings(self, ctx, channel: typing.Union[discord.Guild, discord.TextChannel] = None):
+    async def modsettings(self, ctx, channel: discord.TextChannel = None):
         if channel is None:
             channel = ctx.channel
         embedVar = discord.Embed(title=f"{channel.name} moderation settings",
@@ -4691,23 +4679,17 @@ class AutoMod(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def disallowprofane(self, ctx, channel: typing.Union[discord.Guild, discord.TextChannel] = None):
+    async def disallowprofane(self, ctx, channel: discord.TextChannel = None):
         global antifilter
         givenTitle = ""
         if channel is None:
             channel = ctx.guild
-        if isinstance(channel, discord.Guild):
-            if channel != ctx.guild:
-                await on_command_error(ctx, f"You cannot change {channel} guild settings from this guild.")
-                return
-            givenTitle = channel.name+" channels"
-            channel = channel.text_channels
-        else:
-            if channel.guild != ctx.guild:
-                await on_command_error(ctx, " The channel provided was not in this guild.")
-                return
-            givenTitle = channel.name
-            channel = [channel]
+
+        if channel.guild != ctx.guild:
+            await on_command_error(ctx, " The channel provided was not in this guild.")
+            return
+        givenTitle = channel.name
+        channel = [channel]
         embed = discord.Embed(title=f"{givenTitle}")
         count = 0
         loopexited = False
@@ -4741,23 +4723,17 @@ class AutoMod(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def allowprofane(self, ctx, channel: typing.Union[discord.Guild, discord.TextChannel] = None):
+    async def allowprofane(self, ctx, channel: discord.TextChannel = None):
         global antifilter
         givenTitle = ""
         if channel is None:
             channel = ctx.guild
-        if isinstance(channel, discord.Guild):
-            if channel != ctx.guild:
-                await on_command_error(ctx, f"You cannot change {channel} guild settings from this guild.")
-                return
-            givenTitle = channel.name+" channels"
-            channel = channel.text_channels
-        else:
-            if channel.guild != ctx.guild:
-                await on_command_error(ctx, " The channel provided was not in this guild.")
-                return
-            givenTitle = channel.name
-            channel = [channel]
+
+        if channel.guild != ctx.guild:
+            await on_command_error(ctx, " The channel provided was not in this guild.")
+            return
+        givenTitle = channel.name
+        channel = [channel]
         embed = discord.Embed(title=f"{givenTitle}")
         count = 0
         loopexited = False
@@ -4790,23 +4766,16 @@ class AutoMod(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def disallowlinks(self, ctx, channel: typing.Union[discord.Guild, discord.TextChannel] = None):
+    async def disallowlinks(self, ctx, channel: discord.TextChannel = None):
         global antilink
         givenTitle = ""
         if channel is None:
             channel = ctx.guild
-        if isinstance(channel, discord.Guild):
-            if channel != ctx.guild:
-                await on_command_error(ctx, f"You cannot change {channel} guild settings from this guild.")
-                return
-            givenTitle = channel.name+" channels"
-            channel = channel.text_channels
-        else:
-            if channel.guild != ctx.guild:
-                await on_command_error(ctx, " The channel provided was not in this guild.")
-                return
-            givenTitle = channel.name
-            channel = [channel]
+        if channel.guild != ctx.guild:
+            await on_command_error(ctx, " The channel provided was not in this guild.")
+            return
+        givenTitle = channel.name
+        channel = [channel]
         embed = discord.Embed(title=f"{givenTitle}")
         count = 0
         loopexited = False
@@ -4840,21 +4809,15 @@ class AutoMod(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def allowlinks(self, ctx, channel: typing.Union[discord.Guild, discord.TextChannel] = None):
+    async def allowlinks(self, ctx, channel: discord.TextChannel = None):
         global antilink
         givenTitle = ""
         if channel is None:
             channel = ctx.guild
-        if isinstance(channel, discord.Guild):
-            if channel != ctx.guild:
-                await on_command_error(ctx, f"You cannot change {channel} guild settings from this guild.")
-                return
-            givenTitle = channel.name+" channels"
-            channel = channel.text_channels
-        else:
-            if channel.guild != ctx.guild:
-                await on_command_error(ctx, " The channel provided was not in this guild.")
-                return
+
+        if channel.guild != ctx.guild:
+            await on_command_error(ctx, " The channel provided was not in this guild.")
+            return
             givenTitle = channel.name
             channel = [channel]
         embed = discord.Embed(title=f"{givenTitle}")
