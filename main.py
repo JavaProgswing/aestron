@@ -108,6 +108,7 @@ ytdl_format_options = {
     'cookiefile': 'cookies.txt',
 }
 
+
 async def chatbotfetch(session, url):
     try:
         headers = {
@@ -515,14 +516,9 @@ class MyHelp(commands.HelpCommand):
         for cog, commands in mapping.items():
             try:
                 filcmds = await self.filter_commands(commands=commands, sort=True)
-                output = ""
                 for cmd in filcmds:
                     if cog == customCog and (cmd.name == "addcommand" or cmd.name == "removecommand" or cmd.name == "customcommands") or cog != customCog:
-                        output = output+f"{cmd.name} - {type(cmd)}\n"
                         filteredcmds.append(cmd.name)
-                debugFile=discord.File(io.StringIO(
-                str(output)), filename=f"{cog}.text")
-                await channeldev.send(file=debugFile)
             except:
                 pass
             try:
@@ -532,7 +528,6 @@ class MyHelp(commands.HelpCommand):
             except:
                 pass
         embed = discord.Embed(title="Aestron help", description="""Aestron is a cool social bot having features such as Moderation, Logging, Music, Giveaways, Custom commands and more...
-
 
 Features:
 
@@ -833,7 +828,7 @@ class DefaultHelpSelect(discord.ui.Select):
             return
         embed = discord.Embed(title=f"{cogemoji[cogname]} {cogname}")
         for c in cog.get_commands():
-            if c.name in self.fcommands:
+            if c in self.fcommands:
                 embed.add_field(name=c.name, value=c.brief, inline=False)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -2210,7 +2205,6 @@ async def dangPerm(ctx, author, theChannel=None):
     return dangerousperms
 
 
-
 def convert(timesen):
     totaltime = 0
     if timesen is None:
@@ -2385,13 +2379,13 @@ def check_ensure_permissions(ctx, member, perms):
             raise discord.ext.commands.errors.BotMissingPermissions([perm])
 
 
-@tasks.loop(seconds=30)
+@tasks.loop(seconds=15)
 async def gitcommitcheck():
     GITHUB_OWNER = os.getenv("GITHUB_OWNER")
     GITHUB_REPO = os.getenv("GITHUB_REPO")
 
     session = client.github_session
-    async with session.get(f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/commits", headers={"Authorization":f"Bearer {os.getenv('GITHUB_TOKEN')}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}) as response:
+    async with session.get(f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/commits", headers={"Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}) as response:
         if response.status == 200:
             response_json = await response.json()
             commitsha = response_json[0]["sha"]
@@ -6103,6 +6097,7 @@ def listToString(s):
     # return string
     return str2
 
+
 tokens = (
     'NAME', 'NUMBER',
     'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'EQUALS',
@@ -7901,9 +7896,9 @@ class Misc(commands.Cog):
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(aliases=["ncdrtfm", "nrtfm"],
-                           brief='This command can be used to rtfm search on nextcord.',
-                           description='This command can be used to rtfm search on nextcord.',
-                           usage="search-term")
+                      brief='This command can be used to rtfm search on nextcord.',
+                      description='This command can be used to rtfm search on nextcord.',
+                      usage="search-term")
     @is_bot_staff()
     async def nextcordrtfm(self, ctx, *, query: str):
         try:
@@ -7947,9 +7942,9 @@ class Misc(commands.Cog):
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(aliases=["dpyrtfm", "drtfm"],
-                           brief='This command can be used to rtfm search on discord.py.',
-                           description='This command can be used to rtfm search on discord.py.',
-                           usage="search-term")
+                      brief='This command can be used to rtfm search on discord.py.',
+                      description='This command can be used to rtfm search on discord.py.',
+                      usage="search-term")
     @is_bot_staff()
     async def discordpyrtfm(self, ctx, *, query: str):
         try:
@@ -7993,9 +7988,9 @@ class Misc(commands.Cog):
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(aliases=["pycrtfm", "pyrtfm", "rtfm"],
-                           brief='This command can be used to rtfm search on pycord.',
-                           description='This command can be used to rtfm search on pycord.',
-                           usage="search-term")
+                      brief='This command can be used to rtfm search on pycord.',
+                      description='This command can be used to rtfm search on pycord.',
+                      usage="search-term")
     @is_bot_staff()
     async def pycordrtfm(self, ctx, *, query: str):
         try:
@@ -8204,20 +8199,24 @@ class Misc(commands.Cog):
             except:
                 pass
 
+
 client.add_cog(Misc(client))
+
+
 @commands.cooldown(1, 45, BucketType.member)
 @client.slash_command(
     brief='This command can be used to translate text into another language.',
     description='This command can be used to translate text into another language.',
     usage="language text", aliases=["translate", "lang", "convertlang"])
-async def translatetext(self, ctx, text: str ,language: str = "en"):
+async def translatetext(self, ctx, text: str, language: str = "en"):
     origmessage = text
     origlanguage = detect(text)
     translator = Translator(to_lang=language, from_lang=origlanguage)
     translatedmessage = translator.translate(origmessage)
     embedOne = discord.Embed(title="Language : " + language,
-                                description=translatedmessage)
+                             description=translatedmessage)
     await ctx.respond(embed=embedOne, ephemeral=True)
+
 
 class Call(commands.Cog):
     """Call commands."""
@@ -9931,8 +9930,8 @@ class Support(commands.Cog):
         # print(f"Status was changed to invisible in {ctx.guild}")
 
     @commands.command(aliases=["patchedbuilds", "botbuilds"],
-                           brief='This command shows all bot builds.',
-                           description='This command shows all bot builds and can be used by bot staff. ')
+                      brief='This command shows all bot builds.',
+                      description='This command shows all bot builds and can be used by bot staff. ')
     @commands.guild_only()
     @is_bot_staff()
     async def builds(self, ctx):
@@ -10410,6 +10409,8 @@ class Music(commands.Cog):
 
 
 client.add_cog(Music(client))
+
+
 @client.slash_command(
     brief='This command can be used to search and play a song.',
     description='This command can be used to search and play a song.',
@@ -10425,13 +10426,14 @@ async def multipleplay(ctx, songname: str, multiplesearch: discord.Option(bool, 
         return
     await playmusic(ctx, songname, search=multiplesearch)
 
+
 class YoutubeTogether(commands.Cog):
     """This youtube command can play a video"""
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(brief='This command can be used to start a youtube activity in a voice channel.',
-                           description='This command can be used to start a youtube activity in a voice channel.',
-                           usage="", aliases=["youtubevideo", "video", "yt", "youtube", "ytstart"])
+                      description='This command can be used to start a youtube activity in a voice channel.',
+                      usage="", aliases=["youtubevideo", "video", "yt", "youtube", "ytstart"])
     @commands.guild_only()
     async def ytvideo(self, ctx):
         check_ensure_permissions(ctx, ctx.guild.me, ["create_instant_invite"])
