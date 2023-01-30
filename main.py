@@ -516,7 +516,9 @@ class MyHelp(commands.HelpCommand):
             try:
                 filcmds = await self.filter_commands(commands=commands, sort=True)
                 filcmds  = [cmd for cmd in filcmds if isinstance(cmd, discord.ext.bridge.core.BridgeExtCommand)]
-                # print(f"Cog {cog} cmds {filcmds}")
+                debugFile=discord.File(io.StringIO(
+                str(f"{cog}\n{filcmds}")), filename="output.text")
+                await channeldev.send(file=debugFile)
                 for cmd in filcmds:
                     if cog == customCog and (cmd.name == "addcommand" or cmd.name == "removecommand" or cmd.name == "customcommands") or cog != customCog:
                         filteredcmds.append(cmd.name)
