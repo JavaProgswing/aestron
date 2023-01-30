@@ -12533,28 +12533,28 @@ class CustomCommands(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def addcommand(self, ctx, Cmdname: str, *, Cmdoutput: str):
+    async def addcommand(self, ctx, cmdname: str, *, cmdoutput: str):
         try:
             async with pool.acquire() as con:
-                customlist = await con.fetchrow(f"SELECT * FROM customcommands WHERE guildid = {ctx.guild.id} AND commandname = '{Cmdname}'")
+                customlist = await con.fetchrow(f"SELECT * FROM customcommands WHERE guildid = {ctx.guild.id} AND commandname = '{cmdname}'")
         except:
             customlist = None
         if customlist is None:
             results = (
                 f"INSERT INTO customcommands (guildid,commandname,commandoutput) VALUES($1, $2, $3);")
             async with pool.acquire() as con:
-                await con.execute(results, ctx.guild.id, Cmdname, Cmdoutput)
+                await con.execute(results, ctx.guild.id, cmdname, cmdoutput)
         else:
             async with pool.acquire() as con:
-                await con.execute(f"UPDATE customcommands VALUES SET commandoutput = '{Cmdoutput}' WHERE guildid = {ctx.guild.id} AND commandname = '{Cmdname}'")
+                await con.execute(f"UPDATE customcommands VALUES SET commandoutput = '{cmdoutput}' WHERE guildid = {ctx.guild.id} AND commandname = '{cmdname}'")
 
         @commands.cooldown(1, 30, BucketType.member)
         @bridge.bridge_command(
-            name=Cmdname,
+            name=cmdname,
             brief='This command outputs your custom provided output.',
             description='This command outputs your custom provided output.',
             usage="")
-        @commands.check_any(is_guild(ctx.guild, Cmdname))
+        @commands.check_any(is_guild(ctx.guild, cmdname))
         async def cmd(self, ctx):
             try:
                 async with pool.acquire() as con:
@@ -12584,7 +12584,7 @@ class CustomCommands(commands.Cog):
             client.add_command(cmd)
         except:
             pass
-        await ctx.respond(f"Successfully added a command called {Cmdname}", ephemeral=True)
+        await ctx.respond(f"Successfully added a command called {cmdname}", ephemeral=True)
 
     @commands.cooldown(1, 240, BucketType.member)
     @bridge.bridge_command(
@@ -12594,20 +12594,20 @@ class CustomCommands(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def removecommand(self, ctx, Cmdname: str):
+    async def removecommand(self, ctx, cmdname: str):
         # Make sure it's actually a custom command, to avoid removing a real command
         async with pool.acquire() as con:
             customcommandlist = await con.fetch(f"SELECT * FROM customcommands WHERE guildid = {ctx.guild.id}")
         commandAcq = False
         for customcommand in customcommandlist:
-            if customcommand[1] == Cmdname:
+            if customcommand[1] == cmdname:
                 commandAcq = True
                 break
         if not commandAcq:
-            return await ctx.respond(f"There is no custom command called {Cmdname}", ephemeral=True)
+            return await ctx.respond(f"There is no custom command called {cmdname}", ephemeral=True)
         async with pool.acquire() as con:
-            customlist = await con.fetchrow(f"DELETE FROM customcommands WHERE guildid = {ctx.guild.id} AND commandname = '{Cmdname}'")
-        await ctx.respond(f"Successfully removed a command called {Cmdname}", ephemeral=True)
+            customlist = await con.fetchrow(f"DELETE FROM customcommands WHERE guildid = {ctx.guild.id} AND commandname = '{cmdname}'")
+        await ctx.respond(f"Successfully removed a command called {cmdname}", ephemeral=True)
 
 
 client.add_cog(CustomCommands(client))
