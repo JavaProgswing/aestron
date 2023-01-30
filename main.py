@@ -5164,31 +5164,17 @@ class SupportTicket(commands.Cog):
                         commands.has_permissions(manage_guild=True))
     async def createticketpanel(self,
                                 ctx,
-                                channelname: typing.Union[discord.TextChannel,
-                                                          str],
+                                channelname: discord.TextChannel,
                                 supportrole: discord.Role = None,
                                 reaction: str = None,
                                 *,
                                 supportmessage: str = None):
         check_ensure_permissions(
-            ctx, ctx.guild.me, ["manage_roles", "manage_channels"])
+            ctx, ctx.guild.me, ["manage_roles","manage_channels","add_reactions","send_messages","embed_links"])
         if channelname.guild != ctx.guild:
             await on_command_error(ctx, "The channel provided was not in this guild.")
             return
-        if isinstance(channelname, str):
-            channel = await ctx.guild.create_text_channel(
-                channelname, category=ctx.channel.category)
-        else:
-            channel = channelname
-        if not channel.permissions_for(ctx.guild.me).add_reactions:
-            raise commands.BotMissingPermissions(["add_reactions"])
-            return
-        if not channel.permissions_for(ctx.guild.me).send_messages:
-            raise commands.BotMissingPermissions(["send_messages"])
-            return
-        if not channel.permissions_for(ctx.guild.me).embed_links:
-            raise commands.BotMissingPermissions(["embed_links"])
-            return
+        channel = channelname
 
         if channelname is None:
             channelname = "Support-channel"
