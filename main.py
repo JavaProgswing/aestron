@@ -11,7 +11,6 @@ import json
 import os
 import random
 import re
-import signal
 import string
 import time
 import traceback
@@ -41,9 +40,8 @@ from aiohttp.client import ClientTimeout
 from bs4 import BeautifulSoup
 from captcha.image import ImageCaptcha
 from discord import Color, Webhook
-from discord.commands import Option
-from discord.ext import commands, tasks
-from discord.ext.commands import BucketType, Greedy, bot
+from discord.ext import commands, tasks,bridge
+from discord.ext.commands import BucketType, bot
 from discord_together import DiscordTogether
 from dotenv import load_dotenv
 from googleapiclient import discovery
@@ -322,7 +320,6 @@ beforechannelupdate = []
 def get_example(command, guild):
     commandDict = dict(command.clean_params)
     exStr = ""
-    greedyType = False
     optType = False
     for key in commandDict.keys():
         value = commandDict[key]
@@ -354,6 +351,36 @@ def get_example(command, guild):
                 exStr = exStr+"ValoName#Id"
             elif key == "copytemplate":
                 exStr = exStr+"H5qAZdEEeWdR"
+            elif value == "greedymembers":
+                if len(guild.members):
+                    exStr = exStr + str(random.choice(guild.members)) + \
+                        " " + str(random.choice(guild.members))+" ..."
+                else:
+                    exStr = exStr+"Member-A Member-B ..."
+            elif value == "greedyusers":
+                if len(guild.members):
+                    exStr = exStr + str(random.choice(guild.members)) + \
+                        " " + str(random.choice(guild.members))+" ..."
+                else:
+                    exStr = exStr+"Member-A Member-B ..."
+            elif value == "greedytextstagevoicechannels":
+                if len(guild.channels):
+                    exStr = exStr + str(random.choice(guild.channels)) + \
+                        " " + str(random.choice(guild.channels))+" ..."
+                else:
+                    exStr = exStr+"Channel-A VoiceChannel-B ..."
+            elif value == "greedytextchannels":
+                if len(guild.text_channels):
+                    exStr = exStr+str(random.choice(guild.text_channels)) + \
+                        " "+str(random.choice(guild.text_channels))+" ..."
+                else:
+                    exStr = exStr+"Channel-A Channel-B ..."
+            elif value == "greedyguilds":
+                if len(client.guilds):
+                    exStr = exStr + str(random.choice(client.guilds)) + \
+                        " "+str(random.choice(client.guilds))+" ..."
+                else:
+                    exStr = exStr+"Guild-A Guild-B"+" ..."
             else:
                 exStr = exStr+f" {origvalue.name}"
         elif value == typing.Union[discord.guild.Guild, discord.channel.TextChannel]:
@@ -408,46 +435,11 @@ def get_example(command, guild):
                 exStr = exStr+str(random.choice(guild.emojis))
             else:
                 exStr = exStr+":emojiname:"
-        elif value == Greedy[discord.Member]:
-            greedyType = True
-            if len(guild.members):
-                exStr = exStr + str(random.choice(guild.members)) + \
-                    " " + str(random.choice(guild.members))+" ..."
-            else:
-                exStr = exStr+"Member-A Member-B ..."
-        elif value == Greedy[discord.User]:
-            greedyType = True
-            if len(guild.members):
-                exStr = exStr + str(random.choice(guild.members)) + \
-                    " " + str(random.choice(guild.members))+" ..."
-            else:
-                exStr = exStr+"Member-A Member-B ..."
-        elif value == Greedy[typing.Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel]]:
-            greedyType = True
-            if len(guild.channels):
-                exStr = exStr + str(random.choice(guild.channels)) + \
-                    " " + str(random.choice(guild.channels))+" ..."
-            else:
-                exStr = exStr+"Channel-A VoiceChannel-B ..."
-        elif value == commands.Greedy[discord.TextChannel]:
-            greedyType = True
-            if len(guild.text_channels):
-                exStr = exStr+str(random.choice(guild.text_channels)) + \
-                    " "+str(random.choice(guild.text_channels))+" ..."
-            else:
-                exStr = exStr+"Channel-A Channel-B ..."
-        elif value == commands.Greedy[discord.Guild]:
-            greedyType = True
-            if len(client.guilds):
-                exStr = exStr + str(random.choice(client.guilds)) + \
-                    " "+str(random.choice(client.guilds))+" ..."
-            else:
-                exStr = exStr+"Guild-A Guild-B"+" ..."
         else:
             print(
                 f"Logging the non detected argument type ({key}) {value} in {command}.")
             exStr = exStr+f" {origvalue.name}"
-    return (exStr, greedyType, optType)
+    return (exStr, optType)
 
 
 async def get_guild_prefixid(guildid):
@@ -569,9 +561,6 @@ Features:
         exampleLine = example[0]
         if example[1]:
             exampleLine = exampleLine + \
-                "\n\nNote: **...** indicates all other members or channels or roles you want."
-        if example[2]:
-            exampleLine = exampleLine + \
                 "\n\nNote: (OPT.) means that argument in the command is optional."
         embed.add_field(
             name="Usage", value=f"{prefix}{commandname} {exampleLine}")
@@ -657,9 +646,6 @@ class CommandHelpSelect(discord.ui.Select):
         example = get_example(command, interaction.guild)
         exampleLine = example[0]
         if example[1]:
-            exampleLine = exampleLine + \
-                "\n\nNote: **...** indicates all other members or channels or roles you want."
-        if example[2]:
             exampleLine = exampleLine + \
                 "\n\nNote: (OPT.) means that argument in the command is optional."
         embed.add_field(
@@ -1054,7 +1040,7 @@ Dactivity = discord.Activity(name="@Aestron for commands.",
                              type=discord.ActivityType.watching)
 
 
-class MyBot(commands.Bot):
+class MyBot(bridge.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -1586,9 +1572,6 @@ async def on_application_command_error(ctx, error):
         exampleLine = example[0]
         if example[1]:
             exampleLine = exampleLine + \
-                "\n\nNote: **...** indicates all other members or channels or roles you want."
-        if example[2]:
-            exampleLine = exampleLine + \
                 "\n\nNote: (OPT.) means that argument in the command is optional."
         errordata = errordata + \
             f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
@@ -1597,9 +1580,6 @@ async def on_application_command_error(ctx, error):
         example = get_example(ctx.command, ctx.guild)
         exampleLine = example[0]
         if example[1]:
-            exampleLine = exampleLine + \
-                "\n\nNote: **...** indicates all other members or channels or roles you want."
-        if example[2]:
             exampleLine = exampleLine + \
                 "\n\nNote: (OPT.) means that argument in the command is optional."
         errordata = errordata + \
@@ -1749,9 +1729,6 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=forcelogerro
         exampleLine = example[0]
         if example[1]:
             exampleLine = exampleLine + \
-                "\n\nNote: **...** indicates all other members or channels or roles you want."
-        if example[2]:
-            exampleLine = exampleLine + \
                 "\n\nNote: (OPT.) means that argument in the command is optional."
         errordata = errordata + \
             f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
@@ -1760,9 +1737,6 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=forcelogerro
         example = get_example(ctx.command, ctx.guild)
         exampleLine = example[0]
         if example[1]:
-            exampleLine = exampleLine + \
-                "\n\nNote: **...** indicates all other members or channels or roles you want."
-        if example[2]:
             exampleLine = exampleLine + \
                 "\n\nNote: (OPT.) means that argument in the command is optional."
         errordata = errordata + \
@@ -1863,20 +1837,20 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=forcelogerro
     try:
         if not isSlashCmd:
             if userlog:
-                errorMsg = await ctx.send(embed=embedone)
+                errorMsg = await ctx.respond(embed=embedone,ephemeral=True)
             if tracebackreq:
                 embed = discord.Embed(title="Traceback", description=pastecode)
                 try:
                     await ctx.message.reply(embed=embed)
                 except:
-                    await ctx.send(embed=embed)
+                    await ctx.respond(embed=embed,ephemeral=True)
             try:
                 await ctx.message.add_reaction("<:offline:886434154412113961>")
             except:
                 pass
         else:
             # disabled due to an issue
-            errorMsg = await ctx.send(embed=embedone)
+            errorMsg = await ctx.respond(embed=embedone,ephemeral=True)
 
         if verifyDelete:
             await asyncio.sleep(5)
@@ -1887,7 +1861,7 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=forcelogerro
     except Exception as ex:
         if isinstance(ex, discord.Forbidden) or isinstance(ex, commands.MissingPermissions) or isinstance(ex, commands.BotMissingPermissions):
             if userlog:
-                await ctx.send(f"I do not have the `embed_links` permissions for that command.")
+                await ctx.respond(f"I do not have the `embed_links` permissions for that command.",ephemeral=True)
                 if verifyDelete:
                     await asyncio.sleep(15)
                     try:
@@ -1903,7 +1877,6 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=forcelogerro
             # format_exception returns a list with line breaks embedded in the lines, so let's just stitch the elements together
             traceback_text = ''.join(lines)
             print(traceback_text)
-
 
 def newaccount(member):
     now_datetime = datetime.now()
@@ -1969,7 +1942,7 @@ async def publicexec(ctx, rawcode):
                        inline=False)
     embedtwo.set_footer(text=f"executed by {ctx.author}")
     try:
-        await ctx.send(file=myFile, embed=embedtwo)
+        await ctx.respond(file=myFile, embed=embedtwo,ephemeral=True)
     except:
         pass
 
@@ -2441,9 +2414,9 @@ async def checkPerm(ctx, author, theChannel):
         embed.add_field(name=f"{index}) ", value=f"{content}", inline=False)
         index += 1
         if (index % 15 == 0):
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
             embed = discord.Embed(title=f"")
-    await ctx.send(embed=embed)
+    await ctx.respond(embed=embed,ephemeral=True)
 
 
 def convert(timesen):
@@ -2812,7 +2785,7 @@ async def runBot():  # Bot START Aestron START
         if customlist is not None:
             for custom in customlist:
                 @commands.cooldown(1, 30, BucketType.member)
-                @commands.command(
+                @bridge.bridge_command(
                     name=custom[1],
                     brief='This command outputs your custom provided output.',
                     description='This command outputs your custom provided output.',
@@ -2836,14 +2809,14 @@ async def runBot():  # Bot START Aestron START
                         embed = discord.Embed(
                             title=f"{ctx.command.name} command", description=output)
                         embed.set_footer(text=f"{ctx.guild}'s custom command")
-                        await ctx.send(embed=embed)
+                        await ctx.respond(embed=embed,ephemeral=True)
                     else:
                         output = "Welp looks like this command has been erased from our databases <:offline:886434154412113961>."
                         embed = discord.Embed(
                             title=f"{ctx.command.name} command", description=output)
                         embed.set_footer(
                             text=f"{ctx.guild}'s custom command (ERASED)")
-                        await ctx.send(embed=embed)
+                        await ctx.respond(embed=embed,ephemeral=True)
                 cmd.cog = customCog
                 # And add it to the cog and the bot
                 customCog.__cog_commands__ = customCog.__cog_commands__ + \
@@ -2986,7 +2959,7 @@ async def mutetimer(ctx, timecount, mutedmember, reason=None):
                           description=f"{mutedmember.mention}.")
     embed.add_field(name="Moderator", value=ctx.author.mention)
     embed.add_field(name="Reason", value=reason)
-    await ctx.send(embed=embed)
+    await ctx.respond(embed=embed,ephemeral=True)
 
 
 async def blacklisttimer(ctx, timecount, blacklistedmember, reason=None):
@@ -3044,13 +3017,13 @@ async def blacklisttimer(ctx, timecount, blacklistedmember, reason=None):
                           description=f"{blacklistedmember.mention}.")
     embed.add_field(name="Moderator", value=ctx.author.mention)
     embed.add_field(name="Reason", value=reason)
-    await ctx.send(embed=embed)
+    await ctx.respond(embed=embed,ephemeral=True)
 
 
 @client.command()
 @is_bot_staff()
 async def shutdown(ctx):
-    await ctx.send("Shutting down...")
+    await ctx.respond("Shutting down...",ephemeral=True)
     sync_views = client._connection._view_store._synced_message_views
     for view in sync_views:
         viewobj = sync_views[view]
@@ -3094,16 +3067,16 @@ async def restartlatestcommit(ctx,*,files=None):
         files=["main.py"]
     else:
         files=files.split(",")
-    await ctx.send("Restarting to latest commit...")
+    await ctx.respond("Restarting to latest commit...",ephemeral=True)
     changed_files=compare_local_remote_git_repo(files)
     if len(changed_files) == 0:
-        await ctx.send("No file changes detected.")
+        await ctx.respond("No file changes detected.",ephemeral=True)
     else:
-        await ctx.send(f"Files changed: {', '.join(changed_files)}")
+        await ctx.respond(f"Files changed: {', '.join(changed_files)}",ephemeral=True)
         for filedetails in changed_files:
             with open(filedetails[0], "wb") as f:
                 f.write(base64.b64decode(filedetails[1]))
-            await ctx.send(f"({filedetails[3]})File {filedetails[0]} updated to size {filedetails[2]} in latest commit.")
+            await ctx.respond(f"({filedetails[3]})File {filedetails[0]} updated to size {filedetails[2]} in latest commit.",ephemeral=True)
     sync_views = client._connection._view_store._synced_message_views
     for view in sync_views:
         viewobj = sync_views[view]
@@ -3113,13 +3086,13 @@ async def restartlatestcommit(ctx,*,files=None):
                 await viewobj._message.edit(view=viewobj)
             except:
                 pass
-    await ctx.send(subprocess.run(f"python3.9 main.py restart {ctx.channel.id}", shell=True, stdout=subprocess.PIPE).stdout)
+    await ctx.respond(subprocess.run(f"python3.9 main.py restart {ctx.channel.id}", shell=True, stdout=subprocess.PIPE).stdout,ephemeral=True)
     await client.close()
     sys.exit(0)
 @client.command()
 @is_bot_staff()
 async def restart(ctx):
-    await ctx.send("Restarting...")
+    await ctx.respond("Restarting...")
     sync_views = client._connection._view_store._synced_message_views
     for view in sync_views:
         viewobj = sync_views[view]
@@ -3129,14 +3102,14 @@ async def restart(ctx):
                 await viewobj._message.edit(view=viewobj)
             except:
                 pass
-    await ctx.send(subprocess.run(f"python3.9 main.py restart {ctx.channel.id}", shell=True, stdout=subprocess.PIPE).stdout)
+    await ctx.respond(subprocess.run(f"python3.9 main.py restart {ctx.channel.id}", shell=True, stdout=subprocess.PIPE).stdout,ephemeral=True)
     await client.close()
     sys.exit(0)
 
 
 class AestronInfo(commands.Cog):
     """ Aestron bot information """
-    @commands.command(aliases=["tutorial", "usage"],
+    @bridge.bridge_command(aliases=["tutorial", "usage"],
                       brief='This command provides the bot command usage information.',
                       description='This command provides the bot command usage information.',
                       usage="")
@@ -3163,9 +3136,6 @@ class AestronInfo(commands.Cog):
                 exampleLine = example[0]
                 if example[1]:
                     exampleLine = exampleLine + \
-                        "\n\nNote: **...** indicates all other members or channels or roles you want."
-                if example[2]:
-                    exampleLine = exampleLine + \
                         "\n\nNote: (OPT.) means that argument in the command is optional."
                 embedVar.add_field(
                     name="Usage", value=f"{ctx.prefix}{command} {exampleLine}")
@@ -3174,13 +3144,13 @@ class AestronInfo(commands.Cog):
                 files.append(discord.File(
                     commandUsage, filename=f"{commandUsage}.gif"))
             pagview = PaginateFileEmbed(embeds, files)
-            msg = await ctx.send(embed=embeds[0], file=files[0], view=pagview)
+            msg = await ctx.respond(embed=embeds[0], file=files[0], view=pagview,ephemeral=True)
 
         else:
             await on_command_error(ctx, "The requested command with name was not found.")
             return
 
-    @commands.command(aliases=["info"],
+    @bridge.bridge_command(aliases=["info"],
                       brief='This command provides the bot information.',
                       description='This command provides the bot information.',
                       usage="")
@@ -3229,7 +3199,7 @@ class AestronInfo(commands.Cog):
             url="https://cdn.discordapp.com/avatars/805030662183845919/70fee8581891e9a810da60944dc486ba.webp?size=128"
         )
         try:
-            await ctx.send(embed=embedVar)
+            await ctx.respond(embed=embedVar,ephemeral=True)
         except:
             pass
 
@@ -3250,7 +3220,7 @@ def ismuted(ctx, member):
 
 class Moderation(commands.Cog):
     """ Moderation commands. """
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command locks the given channel until a duration.',
         description='This command locks the given channel until a duration and can be used by members having manage guild permission.',
         usage="#channel reason @role duration", aliases=["lockdown", "restrict", "startlockdown"])
@@ -3326,7 +3296,7 @@ class Moderation(commands.Cog):
                 await channel.send(embed=embed)
             await ctx.channel.send(embed=embed)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command unlocks the given channel.',
         description='This command unlocks the given channel and can be used by members having manage guild permission.',
         usage="@role #channel reason", aliases=["stoplockdown", "unrestrict"])
@@ -3366,7 +3336,7 @@ class Moderation(commands.Cog):
         await ctx.channel.send(embed=embed)
 
     @commands.cooldown(1, 30, BucketType.channel)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command retrieves the previously deleted message in a channel.',
         description='This command retrieves the previously deleted message in a channel.',
         usage="", aliases=["snipemsg", "whodeleted", "sn"])
@@ -3407,7 +3377,7 @@ class Moderation(commands.Cog):
                 title="** **", description="Recently deleted messages :", timestamp=timeembed)
             embed.add_field(name="Author", value=username)
             embed.add_field(name="Content", value=f"{content} ** **")
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
             if not "1" in jsonembeds:
                 safeembed = True
                 linkchecktitle = str(embedDeleted.title) + \
@@ -3425,14 +3395,14 @@ class Moderation(commands.Cog):
                 if safeembed:
                     embed = discord.Embed(
                         title="** **", description="Recently deleted embeds :")
-                    await ctx.send(embed=embed)
-                    await ctx.send(embed=embedDeleted)
+                    await ctx.respond(embed=embed,ephemeral=True)
+                    await ctx.respond(embed=embedDeleted,ephemeral=True)
         else:
             embed = discord.Embed(
                 title="** **", description="There are no recently deleted messages.")
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command sets slowmode delay to a certain channel.',
         description='This command sets slowmode delay to a certain channel and can be used by members having manage messages permission.',
         usage="delay")
@@ -3446,13 +3416,13 @@ class Moderation(commands.Cog):
             return
         try:
             await ctx.channel.edit(slowmode_delay=delay)
-            await ctx.send(
-                f"Successfully set slowmode of {ctx.channel.name} to {delay} seconds."
+            await ctx.respond(
+                f"Successfully set slowmode of {ctx.channel.name} to {delay} seconds.",ephemeral=True
             )
         except:
             raise commands.BotMissingPermissions(["manage_channels"])
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command clears given number of messages from the same channel.',
         description='This command clears given number of messages from the same channel and can be used by members having manage messages permission.'
     )
@@ -3484,9 +3454,9 @@ class Moderation(commands.Cog):
                               description=f"{number} messages .")
         embed.add_field(name="Moderator", value=ctx.author.mention)
         embed.add_field(name="Reason", value=reason)
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command clears given number of messages from the same channel.',
         description='This command clears given number of messages from the same channel and can be used by members having manage messages permission.'
     )
@@ -3496,13 +3466,24 @@ class Moderation(commands.Cog):
     async def purge(self,
                     ctx,
                     numberstr: int,
-                    members: Greedy[discord.Member] = None,
+                    greedymembers: str=None,
                     *,
                     reason: str = None):
         check_ensure_permissions(
             ctx, ctx.guild.me, ["manage_messages", "read_message_history"])
         if reason is None:
             reason = "no reason provided"
+        members=None
+        if greedymembers:
+            membernames=greedymembers
+            members=[]
+            for membername in membernames.split(","):
+                try:
+                    member = await commands.MemberConverter().convert(ctx, membername)
+                except:
+                    pass
+                else:
+                    members.append(member)
         if members is None:
             try:
                 number = int(numberstr)
@@ -3521,7 +3502,7 @@ class Moderation(commands.Cog):
                                   description=f"{number} messages .")
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
         else:
             try:
                 number = int(numberstr)
@@ -3547,9 +3528,9 @@ class Moderation(commands.Cog):
                     title="Messages purged", description=f"{number} messages from {member.mention}.")
                 embed.add_field(name="Moderator", value=ctx.author.mention)
                 embed.add_field(name="Reason", value=reason)
-                await ctx.send(embed=embed)
+                await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command prevents users from viewing any channels on the server.',
         description='This command prevents users from viewing any channels on the server and can be used by members having manage roles permission.', aliases=["quarantine", "securemute"])
     @commands.guild_only()
@@ -3557,17 +3538,21 @@ class Moderation(commands.Cog):
                         commands.has_permissions(manage_roles=True))
     async def blacklist(self,
                         ctx,
-                        members: Greedy[discord.Member],
+                        greedymembers: str,
                         timenum: str = None,
                         *,
                         reason: str = None):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
         global currentlyblacklisting
-        if isinstance(members, discord.Member):
-            members = [members]
-        if len(members) == 0:
-            raise commands.BadArgument("Nothing")
-            return
+        membernames=greedymembers
+        members=[]
+        for membername in membernames.split(","):
+            try:
+                member = await commands.MemberConverter().convert(ctx, membername)
+            except:
+                pass
+            else:
+                members.append(member)
         for member in members:
             if member.id in currentlyblacklisting:
                 continue
@@ -3707,7 +3692,7 @@ class Moderation(commands.Cog):
                                   description=f"{member.mention}{timemsg}.")
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed, ephemeral=True)
             try:
                 currentlyblacklisting.remove(member.id)
             except:
@@ -3737,7 +3722,7 @@ class Moderation(commands.Cog):
                 asyncio.ensure_future(
                     blacklisttimer(ctx, convertedtime, member))
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command allows users to view any channel on the server.',
         description='This command allows users to view any channel on the server and can be used by members having manage roles permission.', aliases=["unquarantine", "secureunmute", "unb"])
     @commands.guild_only()
@@ -3745,16 +3730,22 @@ class Moderation(commands.Cog):
                         commands.has_permissions(manage_roles=True))
     async def unblacklist(self,
                           ctx,
-                          blacklistedmembers: Greedy[discord.Member],
+                          greedymembers: str,
                           *,
                           reason: str = None):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
         global currentlyunblacklisting
-        if isinstance(blacklistedmembers, discord.Member):
-            blacklistedmembers = [blacklistedmembers]
+        membernames=greedymembers
+        blacklistedmembers=[]
+        for membername in membernames.split(","):
+            try:
+                member = await commands.MemberConverter().convert(ctx, membername)
+            except:
+                pass
+            else:
+                blacklistedmembers.append(member)
         if len(blacklistedmembers) == 0:
             raise commands.BadArgument("Nothing")
-            return
         for blacklistedmember in blacklistedmembers:
             if blacklistedmember.id in currentlyunblacklisting:
                 continue
@@ -3827,13 +3818,13 @@ class Moderation(commands.Cog):
                 title="Member unblacklisted", description=f"{blacklistedmember.mention}.")
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
             try:
                 currentlyunblacklisting.remove(blacklistedmember.id)
             except:
                 pass
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command warns users for a given reason provided.',
         description='This command warns users for a given reason provided and can be used by bot staff.')
     @commands.guild_only()
@@ -3845,17 +3836,25 @@ class Moderation(commands.Cog):
         async with pool.acquire() as con:
             await con.execute(statement, member.id, ctx.guild.id, reason, ctx.message.id)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command warns users for a given reason provided.',
         description='This command warns users for a given reason provided and can be used by members having manage roles permission.'
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_roles=True))
-    async def warn(self, ctx, members: Greedy[discord.Member], *, reason: str = None):
+    async def warn(self, ctx, greedymembers: str, *, reason: str = None):
+        membernames=greedymembers
+        members=[]
+        for membername in membernames.split(","):
+            try:
+                member = await commands.MemberConverter().convert(ctx, membername)
+            except:
+                pass
+            else:
+                members.append(member)
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
-            return
         for member in members:
             if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author == member and not ctx.author.id == ctx.guild.owner.id:
                 await on_command_error(ctx, "You cannot warn members having higher roles than your highest role.")
@@ -3877,18 +3876,26 @@ class Moderation(commands.Cog):
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
             await loginfo(ctx.guild, "Warn logging", "** **", f"{member.mention} was warned by {ctx.author.mention} for {reason}.")
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         aliases=['punishments'],
         brief='This command shows user warnings in the guild.',
         description='This command shows user warnings in the guild and can be used by members having manage roles. ')
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_roles=True))
-    async def warnings(self, ctx, members: Greedy[discord.Member]):
+    async def warnings(self, ctx, greedymembers: str):
+        membernames=greedymembers
+        members=[]
+        for membername in membernames.split(","):
+            try:
+                member = await commands.MemberConverter().convert(ctx, membername)
+            except:
+                pass
+            else:
+                members.append(member)
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
-            return
         for member in members:
             async with pool.acquire() as con:
                 warninglist = await con.fetch(f"SELECT * FROM warnings WHERE userid = {member.id} AND guildid = {ctx.guild.id}")
@@ -3909,9 +3916,9 @@ class Moderation(commands.Cog):
             if not loopexited:
                 embedlist.append(embed)
             pagview = PaginateEmbed(embedlist)
-            msg = await ctx.send(view=pagview, embed=embedlist[0])
+            msg = await ctx.respond(view=pagview, embed=embedlist[0],ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command (mutes)prevents user from sending messages in any channel.',
         description='This command (mutes)prevents user from sending messages in any channel and can be used by users having manage roles permission.')
     @commands.guild_only()
@@ -3919,17 +3926,23 @@ class Moderation(commands.Cog):
                         commands.has_permissions(manage_roles=True))
     async def mute(self,
                    ctx,
-                   members: Greedy[discord.Member],
+                   greedymembers: str,
                    timenum: str = None,
                    *,
                    reason: str = None):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
         global currentlymuting
-        if isinstance(members, discord.Member):
-            members = [members]
+        membernames=greedymembers
+        members=[]
+        for membername in membernames.split(","):
+            try:
+                member = await commands.MemberConverter().convert(ctx, membername)
+            except:
+                pass
+            else:
+                members.append(member)
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
-            return
         for member in members:
             if member.id in currentlymuting:
                 continue
@@ -4068,7 +4081,7 @@ class Moderation(commands.Cog):
                                   description=f"{member.mention}{timemsg}.")
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed, ephemeral=True)
             try:
                 currentlymuting.remove(member.id)
             except:
@@ -4097,20 +4110,26 @@ class Moderation(commands.Cog):
                     await con.execute(statement,  ctx.guild.id, ctx.channel.id, member.id, reason, epochtime)
                 asyncio.ensure_future(mutetimer(ctx, convertedtime, member))
 
-    @commands.command(aliases=["unm"],
+    @bridge.bridge_command(aliases=["unm"],
                       brief='This command (unmutes)allows user to send messages in any channel.',
                       description='This command (unmutes)allows user to send messages in any channel and can be used by users having manage roles permission.')
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_roles=True))
-    async def unmute(self, ctx, mutedmembers: Greedy[discord.Member], *, reason: str = None):
+    async def unmute(self, ctx, greedymembers: str, *, reason: str = None):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
         global currentlyunmuting
-        if isinstance(mutedmembers, discord.Member):
-            mutedmembers = [mutedmembers]
+        membernames=greedymembers
+        mutedmembers=[]
+        for membername in membernames.split(","):
+            try:
+                member = await commands.MemberConverter().convert(ctx, membername)
+            except:
+                pass
+            else:
+                mutedmembers.append(member)
         if len(mutedmembers) == 0:
             raise commands.BadArgument("Nothing")
-            return
         for mutedmember in mutedmembers:
             if mutedmember.id in currentlyunmuting:
                 continue
@@ -4184,24 +4203,30 @@ class Moderation(commands.Cog):
                                   description=f"{mutedmember.mention}.")
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
             try:
                 currentlyunmuting.remove(mutedmember.id)
             except:
                 pass
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command unbans user from the guild.',
         description='This command unbans user from the guild and can be used by users having ban members permission.')
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(ban_members=True))
-    async def unban(self, ctx, members: Greedy[discord.User], *, reason: str = None):
-        if isinstance(members, discord.User):
-            members = [members]
+    async def unban(self, ctx, greedymembers: str, *, reason: str = None):
+        membernames=greedymembers
+        members=[]
+        for membername in membernames.split(","):
+            try:
+                member = await commands.MemberConverter().convert(ctx, membername)
+            except:
+                pass
+            else:
+                members.append(member)
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
-            return
         bannedmembers = await ctx.guild.bans(limit=None).flatten()
         for member in members:
             if member is None or member == ctx.author:
@@ -4231,8 +4256,8 @@ class Moderation(commands.Cog):
                 await member.send(message)
                 # print(f"Successfully dmed users!")
             except:
-                await ctx.send(
-                    f"{member.mention} couldn't be direct messaged about the server unban"
+                await ctx.respond(
+                    f"{member.mention} couldn't be direct messaged about the server unban", ephemeral=True
                 )
             cmd = client.get_command("silentwarn")
             try:
@@ -4247,9 +4272,9 @@ class Moderation(commands.Cog):
                                   description=f"{member.mention}.")
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command checks guild previous bans.',
         description='This command checks guild previous bans and can be used by users having ban members permission.', aliases=["bans", "guildbans", "prevbans", "banned", "serverbans"])
     @commands.guild_only()
@@ -4268,24 +4293,30 @@ class Moderation(commands.Cog):
             count = count+1
             if count >= 12:
                 count = 0
-                await ctx.send(embed=embed)
+                await ctx.respond(embed=embed,ephemeral=True)
                 embed = discord.Embed(title="** **")
                 loopexited = True
         if not loopexited:
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command bans user from the guild.',
         description='This command bans user from the guild and can be used by users having ban members permission.')
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(ban_members=True))
-    async def ban(self, ctx, members: Greedy[discord.Member], *, reason: str = None):
-        if isinstance(members, discord.User):
-            members = [members]
+    async def ban(self, ctx, greedymembers: str, *, reason: str = None):
+        membernames=greedymembers
+        members=[]
+        for membername in membernames.split(","):
+            try:
+                member = await commands.MemberConverter().convert(ctx, membername)
+            except:
+                pass
+            else:
+                members.append(member)
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
-            return
         bannedmembers = await ctx.guild.bans(limit=None).flatten()
         for member in members:
             if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author.id == ctx.guild.owner.id:
@@ -4319,8 +4350,8 @@ class Moderation(commands.Cog):
                 await member.send(message)
                 # print(f"Successfully dmed users!")
             except:
-                await ctx.send(
-                    f"{member.mention} couldn't be direct messaged about the server ban "
+                await ctx.respond(
+                    f"{member.mention} couldn't be direct messaged about the server ban ",ephemeral=True
                 )
             cmd = client.get_command("silentwarn")
             try:
@@ -4335,18 +4366,26 @@ class Moderation(commands.Cog):
                                   description=f"{member.mention}.")
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed, ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command kicks user from the guild.',
         description='This command kicks user from the guild and can be used by users having kick members permission.')
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(kick_members=True))
-    async def kick(self, ctx, members: Greedy[discord.Member], *, reason: str = None):
+    async def kick(self, ctx, greedymembers: str, *, reason: str = None):
+        membernames=greedymembers
+        members=[]
+        for membername in membernames.split(","):
+            try:
+                member = await commands.MemberConverter().convert(ctx, membername)
+            except:
+                pass
+            else:
+                members.append(member)
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
-            return
         for member in members:
             if ctx.author.top_role <= member.top_role and not checkstaff(ctx.author) and not ctx.author.bot and not ctx.author.id == ctx.guild.owner.id:
                 await on_command_error(ctx, "You cannot kick members having higher roles than your highest role.")
@@ -4372,8 +4411,8 @@ class Moderation(commands.Cog):
                 await member.send(message)
                 # print(f"Successfully dmed users!")
             except:
-                await ctx.send(
-                    f"{member.mention} couldn't be direct messaged about the server kick "
+                await ctx.respond(
+                    f"{member.mention} couldn't be direct messaged about the server kick ",ephemeral=True
                 )
             cmd = client.get_command("silentwarn")
             try:
@@ -4388,7 +4427,7 @@ class Moderation(commands.Cog):
                                   description=f"{member.mention}.")
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
 
 
 client.add_cog(Moderation(client))
@@ -4396,7 +4435,7 @@ client.add_cog(Moderation(client))
 
 class Logging(commands.Cog):
     """ Logs guild events such as channel/guild/role creation , deletion , edit ."""
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command removes the logging channel in a guild.',
         description='This command removes the logging channel in a guild and can be used by members having manage guild permission.',
         usage="", aliases=["disablelog", "disablelogs", "removelog", "removelogs"])
@@ -4406,9 +4445,9 @@ class Logging(commands.Cog):
     async def removeloggingchannel(self, ctx):
         async with pool.acquire() as con:
             await con.execute(f"DELETE FROM logchannels WHERE guildid = {ctx.guild.id}")
-        await ctx.send("Successfully removed the logging channels in this guild.")
+        await ctx.respond("Successfully removed the logging channels in this guild.",ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command disables the anti-raid in a guild and sets the anti-raid log to the channel.',
         description='This command disables the anti-raid in a guild and can be used by members having manage guild permission.',
         usage="", aliases=["disableantiraid"])
@@ -4420,20 +4459,20 @@ class Logging(commands.Cog):
             cautionlist = await con.fetchrow(f"SELECT * FROM cautionraid WHERE guildid = {ctx.guild.id}")
         isRaided = cautionlist is not None
         if isRaided:
-            await ctx.send(f"{ctx.author.mention} tried to disable anti-raid while a suspicious activity was detected , anti-raid was not disabled!")
+            await ctx.respond(f"{ctx.author.mention} tried to disable anti-raid while a suspicious activity was detected , anti-raid was not disabled!",ephemeral=True)
             return
         view = ConfirmDecline()
-        msg = await ctx.send(f":no_entry_sign: Due to security reasons , this command will take `5 minutes` to successfully disable! (Click decline to cancel disabling anti raid)", view=view)
+        msg = await ctx.respond(f":no_entry_sign: Due to security reasons , this command will take `5 minutes` to successfully disable! (Click decline to cancel disabling anti raid)", view=view,ephemeral=True)
         await view.wait()
         if view.value:
-            await ctx.send(f"anti-raid couldn't be disabled due to request by {view.authorcancel}.")
+            await ctx.respond(f"anti-raid couldn't be disabled due to request by {view.authorcancel}.",ephemeral=True)
             return
         try:
             await msg.edit(content=":no_entry_sign: anti-raid has been successfully disabled in this guild.")
         except:
             pass
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command enables the antiraid in a guild and sets the antiraid log to the channel.',
         description='This command enables the antiraid in a guild and can be used by members having manage guild permission.',
         usage="#channel", aliases=["enableantiraid"])
@@ -4463,9 +4502,9 @@ class Logging(commands.Cog):
         else:
             async with pool.acquire() as con:
                 await con.execute(f"UPDATE antiraid VALUES SET channelid = {channel.id} WHERE guildid = {ctx.guild.id}")
-        await ctx.send(f"Successfully enabled anti-raid and set the anti-raid logging channel to {channel.mention}.")
+        await ctx.respond(f"Successfully enabled anti-raid and set the anti-raid logging channel to {channel.mention}.",ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command sets a logging channel in a guild.',
         description='This command sets a logging channel in a guild and can be used by members having manage guild permission.',
         usage="#channel", aliases=["setuplog", "setuplogs", "setlog", "setlogs", "enablelog", "enablelogs"])
@@ -4495,7 +4534,7 @@ class Logging(commands.Cog):
         else:
             async with pool.acquire() as con:
                 await con.execute(f"UPDATE logchannels VALUES SET channelid = {channel.id} WHERE guildid = {ctx.guild.id}")
-        await ctx.send(f"Successfully set logging channel of {ctx.guild} to {channel.mention}.")
+        await ctx.respond(f"Successfully set logging channel of {ctx.guild} to {channel.mention}.",ephemeral=True)
 
 
 client.add_cog(Logging(client))
@@ -4503,7 +4542,7 @@ client.add_cog(Logging(client))
 
 class AutoMod(commands.Cog):
     """ Auto moderation settings for various purposes."""
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command stops checking spammed messages in a certain channel.',
         description='This command stops checking for spammed messages in a certain channel and can be used by members having manage guild permission.',
         usage="#channel", aliases=["disableantispam", "enablespam", "allowspamming"])
@@ -4544,14 +4583,14 @@ class AutoMod(commands.Cog):
                     value=f"Message spam is already allowed <a:yes:872664918736928858> in {chn.mention}", name="** **")
                 count = count+1
             if count >= 12:
-                await ctx.send(embed=embed)
+                await ctx.respond(embed=embed,ephemeral=True)
                 count = 0
                 embed = discord.Embed(title=f"** **")
                 loopexited = True
         if not loopexited:
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command enables checking spammed messages in a certain channel and mutes the member.',
         description='This command enables checking spammed messages in a certain channel and mutes the member for 5 minutes and can be used by members having manage guild permission.',
         usage="#channel", aliases=["enableantispam", "disablespam", "disallowspamming"])
@@ -4593,14 +4632,14 @@ class AutoMod(commands.Cog):
                     value=f"Message spam is now not allowed <a:yes:872664918736928858> in {chn.mention}", name="** **")
                 count = count+1
             if count >= 12:
-                await ctx.send(embed=embed)
+                await ctx.respond(embed=embed,ephemeral=True)
                 count = 0
                 embed = discord.Embed(title=f"** **")
                 loopexited = True
         if not loopexited:
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command shows the current moderation settings in a channel.',
         description='This command shows the current moderation settings in a channel and can be used by users with manage guild permission.',
         usage="#channel", aliases=["settings"])
@@ -4635,9 +4674,9 @@ class AutoMod(commands.Cog):
             profaneEmoji = "<a:yes:872664918736928858>"
         embedVar.add_field(name=f"Message profane checks : {profaneEmoji}",
                            value=f"Do {guildPrefix}allowprofane to disable profane text checks and {guildPrefix}disallowprofane to enable profane text checks.", inline=False)
-        await ctx.send(embed=embedVar)
+        await ctx.respond(embed=embedVar,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command checks for profanity (wrong intention text) in certain channels.',
         description='This command checks for profanity (wrong intention text) in certain channel and can be used by members having manage guild permission.',
         usage="#channel", aliases=["enableprofanefilter", "disableprofane", "enablefilter"])
@@ -4680,14 +4719,14 @@ class AutoMod(commands.Cog):
                     value=f"Profane text is now not allowed <a:yes:872664918736928858> in {chn.mention}", name="** **")
                 count = count+1
             if count >= 12:
-                await ctx.send(embed=embed)
+                await ctx.respond(embed=embed,ephemeral=True)
                 count = 0
                 embed = discord.Embed(title=f"** **")
                 loopexited = True
         if not loopexited:
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command disables checking for profanity in certain channels.',
         description='This command disables checking for profanity in certain channel and can be used by members having manage guild permission.',
         usage="#channel", aliases=["disableprofanefilter", "enableprofane", "disablefilter"])
@@ -4729,14 +4768,14 @@ class AutoMod(commands.Cog):
                     value=f"Profane text is already allowed <a:yes:872664918736928858> in {chn.mention}", name="** **")
                 count = count+1
             if count >= 12:
-                await ctx.send(embed=embed)
+                await ctx.respond(embed=embed,ephemeral=True)
                 count = 0
                 embed = discord.Embed(title=f"** **")
                 loopexited = True
         if not loopexited:
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command checks for links in certain channels.',
         description='This command checks for links in certain channel and can be used by members having manage guild permission.',
         usage="#channel", aliases=["enableantilink", "disablelink", "disablelinks"])
@@ -4779,14 +4818,14 @@ class AutoMod(commands.Cog):
                     value=f"Links and server invites are now not allowed <a:yes:872664918736928858> in {chn.mention}", name="** **")
                 count = count+1
             if count >= 12:
-                await ctx.send(embed=embed)
+                await ctx.respond(embed=embed,ephemeral=True)
                 count = 0
                 embed = discord.Embed(title=f"** **")
                 loopexited = True
         if not loopexited:
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command disables checking for links in certain channels.',
         description='This command disables checking for links in certain channel and can be used by members having manage guild permission.',
         usage="#channel", aliases=["disableantilink", "enablelink", "enablelinks"])
@@ -4828,12 +4867,12 @@ class AutoMod(commands.Cog):
                     value=f"Links and server invites are already allowed <a:yes:872664918736928858> in {chn.mention}", name="** **")
                 count = count+1
             if count >= 12:
-                await ctx.send(embed=embed)
+                await ctx.respond(embed=embed,ephemeral=True)
                 count = 0
                 embed = discord.Embed(title=f"** **")
                 loopexited = True
         if not loopexited:
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
 
 
 client.add_cog(AutoMod(client))
@@ -4864,7 +4903,7 @@ def genrandomstr(N):
 class Templates(commands.Cog):
     """ Can restore all channel , roles and guild settings from a template and can save into one."""
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["genbackuptemplate", "backup"],
+    @bridge.bridge_command(aliases=["genbackuptemplate", "backup"],
                       brief='This command generates a backup template for the server.',
                       description='This command generates a backup template and can only be used by users having manage guild permission.',
                       usage="")
@@ -4898,15 +4937,15 @@ class Templates(commands.Cog):
             e.add_field(name="Command author",
                         value=f"{ctx.author.mention}", inline=False)
             e.set_image(url="attachment://dmEnable.png")
-            mentionMes = await ctx.send(ctx.author.mention)
+            mentionMes = await ctx.respond(ctx.author.mention,ephemeral=True)
             await asyncio.sleep(1)
             await mentionMes.delete()
-            await ctx.send(file=f, embed=e)
+            await ctx.respond(file=f, embed=e,ephemeral=True)
             return
-        await ctx.send(f"Hey {ctx.author.mention} I have dmed you the secret backup template.")
+        await ctx.respond(f"Hey {ctx.author.mention} I have dmed you the secret backup template.", ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command resets all channels into a custom format/template.',
         description='This command resets all channels into a custom format/template and can only be used by users having manage guild permission.',
         usage="template-url")
@@ -4955,8 +4994,8 @@ class Templates(commands.Cog):
                               description=f"https://discord.new/{backupTemplate}", timestamp=discord.utils.utcnow())
         embedStatusDel = discord.Embed(
             title="Deletion status", description="<a:loadingone:877403280391696444> Deleting.")
-        # await ctx.send(embed=embed)
-        messagesent = await ctx.send(embed=embedStatusDel)
+        # await ctx.respond(embed=embed)
+        messagesent = await ctx.respond(embed=embedStatusDel, ephemeral=True)
         changesstrDel = ""
         for channel in ctx.guild.channels:
             if channel == ctx.channel:
@@ -4986,7 +5025,7 @@ class Templates(commands.Cog):
                     (f"(Role) {role.name} was not deleted.\n")
         myFileDel = discord.File(io.StringIO(str(changesstrDel)),
                                  filename="DELETEDchanges.text")
-        await ctx.send(file=myFileDel)
+        await ctx.respond(file=myFileDel, ephemeral=True)
         for embedLoop in messagesent.embeds:
             embedLoop.description = "<a:yes:872664918736928858> Deleted."
             embedLoop.color = Color.green()
@@ -4997,7 +5036,7 @@ class Templates(commands.Cog):
             pass
         embedStatus = discord.Embed(
             title="Creation status", description="<a:loadingone:877403280391696444> Creating.")
-        # await ctx.send(embed=embed)
+        # await ctx.respond(embed=embed)
         messagesent = None
         changesstr = ""
         firsttxtchnl = None
@@ -5076,11 +5115,11 @@ class Templates(commands.Cog):
                 str(changesstr)), filename="CREATEDchanges.text")
             myFileDel = discord.File(io.StringIO(str(changesstrDel)),
                                      filename="DELETEDchanges.text")
-            await firsttxtchnl.send(file=myFileDel)
+            await firsttxtchnl.send(file=myFileDel,ephemeral=True)
             embedStatusDel.description = "<a:yes:872664918736928858> Deleted."
             embedStatusDel.color = Color.green()
-            await firsttxtchnl.send(embed=embedStatusDel)
-            await firsttxtchnl.send(file=myFile)
+            await firsttxtchnl.send(embed=embedStatusDel,ephemeral=True)
+            await firsttxtchnl.send(file=myFile, ephemeral=True)
         await ctx.channel.delete()
         guild = ctx.guild
         muterole = discord.utils.get(guild.roles, name='muted')
@@ -5145,7 +5184,7 @@ client.add_cog(Templates(client))
 
 class SupportTicket(commands.Cog):
     """ Creates a support ticket for a member and can be customized ."""
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command creates a support ticket panel.',
         description='This command creates a support ticket panel which can be used by users having manage guild permission.',
         usage="channel supportrole reaction supportmessage", aliases=["createticket", "supportticket", "supportpanel"])
@@ -5207,8 +5246,8 @@ class SupportTicket(commands.Cog):
         statement = """INSERT INTO ticketchannels (channelid,messageid,roleid,emoji) VALUES($1,$2,$3,$4);"""
         async with pool.acquire() as con:
             await con.execute(statement, channel.id, messagesent.id, supportrole.id, emoji)
-        await ctx.send(
-            f"The channel ({channel.mention}) was successfully created as a ticket panel."
+        await ctx.respond(
+            f"The channel ({channel.mention}) was successfully created as a ticket panel.", ephemeral=True
         )
 
 
@@ -5439,14 +5478,14 @@ targeted attacks using automated user accounts.""")
 
 class Captcha(commands.Cog):
     """Captcha verification commands """
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command adds the channels from the verification role.',
         description='This command adds the channels from the verification role and can be used by members having manage guild permission.',
         usage="#channelone #channeltwo ...")
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_channels=True))
-    async def verifyreadadd(self, ctx, channels: Greedy[typing.Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel]]):
+    async def verifyreadadd(self, ctx, greedytextstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name='Verified')
         if verifyrole == None:
@@ -5454,9 +5493,25 @@ class Captcha(commands.Cog):
             return
         embed = discord.Embed(title="Added channels",
                               description=verifyrole.mention)
+        channelnames=greedytextstagevoicechannels
+        channels=[]
+        for channelname in channelnames.split(","):
+            try:
+                channel = await commands.TextChannelConverter().convert(ctx, channelname)
+            except:
+                pass
+            try:
+                channel = await commands.StageChannelConverter().convert(ctx, channelname)
+            except:
+                pass
+            try:
+                channel = await commands.VoiceChannelConverter().convert(ctx, channelname)
+            except:
+                pass
+            else:
+                channels.append(channel)
         if len(channels) == 0:
             raise commands.BadArgument("Nothing")
-            return
         for channel in channels:
             isDone = "<a:yes:872664918736928858> Successfully added"
             try:
@@ -5468,16 +5523,16 @@ class Captcha(commands.Cog):
             except:
                 isDone = "🚫 Error"
             embed.add_field(name=isDone, value=channel.mention)
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command removes the channels from the verification role.',
         description='This command removes the channels from the verification role and can be used by members having manage guild permission.',
         usage="#channelone #channeltwo ...")
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_channels=True))
-    async def verifyreadremove(self, ctx, channels: Greedy[typing.Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel]]):
+    async def verifyreadremove(self, ctx, greedytextstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name='Verified')
         if verifyrole == None:
@@ -5485,9 +5540,25 @@ class Captcha(commands.Cog):
             return
         embed = discord.Embed(title="Removed channels",
                               description=verifyrole.mention)
+        channelnames = greedytextstagevoicechannels
+        channels = []
+        for channelname in channelnames.split(","):
+            try:
+                channel = await commands.TextChannelConverter().convert(ctx, channelname)
+            except:
+                pass
+            try:
+                channel = await commands.StageChannelConverter().convert(ctx, channelname)
+            except:
+                pass
+            try:
+                channel = await commands.VoiceChannelConverter().convert(ctx, channelname)
+            except:
+                pass
+            else:
+                channels.append(channel)
         if len(channels) == 0:
             raise commands.BadArgument("Nothing")
-            return
         for channel in channels:
             isDone = "<a:yes:872664918736928858> Successfully removed"
             try:
@@ -5500,16 +5571,16 @@ class Captcha(commands.Cog):
                 isDone = "🚫 Error"
 
             embed.add_field(name=isDone, value=channel.mention)
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command adds the channels from the verification role.',
         description='This command adds the channels from the verification role and can be used by members having manage guild permission.',
         usage="#channelone #channeltwo ...", aliases=["verifyadd", "verifywriteadd", "verifysendadd"])
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_channels=True))
-    async def verifyfulladd(self, ctx, channels: Greedy[typing.Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel]]):
+    async def verifyfulladd(self, ctx, greedytextstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name='Verified')
         if verifyrole == None:
@@ -5517,9 +5588,25 @@ class Captcha(commands.Cog):
             return
         embed = discord.Embed(title="Added channels",
                               description=verifyrole.mention)
+        channelnames=greedytextstagevoicechannels
+        channels=[]
+        for channelname in channelnames.split(","):
+            try:
+                channel = await commands.TextChannelConverter().convert(ctx, channelname)
+            except:
+                pass
+            try:
+                channel = await commands.StageChannelConverter().convert(ctx, channelname)
+            except:
+                pass
+            try:
+                channel = await commands.VoiceChannelConverter().convert(ctx, channelname)
+            except:
+                pass
+            else:
+                channels.append(channel)
         if len(channels) == 0:
             raise commands.BadArgument("Nothing")
-            return
         for channel in channels:
             isDone = "<a:yes:872664918736928858> Successfully added"
             try:
@@ -5531,16 +5618,16 @@ class Captcha(commands.Cog):
             except:
                 isDone = "🚫 Error"
             embed.add_field(name=isDone, value=channel.mention)
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command removes the channels from the verification role.',
         description='This command removes the channels from the verification role and can be used by members having manage guild permission.',
         usage="#channelone #channeltwo ...", aliases=["verifyremove", "verifywriteremove", "verifysendremove"])
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_channels=True))
-    async def verifyfullremove(self, ctx, channels: Greedy[typing.Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel]]):
+    async def verifyfullremove(self, ctx, greedytextstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name='Verified')
         if verifyrole == None:
@@ -5548,9 +5635,25 @@ class Captcha(commands.Cog):
             return
         embed = discord.Embed(title="Removed channels",
                               description=verifyrole.mention)
+        channelnames=greedytextstagevoicechannels
+        channels=[]
+        for channelname in channelnames.split(","):
+            try:
+                channel = await commands.TextChannelConverter().convert(ctx, channelname)
+            except:
+                pass
+            try:
+                channel = await commands.StageChannelConverter().convert(ctx, channelname)
+            except:
+                pass
+            try:
+                channel = await commands.VoiceChannelConverter().convert(ctx, channelname)
+            except:
+                pass
+            else:
+                channels.append(channel)
         if len(channels) == 0:
             raise commands.BadArgument("Nothing")
-            return
         for channel in channels:
             isDone = "<a:yes:872664918736928858> Successfully removed"
             try:
@@ -5563,9 +5666,9 @@ class Captcha(commands.Cog):
                 isDone = "🚫 Error"
 
             embed.add_field(name=isDone, value=channel.mention)
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command shows the channels verification role can access.',
         description='This command shows the channels verification role can access and can be used by members having manage guild permission.',
         usage="", aliases=["verifychannels"])
@@ -5584,7 +5687,7 @@ class Captcha(commands.Cog):
         for channelloop in ctx.guild.channels:
             if count >= maxcount:
                 count = 0
-                await ctx.send(embed=embed)
+                await ctx.respond(embed=embed, ephemeral=True)
                 embed = discord.Embed(title="", description=f"** **")
             if channelloop.type == discord.ChannelType.category:
                 continue
@@ -5610,9 +5713,9 @@ class Captcha(commands.Cog):
         embed.set_footer(
             text="Want to add/remove a channel? Do the verifyreadadd/verifyreadremove and verifywriteadd/verifywriteremove command.")
         if count != 0:
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(aliases=["setverificationchannel"],
+    @bridge.bridge_command(aliases=["setverificationchannel"],
                       brief='This command sets up a verification channel on the guild.',
                       description='This command sets up a verification channel on the guild and can be used by members having manage guild permission.',
                       usage="#channel")
@@ -5724,14 +5827,14 @@ targeted attacks using automated user accounts.""")
             async with pool.acquire() as con:
                 await con.execute(statement, ctx.guild.id, verifychannel.id, msg.id)
         try:
-            messageone = await ctx.send("Server verification setup was successful , It is recommended to run the verificationchannels command to view which channels the verified role can access. ")
+            messageone = await ctx.respond("Server verification setup was successful , It is recommended to run the verificationchannels command to view which channels the verified role can access. ",ephemeral=True)
             await asyncio.sleep(60)
             await messageone.delete()
         except:
             pass
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(brief='This command verifies you on the guild.',
+    @bridge.bridge_command(brief='This command verifies you on the guild.',
                       description='This command verifies you on the guild.',
                       usage="")
     @commands.guild_only()
@@ -5743,8 +5846,8 @@ targeted attacks using automated user accounts.""")
             pass
         verifyrole = discord.utils.get(ctx.guild.roles, name='Verified')
         if verifyrole is None:
-            await ctx.send(
-                "Run the **setupverification** command before this command for setting up the roles."
+            await ctx.respond(
+                "Run the **setupverification** command before this command for setting up the roles.",ephemeral=True
             )
             return
         if verifyrole in ctx.author.roles:
@@ -5773,10 +5876,10 @@ targeted attacks using automated user accounts.""")
             e.add_field(name="Command author",
                         value=f"{ctx.author.mention}", inline=False)
             e.set_image(url="attachment://dmEnable.png")
-            mentionMes = await ctx.send(ctx.author.mention)
+            mentionMes = await ctx.respond(ctx.author.mention,ephemeral=True)
             await asyncio.sleep(1)
             await mentionMes.delete()
-            dmWarnings = await ctx.send(file=f, embed=e)
+            dmWarnings = await ctx.respond(file=f, embed=e,ephemeral=True)
             await asyncio.sleep(5)
             await dmWarnings.delete()
             return
@@ -5828,7 +5931,7 @@ client.add_cog(Captcha(client))
 class MinecraftFun(commands.Cog):
     """ Minecraft game related fun commands """
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["bal", "money", "account", "bank"],
+    @bridge.bridge_command(aliases=["bal", "money", "account", "bank"],
                       brief='This command is used to check your balance.',
                       description='This command is used to check your balance.',
                       usage="")
@@ -5851,10 +5954,10 @@ class MinecraftFun(commands.Cog):
             oldbalance = 500
         embed = discord.Embed(
             title=f"{member.name}'s balance", description=f"{oldbalance} currency")
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed,ephemeral=True)
 
     @commands.cooldown(1, 604000, BucketType.member)
-    @commands.command(aliases=["weekly"],
+    @bridge.bridge_command(aliases=["weekly"],
                       brief='This command is used to claim weekly rewards!.',
                       description='This command is used to claim weekly rewards!',
                       usage="")
@@ -5873,14 +5976,14 @@ class MinecraftFun(commands.Cog):
             async with newpool.acquire() as con:
                 memberoneeco = await con.fetchrow(f"SELECT * FROM mceconomy WHERE memberid = {ctx.author.id}")
         if await uservoted(ctx.author) or checkstaff(ctx.author):
-            await ctx.send("Nice , you have claimed your weekly of 1500 for this week!")
+            await ctx.respond("Nice , you have claimed your weekly of 1500 for this week!",ephemeral=True)
             await addmoney(ctx.author.id, 1500)
         else:
             ctx.command.reset_cooldown(ctx)
             await on_command_error(ctx, "You have not voted for this bot on top.gg!")
 
     @commands.cooldown(1, 43200, BucketType.member)
-    @commands.command(aliases=["daily"],
+    @bridge.bridge_command(aliases=["daily"],
                       brief='This command is used to claim daily rewards!.',
                       description='This command is used to claim daily rewards!',
                       usage="")
@@ -5899,14 +6002,14 @@ class MinecraftFun(commands.Cog):
             async with newpool.acquire() as con:
                 memberoneeco = await con.fetchrow(f"SELECT * FROM mceconomy WHERE memberid = {ctx.author.id}")
         if uservoted(ctx.author) or checkstaff(ctx.author):
-            await ctx.send("Nice , you have claimed your daily of 150 for today!")
+            await ctx.respond("Nice , you have claimed your daily of 150 for today!", ephemeral=True)
             await addmoney(ctx.author.id, 150)
         else:
             ctx.command.reset_cooldown(ctx)
             await on_command_error(ctx, "You have not voted for this bot on top.gg!\nVoting sites:https://top.gg/bot/1061480715172200498/vote")
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["give", "pay"],
+    @bridge.bridge_command(aliases=["give", "pay"],
                       brief='This command is used to give currency.',
                       description='This command is used to give currency.',
                       usage="")
@@ -5923,10 +6026,10 @@ class MinecraftFun(commands.Cog):
             return
         await addmoney(ctx.author.id, (-1*price))
         await addmoney(member.id, price)
-        await ctx.send(f"You have successfully paid {member.name}#{member.discriminator} , {price} currency.")
+        await ctx.respond(f"You have successfully paid {member.name}#{member.discriminator} , {price} currency.",ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["inv", "backpack", "bag", "items"],
+    @bridge.bridge_command(aliases=["inv", "backpack", "bag", "items"],
                       brief='This command is used to see your inventory.',
                       description='This command is used to see your inventory.',
                       usage="")
@@ -5972,10 +6075,10 @@ class MinecraftFun(commands.Cog):
         swordemoji = swordchoiceemoji[swordname]
         embed.add_field(name="Armor", value=f"{armoremoji}{armorname} Armor")
         embed.add_field(name="Sword", value=f"{swordemoji}{swordname} Sword")
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed,ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command is used to buy minecraft stuff.',
         description='This command is used to buy minecraft stuff.',
         usage="")
@@ -5993,10 +6096,10 @@ class MinecraftFun(commands.Cog):
                 await con.execute(statement, ctx.author.id, 500, json.dumps(newjson))
         embed = discord.Embed(
             title="Minecraft shop", description="Click on dropdown to view items and buy them!")
-        await ctx.send(embed=embed, view=MCShop(ctx.author))
+        await ctx.respond(embed=embed, view=MCShop(ctx.author),ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command is used to fight other users (minecraft pvp mechanics).',
         description='This command is used to fight other users (minecraft pvp mechanics).',
         usage="@member #voicechannel")
@@ -6004,12 +6107,12 @@ class MinecraftFun(commands.Cog):
     async def pvp(self, ctx, member: discord.Member, vhc: discord.VoiceChannel = None):
         global leaderBoard
         if member == ctx.author:
-            await ctx.send(
-                "Trying to battle yourself will only have major consequences !"
+            await ctx.respond(
+                "Trying to battle yourself will only have major consequences !",ephemeral=True
             )
             return
         if member == ctx.guild.me:
-            await ctx.send("You cannot battle me ,I cannot be defeated!")
+            await ctx.respond("You cannot battle me ,I cannot be defeated!",ephemeral=True)
             return
         if vhc is not None:
             await vhc.connect()
@@ -6087,7 +6190,7 @@ class MinecraftFun(commands.Cog):
             embed.set_thumbnail(
                 url="https://cdn.discordapp.com/avatars/841268437824045096/2197577ab3bcee324b2e58bd3a1e3248.png?size=1024")
             view = Confirmpvp(member=membertwo.id)
-            statmsg = await ctx.send(embed=embed, view=view)
+            statmsg = await ctx.respond(embed=embed, view=view,ephemeral=True)
             await view.wait()
             if view.value is None:
                 try:
@@ -6143,10 +6246,10 @@ class MinecraftFun(commands.Cog):
                 discord.FFmpegPCMAudio("Firework_twinkle_far.ogg"))
         except:
             pass
-        await ctx.send(content=f"{memberone.mention}'s turn to fight!", embed=embed, view=Minecraftpvp(memberone.id, membertwo.id, memberone.name, membertwo.name, memberone_healthpoint, membertwo_healthpoint, memberone_armor_resist, membertwo_armor_resist, memberone_sword_attack, membertwo_sword_attack, vc))
+        await ctx.respond(content=f"{memberone.mention}'s turn to fight!", embed=embed, view=Minecraftpvp(memberone.id, membertwo.id, memberone.name, membertwo.name, memberone_healthpoint, membertwo_healthpoint, memberone_armor_resist, membertwo_armor_resist, memberone_sword_attack, membertwo_sword_attack, vc),ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command is used to check the leaderboard of the pvp and soundpvp command.',
         description='This command is used to check the leaderboard of the pvp and soundpvp command.',
         usage="")
@@ -6185,10 +6288,10 @@ class MinecraftFun(commands.Cog):
                 name = "- - -"
             embedOne.add_field(
                 name=str(i+1)+f"{postfix[i]} member", value=f"<@{name}>", inline=False)
-        await ctx.send(embed=embedOne)
+        await ctx.respond(embed=embedOne,ephemeral=True)
 
     @commands.cooldown(1, 120, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command is used to check the server status of a minecraft server ip.',
         description='This command is used to check the server status of a minecraft server ip.',
         usage="server-ip")
@@ -6204,7 +6307,7 @@ class MinecraftFun(commands.Cog):
             embedOne.add_field(name="Server Status ",
                                value=" Offline ",
                                inline=True)
-            await ctx.send(embed=embedOne)
+            await ctx.respond(embed=embedOne, ephemeral=True)
             return
         limit = 50
         try:
@@ -6233,7 +6336,7 @@ class MinecraftFun(commands.Cog):
         embedOne.add_field(name="Players Online ",
                            value=status.players.online,
                            inline=True)
-        ipmessagesent = await ctx.send(embed=embedOne)
+        ipmessagesent = await ctx.respond(embed=embedOne, ephemeral=True)
 
 
 client.add_cog(MinecraftFun(client))
@@ -6296,7 +6399,7 @@ async def getuserinfo(ctx, id):
         "." + original_string[last_char_index+1:]
     embed.add_field(name='User-flags', value=new_string)
     embed.set_author(name=user.name, icon_url=asset)
-    await ctx.send(embed=embed)
+    await ctx.respond(embed=embed,ephemeral=True)
 
 # -----------------------------------------------------------------------------
 # calc.py
@@ -6738,7 +6841,7 @@ class PaginateFileEmbed(discord.ui.View):
 class Leveling(commands.Cog):
     """Levelling chat commands."""
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["messageconfig", "levelset", "messageperlevel"],
+    @bridge.bridge_command(aliases=["messageconfig", "levelset", "messageperlevel"],
                       brief='This command can be used to set the messages required per level gained.',
                       description='This command can be used to set the messages required per level gained and can be used by member having manage guild permissions.')
     @commands.guild_only()
@@ -6768,10 +6871,10 @@ class Leveling(commands.Cog):
             else:
                 async with pool.acquire() as con:
                     await con.execute(f"UPDATE levelconfig VALUES SET messagecount = {messagecount} WHERE channelid = {ch.id}")
-        await ctx.send(f"Successfully set {messagecount} per level for the provided channels.")
+        await ctx.respond(f"Successfully set {messagecount} per level for the provided channels.",ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["lb", "leaderboard"],
+    @bridge.bridge_command(aliases=["lb", "leaderboard"],
                       brief='This command can be used to get the leaderboard in a guild.',
                       description='This command can be used to get the leaderboard in a guild.')
     @commands.guild_only()
@@ -6787,7 +6890,7 @@ class Leveling(commands.Cog):
                 await con.execute(statement, ctx.channel.id, True)
             async with pool.acquire() as con:
                 warninglist = await con.fetchrow(f"SELECT * FROM levelsettings WHERE channelid = {ctx.channel.id}")
-            await ctx.send(f"Alert: leveling was automatically enabled in this channel, do {ctx.prefix}leveltoggle to turn off leveling!")
+            await ctx.respond(f"Alert: leveling was automatically enabled in this channel, do {ctx.prefix}leveltoggle to turn off leveling!",ephemeral=True)
         if not warninglist[1]:
             raise commands.CommandError(
                 f"The leveling setting has been disabled in this channel , do {ctx.prefix}leveltoggle to turn on leveling.")
@@ -6876,10 +6979,10 @@ class Leveling(commands.Cog):
         file = discord.File("./levelleaderboardresult.png")
         embed = discord.Embed()
         embed.set_image(url="attachment://levelleaderboardresult.png")
-        await ctx.send(file=file, embed=embed)
+        await ctx.respond(file=file, embed=embed,ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["rank", "levels"],
+    @bridge.bridge_command(aliases=["rank", "levels"],
                       brief='This command can be used to get the current level in a guild.',
                       description='This command can be used to get the current level in a guild.',
                       usage="@member")
@@ -6896,7 +6999,7 @@ class Leveling(commands.Cog):
                 await con.execute(statement, ctx.channel.id, True)
             async with pool.acquire() as con:
                 warninglist = await con.fetchrow(f"SELECT * FROM levelsettings WHERE channelid = {ctx.channel.id}")
-            await ctx.send(f"Alert: leveling was automatically enabled in this channel, do {ctx.prefix}leveltoggle to turn off leveling!")
+            await ctx.respond(f"Alert: leveling was automatically enabled in this channel, do {ctx.prefix}leveltoggle to turn off leveling!",ephemeral=True)
         if not warninglist[1]:
             raise commands.CommandError(
                 f"The leveling setting has been disabled in this channel , do {ctx.prefix}leveltoggle to turn on leveling.")
@@ -6954,13 +7057,13 @@ class Leveling(commands.Cog):
         file = discord.File("./levelresult.png")
         embed = discord.Embed()
         embed.set_image(url="attachment://levelresult.png")
-        await ctx.send(file=file, embed=embed)
+        await ctx.respond(file=file, embed=embed,ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    @commands.command(aliases=["leveltoggle", "togglelevel"], brief=" This command can be used to enable/disable your leveling system.", description=" This command can be used to enable/disable your leveling system.")
+    @bridge.bridge_command(aliases=["leveltoggle", "togglelevel"], brief=" This command can be used to enable/disable your leveling system.", description=" This command can be used to enable/disable your leveling system.")
     async def levelsettings(self, ctx, channel: discord.TextChannel = None):
         if channel is None:
             channels = [ctx.channel]
@@ -6983,7 +7086,7 @@ class Leveling(commands.Cog):
                     value=f"The levels setting for {channel.mention} was successfully set to {checkEmoji(newSet)}.", name="** **")
                 async with pool.acquire() as con:
                     await con.execute(f"UPDATE levelsettings VALUES SET setting = {newSet} WHERE channelid = {channel.id}")
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed, ephemeral=True)
 
 
 client.add_cog(Leveling(client))
@@ -7930,17 +8033,17 @@ class ValorantLink(discord.ui.View):
 class Valorant(commands.Cog):
     """Valorant stat commands"""
     @commands.cooldown(1, 45, BucketType.member)
-    @commands.command(aliases=["valunlink", "unlink"],
+    @bridge.bridge_command(aliases=["valunlink", "unlink"],
                       brief='This command unlinks and removes your valorant username.',
                       description='This command unlinks and removes your valorant username.',
                       usage="")
     async def unlinkaccount(self, ctx):
         async with pool.acquire() as con:
             await con.execute(f"DELETE FROM riotaccount WHERE discorduserid = {ctx.author.id}")
-        await ctx.send(f"Your account was successfully unlinked from discord.")
+        await ctx.respond(f"Your account was successfully unlinked from discord.",ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["vallink", "link"],
+    @bridge.bridge_command(aliases=["vallink", "link"],
                       brief='This command links and stores your valorant username.',
                       description='This command links and stores your valorant username.',
                       usage="")
@@ -7948,10 +8051,10 @@ class Valorant(commands.Cog):
         # https://auth.riotgames.com/login#client_id=Aestron&redirect_uri=https://Aestron.webdashboard.repl.co/valorantLogin&response_type=code&scope=openid+offline_access&state=
         embedOne = discord.Embed(
             title="Link Valorant", description="To link your discord account with your valorant account, click on the button below.")
-        await ctx.send(embed=embedOne, view=ValorantLink(ctx))
+        await ctx.respond(embed=embedOne, view=ValorantLink(ctx),ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["valstats"],
+    @bridge.bridge_command(aliases=["valstats"],
                       brief='This command shows the stats of your linked account.',
                       description='This command shows the stats of your linked account.',
                       usage="@member")
@@ -7983,7 +8086,7 @@ class Valorant(commands.Cog):
         async with pool.acquire() as con:
             matchidslist = await con.fetchrow(f"SELECT matchids FROM riotmatches where discorduserid = {ctx.author.id}")
         if matchidslist is None:
-            await ctx.send(f"Your stats could not be fetched as they haven't been loaded yet!")
+            await ctx.respond(f"Your stats could not be fetched as they haven't been loaded yet!",ephemeral=True)
             return
         count = 0
         for matchid in matchidslist["matchids"]:
@@ -7999,7 +8102,7 @@ class Valorant(commands.Cog):
         try:
             respjson = json.loads(respjson)
         except Exception as ex:
-            await ctx.send(f"Your stats could not be fetched due to an error, try re-linking your account!")
+            await ctx.respond(f"Your stats could not be fetched due to an error, try re-linking your account!",ephemeral=True)
             await on_command_error(ctx, f"Exception in riot link cmd - {ex}", forcelog=True, userlog=False)
             return
         currentrank = respjson["data"]["currenttierpatched"]
@@ -8025,7 +8128,7 @@ class Valorant(commands.Cog):
             await ctx.message.remove_reaction("<a:loading:824193916818554960>", ctx.guild.me)
         except:
             pass
-        await ctx.send(embed=embed, view=ValorantControls(matchesinfo, currentpuuid, ctx))
+        await ctx.respond(embed=embed, view=ValorantControls(matchesinfo, currentpuuid, ctx),ephemeral=True)
 
 
 client.add_cog(Valorant(client))
@@ -8035,7 +8138,7 @@ class Misc(commands.Cog):
     """Misc commands."""
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["remind", "reminder", "alarm"],
+    @bridge.bridge_command(aliases=["remind", "reminder", "alarm"],
                       brief='This command can be used to create a reminder.',
                       description='This command can be used to create a reminder.',
                       usage="time reason")
@@ -8066,10 +8169,10 @@ class Misc(commands.Cog):
             await ctx.message.add_reaction("⏰")
         except:
             pass
-        await ctx.send(f"{ctx.author.mention} Your reminder for {await discord.utils.sleep_until(when=new_datetime,result=reason)} was completed!")
+        await ctx.respond(f"{ctx.author.mention} Your reminder for {await discord.utils.sleep_until(when=new_datetime,result=reason)} was completed!",ephemeral=True)
 
     @commands.cooldown(1, 6, BucketType.member)
-    @commands.command(aliases=["setafk"], brief=" This command can be used to mark yourself as afk for a specified reason.", description=" This command can be used to mark yourself as afk for a specified reason.")
+    @bridge.bridge_command(aliases=["setafk"], brief=" This command can be used to mark yourself as afk for a specified reason.", description=" This command can be used to mark yourself as afk for a specified reason.")
     async def afk(self, ctx, *, reasonafk: str = None):
         global afkrecent
         if reasonafk is None:
@@ -8077,13 +8180,10 @@ class Misc(commands.Cog):
         if checkProfane(reasonafk):
             reason = "||Hidden for containing profane text||"
         afkrecent[ctx.author.id] = reasonafk
-        try:
-            await ctx.reply(f"I have set you afk for {reasonafk} , send a message again to be marked as non AFK.")
-        except:
-            await ctx.send(f"I have set you afk for {reasonafk} , send a message again to be marked as non AFK.")
+        await ctx.respond(f"I have set you afk for {reasonafk} , send a message again to be marked as non AFK.",ephemeral=True)
 
     @commands.cooldown(1, 6, BucketType.member)
-    @commands.command(aliases=["math", "calculate"], brief=" This command can be used to calculate math.", description="This command can be used to calculate math.")
+    @bridge.bridge_command(aliases=["math", "calculate"], brief=" This command can be used to calculate math.", description="This command can be used to calculate math.")
     async def calc(self, ctx, expression: str):
         str_obj = io.StringIO()  # Retrieves a stream of data
         with contextlib.redirect_stdout(str_obj):
@@ -8092,19 +8192,19 @@ class Misc(commands.Cog):
             embed = discord.Embed(title="Calculator",
                                   description=f"Input : {expression}")
             embed.add_field(name="Output", value=output)
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
 
     @commands.cooldown(1, 20, BucketType.member)
-    @commands.command(aliases=["takescreenshot", "scrn", "screenshot"],
+    @bridge.bridge_command(aliases=["takescreenshot", "scrn", "screenshot"],
                       brief='This command can be used to take a screenshot of a website url.',
                       description='This command can be used to take a screenshot of a website url.',
                       usage="url")
     async def takescrn(self, ctx, url: str):
         scrn = await take_screenshot(ctx, url=url)
-        await ctx.send(file=scrn)
+        await ctx.respond(file=scrn,ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["ncdrtfm", "nrtfm"],
+    @bridge.bridge_command(aliases=["ncdrtfm", "nrtfm"],
                       brief='This command can be used to rtfm search on nextcord.',
                       description='This command can be used to rtfm search on nextcord.',
                       usage="search-term")
@@ -8147,10 +8247,10 @@ class Misc(commands.Cog):
         except:
             pass
         pagview = PaginateFileEmbed(listOfEmbeds, listOfFiles)
-        msg = await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview)
+        msg = await ctx.respond(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview,ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["dpyrtfm", "drtfm"],
+    @bridge.bridge_command(aliases=["dpyrtfm", "drtfm"],
                       brief='This command can be used to rtfm search on discord.py.',
                       description='This command can be used to rtfm search on discord.py.',
                       usage="search-term")
@@ -8193,10 +8293,10 @@ class Misc(commands.Cog):
         except:
             pass
         pagview = PaginateFileEmbed(listOfEmbeds, listOfFiles)
-        msg = await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview)
+        msg = await ctx.respond(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview,ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["pycrtfm", "pyrtfm", "rtfm"],
+    @bridge.bridge_command(aliases=["pycrtfm", "pyrtfm", "rtfm"],
                       brief='This command can be used to rtfm search on pycord.',
                       description='This command can be used to rtfm search on pycord.',
                       usage="search-term")
@@ -8239,10 +8339,10 @@ class Misc(commands.Cog):
         except:
             pass
         pagview = PaginateFileEmbed(listOfEmbeds, listOfFiles)
-        msg = await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview)
+        msg = await ctx.respond(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview,ephemeral=True)
 
     @commands.cooldown(1, 60, BucketType.member)
-    @commands.command(aliases=["search", "google"],
+    @bridge.bridge_command(aliases=["search", "google"],
                       brief='This command can be used to search on google.',
                       description='This command can be used to search on google.',
                       usage="search-term")
@@ -8260,13 +8360,13 @@ class Misc(commands.Cog):
         for j in searchresults:
             scrn = await take_screenshot(ctx, j)
             embedVar.title = f"Search Results({j})"
-            await ctx.send(embed=embedVar, file=scrn)
+            await ctx.respond(embed=embedVar, file=scrn,ephemeral=True)
             success = True
         if not success:
             raise commands.CommandError(f"No results were found for {query}.")
 
     @commands.cooldown(1, 15, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to get current weather of a city.',
         description='This command can be used to get current weather of a city.',
         usage="city-name")
@@ -8319,19 +8419,19 @@ class Misc(commands.Cog):
             await on_command_error(ctx, "The city provided was not found.")
             return
         try:
-            await ctx.send(embed=embedVar)
+            await ctx.respond(embed=embedVar,ephemeral=True)
         except:
             pass
 
     @commands.cooldown(1, 60, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to get current user response time(ping).',
         description='This command can be used to get current user response time(ping) in milliseconds.',
         usage="")
     async def ping(self, ctx):
         # f"Pong: **`{normalPing}ms`** | Websocket: **`{webPing}ms`**"
         start = time.perf_counter()
-        message = await ctx.send("Pinging...")
+        message = await ctx.respond("Pinging...",ephemeral=True)
         end = time.perf_counter()
         duration = (end - start) * 1000
         duration = duration/2
@@ -8363,11 +8463,11 @@ class Misc(commands.Cog):
                 description=f":ping_pong: Pong! The ping is **{normalPing}** and websocket ping is **{webPing}** milliseconds!",
                 color=0x990000)
         try:
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
         except:
             pass
 
-    @commands.command(aliases=["changeprefix"],
+    @bridge.bridge_command(aliases=["changeprefix"],
                       brief='This command can be used to set bot prefix in a guild by members having manage guild permission.',
                       description='This command can be used to set bot prefix in a guild by members having manage guild permission.',
                       usage="prefix")
@@ -8380,7 +8480,7 @@ class Misc(commands.Cog):
             if prefix == "None" or len(prefix) > 10:
                 await on_command_error(ctx, "You cannot set the prefix to that value.")
                 return
-            msg = await ctx.send(f"Are you sure you want to change the prefix to `{prefix}`")
+            msg = await ctx.respond(f"Are you sure you want to change the prefix to `{prefix}`",ephemeral=True)
             await msg.add_reaction('👍')
 
             def check(reaction, user):
@@ -8396,20 +8496,20 @@ class Misc(commands.Cog):
                 await con.execute(f"UPDATE prefixes VALUES SET prefix = '{prefix}' WHERE guildid = {ctx.guild.id}")
 
             try:
-                await ctx.send(
-                    f'My prefix has changed to {prefix} in {ctx.guild}.')
+                await ctx.respond(
+                    f'My prefix has changed to {prefix} in {ctx.guild}.',ephemeral=True)
             except:
                 pass
         else:
             try:
-                await ctx.send(
-                    "My prefix cannot be changed in a dm channel , my default prefix is `a!` "
+                await ctx.respond(
+                    "My prefix cannot be changed in a dm channel , my default prefix is `a!` ",ephemeral=True
                 )
             except:
                 pass
 
     @commands.cooldown(1, 45, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to translate text into another language.',
         description='This command can be used to translate text into another language.',
         usage="language text", aliases=["translate", "lang", "convertlang"])
@@ -8420,10 +8520,10 @@ class Misc(commands.Cog):
         translatedmessage = translator.translate(origmessage)
         embedOne = discord.Embed(title="Language : " + language,
                                  description=translatedmessage)
-        await ctx.send(embed=embedOne)
+        await ctx.respond(embed=embedOne,ephemeral=True)
 
     @commands.cooldown(1, 60, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         aliases=['userperm', 'memberperm', 'permission',
                  'permissions', 'getperm', 'checkperm'],
         brief='This command can be used to get user permissions in a guild.',
@@ -8445,7 +8545,7 @@ client.add_cog(Misc(client))
 class Call(commands.Cog):
     """Call commands."""
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["callsettings", "chatsettings", "callsetting", "chatsetting", "togglecall"], brief=" This command can be used to enable/disable your incoming calls from call command.", description=" This command can be used to enable/disable your incoming calls from call command.")
+    @bridge.bridge_command(aliases=["callsettings", "chatsettings", "callsetting", "chatsetting", "togglecall"], brief=" This command can be used to enable/disable your incoming calls from call command.", description=" This command can be used to enable/disable your incoming calls from call command.")
     async def calltoggle(self, ctx):
         async with pool.acquire() as con:
             warninglist = await con.fetchrow(f"SELECT * FROM callsettings WHERE userid = {ctx.author.id}")
@@ -8453,17 +8553,17 @@ class Call(commands.Cog):
             statement = """INSERT INTO callsettings (userid,settingbool) VALUES($1,$2);"""
             async with pool.acquire() as con:
                 await con.execute(statement, ctx.author.id, False)
-            await ctx.send(f"{ctx.author.mention} Your call settings was successfully set to {checkEmoji(False)}.")
+            await ctx.respond(f"{ctx.author.mention} Your call settings was successfully set to {checkEmoji(False)}.",ephemeral=True)
         else:
             currentSet = warninglist[1]
             newSet = not currentSet
-            await ctx.send(f"{ctx.author.mention} Your call settings was successfully set to {checkEmoji(newSet)}.")
+            await ctx.respond(f"{ctx.author.mention} Your call settings was successfully set to {checkEmoji(newSet)}.",ephemeral=True)
             # UPDATE shoelace_data SET sl_avail = 6 WHERE sl_name = 'sl7'
             async with pool.acquire() as con:
                 await con.execute(f"UPDATE callsettings VALUES SET settingBool = {newSet} WHERE userid = {ctx.author.id}")
 
     @commands.cooldown(1, 60, BucketType.member)
-    @commands.command(brief=" This command can be used to talk to people.", description=" This command can be used to talk to people.", usage="@member reason")
+    @bridge.bridge_command(brief=" This command can be used to talk to people.", description=" This command can be used to talk to people.", usage="@member reason")
     @commands.guild_only()
     async def call(self, ctx, member: typing.Union[discord.User, int], reason: str = None):
         if isinstance(member, int):
@@ -8568,17 +8668,17 @@ class Call(commands.Cog):
                 e.add_field(name="Command author",
                             value=f"{ctx.author.mention}", inline=False)
                 e.set_image(url="attachment://dmEnable.png")
-                mentionMes = await ctx.send(ctx.author.mention)
+                mentionMes = await ctx.respond(ctx.author.mention,ephemeral=True)
                 await asyncio.sleep(1)
                 await mentionMes.delete()
-                await ctx.send(f"{ctx.author.mention} Your dms are disabled , you need to enable dms for this command.")
-                dmWarnings = await ctx.send(file=f, embed=e)
+                await ctx.respond(f"{ctx.author.mention} Your dms are disabled , you need to enable dms for this command.",ephemeral=True)
+                dmWarnings = await ctx.respond(file=f, embed=e,ephemeral=True)
                 await asyncio.sleep(5)
                 await dmWarnings.delete()
             else:
-                await ctx.send(f"{ctx.author.mention} Your dms are disabled , you need to enable dms for this command.")
+                await ctx.respond(f"{ctx.author.mention} Your dms are disabled , you need to enable dms for this command.",ephemeral=True)
             return
-        await ctx.send(f"{ctx.author.mention} go to your dm ({messageonesent.jump_url}) for the call.")
+        await ctx.respond(f"{ctx.author.mention} go to your dm ({messageonesent.jump_url}) for the call.",ephemeral=True)
         embedOne = discord.Embed(
             title=f"Incoming call", description=f"Call from {exEmoji}{ctx.author} in {ctx.guild} , click accept/deny .")
         embedOne.add_field(name="Call reason", value=reason)
@@ -8722,15 +8822,12 @@ client.add_cog(Call(client))
 class Fun(commands.Cog):
     """ General fun commands """
     @commands.cooldown(1, 6, BucketType.member)
-    @commands.command(aliases=["talk", "cb", "chatbot"], brief=" This command can be used to talk to chatbot.", description=" This command can be used to talk to chatbot.")
+    @bridge.bridge_command(aliases=["talk", "cb", "chatbot"], brief=" This command can be used to talk to chatbot.", description=" This command can be used to talk to chatbot.")
     async def communicate(self, ctx, *, message):
         chatextract = ChatExtractor()
         response = await chatextract.aget_response(message, ctx.author)
         embed = discord.Embed(title="Chatbot", description=response)
-        try:
-            await ctx.reply(embed=embed)
-        except:
-            await ctx.send(embed=embed)
+        await ctx.respond(embed=embed,ephemeral=True)
 
     @commands.cooldown(1, 3600, BucketType.member)
     @commands.guild_only()
@@ -8755,7 +8852,7 @@ class Fun(commands.Cog):
         )
         embedVar.set_footer(
             text="This game is a discord beta feature only supported on desktop versions of discord.")
-        await ctx.send(embed=embedVar)
+        await ctx.respond(embed=embedVar,ephemeral=True)
 
     @chess.before_invoke
     async def ensure_voice(self, ctx):
@@ -8771,19 +8868,19 @@ class Fun(commands.Cog):
             ctx.voice_client.stop()
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to get some (python or java) facts.',
         description='This command can be used to get some (python or java) facts.',
         usage="")
     async def fact(self, ctx):
         fact = random.choice(randomlist)
         if fact in randomjava:
-            await ctx.send(f"``` Random Java Fact : {fact}```")
+            await ctx.respond(f"``` Random Java Fact : {fact}```",ephemeral=True)
         elif fact in randompython:
-            await ctx.send(f"``` Random Python Fact : {fact}```")
+            await ctx.respond(f"``` Random Python Fact : {fact}```", ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to get information about a emoji.',
         description='This command can be used to get information about a emoji.',
         usage="emoji", aliases=["emoji", "reaction", "reactioninfo", "emojinfo"])
@@ -8826,10 +8923,10 @@ class Fun(commands.Cog):
 
             emojimsg = "Mentioned emoji :"
         embed.add_field(name=emojimsg, value=emojimention)
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed,ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         aliases=['server'],
         brief='This command can be used to get guild information.',
         description='This command can be used to get guild information.',
@@ -8912,12 +9009,12 @@ class Fun(commands.Cog):
         if banner is not None:
             embed.set_thumbnail(url=banner.url)
         try:
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
         except:
             pass
 
     @commands.cooldown(1, 60, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         aliases=['user', 'userinfo', 'memberinfo', 'member'],
         brief='This command can be used to get user information.',
         description='This command can be used to get user information.',
@@ -9018,7 +9115,7 @@ class Fun(commands.Cog):
         if banner is not None:
             embedOne.set_thumbnail(url=banner.url)
         try:
-            await ctx.send(embed=embedOne)
+            await ctx.respond(embed=embedOne,ephemeral=True)
         except:
             pass
 
@@ -9029,7 +9126,7 @@ client.add_cog(Fun(client))
 class Social(commands.Cog):
     """Social commands."""
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to get the user liking percentage for fun.',
         description='This command can be used to get the user liking percentage for fun.',
         usage="@member", aliases=["userliking", "memberliking", "ship", "shipuser", "shipmember"])
@@ -9079,10 +9176,10 @@ class Social(commands.Cog):
         file = discord.File("./testingresult.jpg")
         embed = discord.Embed()
         embed.set_image(url="attachment://testingresult.jpg")
-        await ctx.send(file=file, embed=embed)
+        await ctx.respond(file=file, embed=embed, ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to welcome users with a custom welcome image.',
         description='This command can be used to welcome users with a custom welcome image.',
         usage="@member")
@@ -9111,10 +9208,10 @@ class Social(commands.Cog):
         file = discord.File("./backgroundone.jpg")
         embed = discord.Embed()
         embed.set_image(url="attachment://backgroundone.jpg")
-        await ctx.send(file=file, embed=embed)
+        await ctx.respond(file=file, embed=embed,ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to show users in a custom wanted poster.',
         description='This command can be used to show users in a custom wanted poster.',
         usage="@member")
@@ -9134,7 +9231,7 @@ class Social(commands.Cog):
         embed = discord.Embed()
         embed.set_image(url="attachment://backgroundone.png")
         try:
-            await ctx.send(file=file, embed=embed)
+            await ctx.respond(file=file, embed=embed,ephemeral=True)
         except:
             pass
 
@@ -9145,7 +9242,7 @@ client.add_cog(Social(client))
 def constructslashephemeralctx(ctx):
     async def fakerespond(*args, **kwargs):
         return await ctx.respond(*args, **kwargs, ephemeral=True)
-    ctx.send = fakerespond
+    ctx.respond = fakerespond
     return ctx
 
 
@@ -9216,7 +9313,7 @@ def get_response(user_input):
 class Giveaways(commands.Cog):
     """ Giveaways commands """
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["makepoll"],
+    @bridge.bridge_command(aliases=["makepoll"],
                       brief='This command can be used to setup a poll.',
                       description='This command can be used to setup a poll.',
                       usage="5s nitro")
@@ -9248,7 +9345,7 @@ class Giveaways(commands.Cog):
         embed.add_field(name="Total users", value="0")
         embed.add_field(
             name="Percentage of votes <a:verified:875327156572532736>/<a:denied:877399177208954912>", value="0/0 %")
-        msgsent = await ctx.send(embed=embed)
+        msgsent = await ctx.respond(embed=embed,ephemeral=True)
         await msgsent.add_reaction("<a:verified:875327156572532736>")
         await msgsent.add_reaction("<a:denied:877399177208954912>")
         results = (f"INSERT INTO polls (messageid) VALUES($1);")
@@ -9263,20 +9360,28 @@ class Giveaways(commands.Cog):
         async with pool.acquire() as con:
             await con.execute(f"DELETE FROM polls WHERE messageid = {msgsent.id}")
 
-    @commands.command(brief='This command can be used to do a instant giveaway for all the members provided.', description='This command can be used to do a instant giveaway for all the members provided and can be used by members having manage guild permission.', usage="@member,@othermember")
+    @bridge.bridge_command(brief='This command can be used to do a instant giveaway for all the members provided.', description='This command can be used to do a instant giveaway for all the members provided and can be used by members having manage guild permission.', usage="@member,@othermember")
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
                         commands.has_permissions(manage_guild=True))
-    async def instantgiveaway(self, ctx, members: Greedy[discord.Member]):
+    async def instantgiveaway(self, ctx, greedymembers:str):
+        membernames=greedymembers
+        members=[]
+        for membername in membernames.split(","):
+            try:
+                member = await commands.MemberConverter().convert(ctx, membername)
+            except:
+                pass
+            else:
+                members.append(member)
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
-            return
         length = len(members)
         randomnumber = random.randrange(0, (length - 1))
-        await ctx.send(
-            f"{members[randomnumber].mention} has won the giveaway hosted by {ctx.author.mention}.")
+        await ctx.respond(
+            f"{members[randomnumber].mention} has won the giveaway hosted by {ctx.author.mention}.",ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to do a giveaway with a prize for certain time interval.',
         description='This command can be used to do a giveaway with a prize for certain time interval and can be used by members having manage guild permission.',
         usage="")
@@ -9286,9 +9391,10 @@ class Giveaways(commands.Cog):
     async def giveawaystart(self, ctx):
         check_ensure_permissions(ctx, ctx.guild.me, [
                                  "manage_messages", "read_message_history", "add_reactions"])
+        await ctx.interaction.response.defer()
         count = 1
-        await ctx.send(
-            "Let's start with this giveaway! Answer these questions within 15 seconds!"
+        await ctx.respond(
+            "Let's start with this giveaway! Answer these questions within 15 seconds!",ephemeral=True
         )
 
         questions = [
@@ -9304,7 +9410,7 @@ class Giveaways(commands.Cog):
             count = count + 1
             return m.author == ctx.author and m.channel == ctx.channel
 
-        await ctx.send("How many members will be winners of this giveaway ?")
+        await ctx.respond("How many members will be winners of this giveaway ?",ephemeral=True)
         count = count + 1
         try:
             msg = await client.wait_for('message', timeout=15.0, check=check)
@@ -9312,8 +9418,8 @@ class Giveaways(commands.Cog):
             try:
                 await ctx.channel.purge(limit=count)
             except:
-                await ctx.send(
-                    "I do not have `manage messages` permissions to delete messages."
+                await ctx.respond(
+                    "I do not have `manage messages` permissions to delete messages.",ephemeral=True
                 )
         try:
             membercount = int(msg.content)
@@ -9321,8 +9427,8 @@ class Giveaways(commands.Cog):
             try:
                 await ctx.channel.purge(limit=count)
             except:
-                await ctx.send(
-                    "I do not have `manage messages` permissions to delete messages."
+                await ctx.respond(
+                    "I do not have `manage messages` permissions to delete messages.",ephemeral=True
                 )
             await on_command_error(ctx,
                                    "You didn't answer with a valid number.")
@@ -9331,8 +9437,8 @@ class Giveaways(commands.Cog):
             try:
                 await ctx.channel.purge(limit=count)
             except:
-                await ctx.send(
-                    "I do not have `manage messages` permissions to delete messages."
+                await ctx.respond(
+                    "I do not have `manage messages` permissions to delete messages.",ephemeral=True
                 )
             await on_command_error(ctx,
                                    "You didn't answer with a proper number , Give a number above zero."
@@ -9340,7 +9446,7 @@ class Giveaways(commands.Cog):
             return
 
         for i in questions:
-            await ctx.send(i)
+            await ctx.respond(i,ephemeral=True)
             count = count + 1
             try:
                 msg = await client.wait_for('message',
@@ -9350,8 +9456,8 @@ class Giveaways(commands.Cog):
                 try:
                     await ctx.channel.purge(limit=count)
                 except:
-                    await ctx.send(
-                        "I do not have `manage messages` permissions to delete messages."
+                    await ctx.respond(
+                        "I do not have `manage messages` permissions to delete messages.", ephemeral=True
                     )
 
                 await on_command_error(ctx,
@@ -9365,8 +9471,8 @@ class Giveaways(commands.Cog):
             try:
                 await ctx.channel.purge(limit=count)
             except:
-                await ctx.send(
-                    "I do not have `manage messages` permissions to delete messages."
+                await ctx.respond(
+                    "I do not have `manage messages` permissions to delete messages.",ephemeral=True
                 )
             await on_command_error(ctx,
                                    f"You didn't mention a channel properly. Do it like this {ctx.channel.mention} next time."
@@ -9388,8 +9494,8 @@ class Giveaways(commands.Cog):
             try:
                 await ctx.channel.purge(limit=count)
             except:
-                await ctx.send(
-                    "I do not have `manage messages` permissions to delete messages."
+                await ctx.respond(
+                    "I do not have `manage messages` permissions to delete messages.",ephemeral=True
                 )
 
             await on_command_error(ctx,
@@ -9401,8 +9507,8 @@ class Giveaways(commands.Cog):
             try:
                 await ctx.channel.purge(limit=count)
             except:
-                await ctx.send(
-                    "I do not have `manage messages` permissions to delete messages."
+                await ctx.respond(
+                    "I do not have `manage messages` permissions to delete messages.",ephemeral=True
                 )
 
             await on_command_error(ctx,
@@ -9413,8 +9519,8 @@ class Giveaways(commands.Cog):
             try:
                 await ctx.channel.purge(limit=count)
             except:
-                await ctx.send(
-                    "I do not have `manage messages` permissions to delete messages."
+                await ctx.respond(
+                    "I do not have `manage messages` permissions to delete messages.",ephemeral=True
                 )
             await on_command_error(ctx,
                                    "The time must be an positive number. Please enter an positive number next time."
@@ -9427,8 +9533,8 @@ class Giveaways(commands.Cog):
         try:
             await ctx.channel.purge(limit=count)
         except:
-            await ctx.send(
-                "I do not have `manage messages` permissions to delete messages."
+            await ctx.respond(
+                "I do not have `manage messages` permissions to delete messages.",ephemeral=True
             )
 
         embedOne = discord.Embed(title="Giveaways🎉",
@@ -9477,7 +9583,7 @@ class Giveaways(commands.Cog):
                         f"Congratulations! {winner.mention} won the giveaway of **{prize}** ({msgurl})"
                     )
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to select a giveaway winner.',
         description='This command can be used to select a giveaway winner and can be used by members having manage guild permission.',
         usage="#channel winner giveawayid prize")
@@ -9486,6 +9592,7 @@ class Giveaways(commands.Cog):
                         commands.has_permissions(manage_guild=True))
     async def selectroll(self, ctx, channel: discord.TextChannel,
                          winner: discord.Member, id_: int, prize: str):
+        await ctx.interaction.response.defer()
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
             return
@@ -9507,7 +9614,7 @@ class Giveaways(commands.Cog):
             f"Congratulations {winner.mention} won the giveaway of **{prize}** ({msgurl})"
         )
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to re-select a new giveaway winner.',
         description='This command can be used to select a new giveaway winner and can be used by members having manage guild permission.',
         usage="#channel giveawayid prize")
@@ -9516,6 +9623,7 @@ class Giveaways(commands.Cog):
                         commands.has_permissions(manage_guild=True))
     async def reroll(self, ctx, channel: discord.TextChannel, id_: int, *,
                      prize: str):
+        await ctx.interaction.response.defer()
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
             return
@@ -9552,7 +9660,7 @@ client.add_cog(Giveaways(client))
 class Support(commands.Cog):
     """ Support related commands """
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to add reaction to a message.',
         description='This command can be used to add reaction to a message.',
         usage="emoji messageid", aliases=["react", "addreact"])
@@ -9564,9 +9672,9 @@ class Support(commands.Cog):
         if isinstance(emoji, int):
             emoji = client.get_emoji(emoji)
         await message.add_reaction(emoji)
-        await ctx.send(f"Successfully added the reaction {emoji} to the message.")
+        await ctx.respond(f"Successfully added the reaction {emoji} to the message.",ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used for disabling all commands by admin per guild.',
         description='This command can be used for disabling all commands by admin per guild.',
         usage="command", aliases=["disableallcmd", "disableallcommand"])
@@ -9587,9 +9695,9 @@ class Support(commands.Cog):
                         await con.execute(statement, ctx.guild.id, command.name)
                 except:
                     pass
-        await ctx.send(f"Successfully disabled the commands!")
+        await ctx.respond(f"Successfully disabled the commands!",ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used for enabling all commands by admin per guild.',
         description='This command can be used for enabling all commands by admin per guild.',
         usage="command", aliases=["enableallcmd", "enableallcommand"])
@@ -9609,9 +9717,9 @@ class Support(commands.Cog):
                         commandlist = await con.fetchrow(f"DELETE FROM commandguildstatus WHERE guildid = {ctx.guild.id} AND commandname = '{command.name}'")
                 except:
                     pass
-        await ctx.send(f"Successfully enabled the commands!")
+        await ctx.respond(f"Successfully enabled the commands!",ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used for disabling a command by admin per guild.',
         description='This command can be used for disabling a command by admin per guild.',
         usage="command", aliases=["disablecmd", "disablecommand"])
@@ -9637,9 +9745,9 @@ class Support(commands.Cog):
                 await con.execute(statement, ctx.guild.id, command)
         except:
             pass
-        await ctx.send(f"Successfully disabled the command {command}.")
+        await ctx.respond(f"Successfully disabled the command {command}.",ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used for enabling a command by admin per guild.',
         description='This command can be used for enabling a command by admin per guild.',
         usage="command", aliases=["enablecmd", "enablecommand"])
@@ -9664,9 +9772,9 @@ class Support(commands.Cog):
                 commandlist = await con.fetchrow(f"DELETE FROM commandguildstatus WHERE guildid = {ctx.guild.id} AND commandname = '{command}'")
         except:
             pass
-        await ctx.send(f"Successfully enabled the command {command}.")
+        await ctx.respond(f"Successfully enabled the command {command}.",ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used for disabling a command by bot staff.',
         description='This command can be used for disabling a command by bot staff.',
         usage="command", aliases=["bug", "dstaff"])
@@ -9682,9 +9790,9 @@ class Support(commands.Cog):
                 f"The command {command.name} is already disabled.")
             return
         command.enabled = False
-        await ctx.send(f"The {command.name} command was successfully disabled.")
+        await ctx.respond(f"The {command.name} command was successfully disabled.",ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used for enabling a command by bot staff.',
         description='This command can be used for enabling a command by bot staff.',
         usage="command", aliases=["unbug", "estaff"])
@@ -9700,9 +9808,9 @@ class Support(commands.Cog):
                 f"The command {command.name} is already enabled.")
             return
         command.enabled = True
-        await ctx.send(f"The {command.name} command was successfully enabled.")
+        await ctx.respond(f"The {command.name} command was successfully enabled.",ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used for sending a webhook message by developer.',
         description='This command can be used for sending a webhook message by developer.',
         usage="text webhookurl username avatarurl", aliases=["webhook"])
@@ -9722,7 +9830,7 @@ class Support(commands.Cog):
         webhook = Webhook.from_url(hookurl, session=session)
         await webhook.send(text, username=userprovided, avatar_url=avatarprovided, discriminator=ctx.author.discriminator)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used for sending a announcement message by developer.',
         description='This command can be used for sending a announcement message by developer.',
         usage="text", aliases=["announce"])
@@ -9736,15 +9844,20 @@ class Support(commands.Cog):
         session=client.session
         webhook = Webhook.from_url(hookurl, session=session)
         msg = await webhook.send(text)
-        await ctx.send(f"Successfully sent annoucement with id {msg.id} .")
+        await ctx.respond(f"Successfully sent annoucement with id {msg.id} .",ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to delete a embed and message.',
         description='This command can be used to delete a embed and message.',
         usage="messageid")
     @commands.guild_only()
     @is_bot_staff()
     async def deletemessage(self, ctx, msgid: int = None):
+        await ctx.interaction.response.defer()
+        try:
+            await ctx.message.delete()
+        except:
+            pass
         channel = ctx.channel
         if not msgid == None:
             try:
@@ -9769,7 +9882,7 @@ class Support(commands.Cog):
                     return
                 await ctx.author.send(f" The message with id {refermsg.id} was successfully deleted!")
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to approve a user to TEMP bot staff access.',
         description='This command can be used to approve a user to bypass TEMP bot staff access.',
         usage="@member")
@@ -9806,8 +9919,8 @@ class Support(commands.Cog):
         if timemsg is None:
             timemsg = "next bot restart"
         try:
-            msg = await ctx.send(
-                f"{member.mention} has been added as a temp bot-staff till {timemsg} by {ctx.author.mention} (STATUS <a:loadingone:877403280391696444>)."
+            msg = await ctx.respond(
+                f"{member.mention} has been added as a temp bot-staff till {timemsg} by {ctx.author.mention} (STATUS <a:loadingone:877403280391696444>).", ephemeral=True
             )
             await msg.add_reaction(":hammer:")
         except:
@@ -9824,7 +9937,7 @@ class Support(commands.Cog):
             except:
                 pass
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to give response to a reported bug in the support server by bot staff.',
         description='This command can be used to give response to a reported bug in the support server by bot staff.',
         usage="bug-id bug-solution", aliases=["solvedbug", "patchbug"])
@@ -9832,6 +9945,7 @@ class Support(commands.Cog):
     @is_bot_staff()
     async def solveBug(self, ctx, bugid: int, *, solution: str):
         global channelbuglogging
+        await ctx.interaction.response.defer()
         theBugMessage = await channelbuglogging.fetch_message(int(bugid))
 
         embedtwo = discord.Embed(title=f"Bug patched",
@@ -9858,7 +9972,7 @@ class Support(commands.Cog):
             embedOne.color = Color.green()
             await theBugMessage.edit(embed=embedOne)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to give response to a reported bug in the support server by bot staff.',
         description='This command can be used to give response to a reported bug in the support server by bot staff.',
         usage="bug-id", aliases=["acknowlegedbug", "pendingbug"])
@@ -9866,6 +9980,7 @@ class Support(commands.Cog):
     @is_bot_staff()
     async def seenBug(self, ctx, bugid: int):
         global channelbuglogging
+        await ctx.interaction.response.defer()
         theBugMessage = await channelbuglogging.fetch_message(int(bugid))
         listEmbeds = theBugMessage.embeds
         for embedOne in listEmbeds:
@@ -9879,7 +9994,7 @@ class Support(commands.Cog):
         except:
             pass
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to report a bug in the support server.',
         description='This command can be used to report a bug in the support server.',
         usage="command bug-description")
@@ -9940,9 +10055,9 @@ class Support(commands.Cog):
         report = f"Bug report ({report})"
         report = report+userdetails
         # make_github_issue(f"{commandname} issue",report,labels)
-        await ctx.send(f"{ctx.author.mention} Your bug report was successfully reported to the support server with id {messageSent.id}!")
+        await ctx.respond(f"{ctx.author.mention} Your bug report was successfully reported to the support server with id {messageSent.id}!",ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to prompt a user to vote for accessing exclusive commands..',
         description='This command can be used to prompt a user to vote for accessing exclusive commands.',
         usage="@member")
@@ -9950,7 +10065,7 @@ class Support(commands.Cog):
     @is_bot_staff()
     async def promptvote(self, ctx, member: discord.Member = None):
         if not member is None:
-            mentionsent = await ctx.send(member.mention)
+            mentionsent = await ctx.respond(member.mention, ephemeral=True)
         embedOne = discord.Embed(title="Voting benefits",
                                  description="",
                                  color=Color.green())
@@ -9962,136 +10077,11 @@ class Support(commands.Cog):
         embedOne.add_field(name=(f"Do not forget to vote for our bot."),
                            value="** **",
                            inline=False)
-        await ctx.send(embed=embedOne)
+        await ctx.respond(embed=embedOne,ephemeral=True)
         cmd = client.get_command("vote")
         await cmd(ctx)
 
-    @commands.command(
-        brief='This command can be used to send messages in a certain channel.',
-        description='This command can be used to send messages in a certain channel.',
-        usage="channelid")
-    @is_bot_staff()
-    async def sendchannel(self, ctx, channels: Greedy[discord.TextChannel]):
-        check_ensure_permissions(
-            ctx, ctx.guild.me, ["manage_messages", "read_message_history"])
-        if len(channels) == 0:
-            raise commands.BadArgument("Nothing")
-
-        # guildsent=client.get_guild(guildid)
-        for channel in channels:
-            if not channel.permissions_for(ctx.guild.me).send_messages:
-                await on_command_error(ctx, commands.BotMissingPermissions(["send_messages"]))
-            if not channel.permissions_for(ctx.guild.me).view_channel:
-                await on_command_error(ctx, commands.BotMissingPermissions(["view_channel"]))
-            if not channel.permissions_for(ctx.guild.me).embed_links:
-                await on_command_error(ctx, commands.BotMissingPermissions(["embed_links"]))
-            await ctx.send(str(channel))
-            count = 5
-
-            def check(message):
-                nonlocal count
-                count = count + 1
-                # print(f"{count} has been incremented.")
-                return message.author == ctx.author and message.channel == ctx.channel
-
-            await ctx.send('What is the title ?')
-            title = await client.wait_for('message', check=check)
-
-            await ctx.send('What is the description ?')
-            desc = await client.wait_for('message', check=check)
-            await ctx.send(' What is the footer ?')
-            footertxt = await client.wait_for('message', check=check)
-            await ctx.send(' What is the footer url ?')
-            footerurl = await client.wait_for('message', check=check)
-            # print(f"Total count : {count}")
-            try:
-                await ctx.channel.purge(limit=count)
-            except:
-                try:
-                    await ctx.send(
-                        "I do not have `manage messages` permissions to delete messages."
-                    ) + "** **"
-                except:
-                    pass
-            embedone = discord.Embed(title=title.content,
-                                     description=desc.content,
-                                     color=Color.green())
-            embedone.set_footer(text=footertxt.content,
-                                icon_url=footerurl.content)
-            await ctx.send(embed=embedone)
-            if channel.type == discord.ChannelType.text and channel.permissions_for(
-                    channel.guild.me).send_messages and channel.permissions_for(
-                    channel.guild.me).embed_links:
-                try:
-                    messageSent = await channel.send(embed=embedone)
-                    await ctx.send(f"Successfully sent message with id : {messageSent.id} ")
-                except:
-                    await ctx.send(
-                        f"I cannot send messages in {channel.name}({channel.guild})."
-                    )
-                break
-
-    @commands.command(
-        brief='This command can be used to send messages in a certain guild.',
-        description='This command can be used to send messages in a certain guild.',
-        usage="guildid")
-    @is_bot_staff()
-    async def sendguild(self, ctx, guilds: Greedy[discord.Guild]):
-        check_ensure_permissions(
-            ctx, ctx.guild.me, ["manage_messages", "read_message_history"])
-        if len(guilds) == 0:
-            raise commands.BadArgument("Nothing")
-
-        # guildsent=client.get_guild(guildid)
-        for guildsent in guilds:
-            await ctx.send(str(guildsent))
-            count = 5
-
-            def check(message):
-                nonlocal count
-                count = count + 1
-                # print(f"{count} has been incremented.")
-                return message.author == ctx.author and message.channel == ctx.channel
-
-            await ctx.send('What is the title ?')
-            title = await client.wait_for('message', check=check)
-
-            await ctx.send('What is the description ?')
-            desc = await client.wait_for('message', check=check)
-            await ctx.send(' What is the footer ?')
-            footertxt = await client.wait_for('message', check=check)
-            await ctx.send(' What is the footer url ?')
-            footerurl = await client.wait_for('message', check=check)
-            # print(f"Total count : {count}")
-            try:
-                await ctx.channel.purge(limit=count)
-            except:
-                try:
-                    await ctx.send(
-                        "I do not have `manage messages` permissions to delete messages."
-                    ) + "** **"
-                except:
-                    pass
-            embedone = discord.Embed(title=title.content,
-                                     description=desc.content,
-                                     color=Color.green())
-            embedone.set_footer(text=footertxt.content,
-                                icon_url=footerurl.content)
-            await ctx.send(embed=embedone)
-            for channel in guildsent.channels:
-                if channel.type == discord.ChannelType.text and channel.permissions_for(
-                        guildsent.me).send_messages and channel.permissions_for(
-                            guildsent.me).embed_links:
-                    try:
-                        messageSent = await channel.send(embed=embedone)
-                        await ctx.send(f"Successfully sent message with id : {messageSent.id} ")
-                    except:
-                        await ctx.send(
-                            f"I cannot send messages in {channel.name}({guildsent})."
-                        )
-                    break
-
-    @commands.command(
+    @bridge.bridge_command(
         aliases=['maintanance', 'maintenance', 'togglem'],
         brief='This command can be used for maintainence mode.',
         description='This command can be used for maintainence mode.',
@@ -10101,10 +10091,10 @@ class Support(commands.Cog):
         global maintenancemodestatus
         maintenancemodestatus = not maintenancemodestatus
         if maintenancemodestatus:
-            await ctx.send(
-                f"The bot has been marked to be in maintainence mode.")
+            await ctx.respond(
+                f"The bot has been marked to be in maintainence mode.",ephemeral=True)
         else:
-            await ctx.send(f"The bot has been marked to be back and running. "
+            await ctx.respond(f"The bot has been marked to be back and running. ",ephemeral=True
                            )
         if maintenancemodestatus:
             activity = discord.Activity(name="currently in maintainence mode.",
@@ -10116,7 +10106,7 @@ class Support(commands.Cog):
             await client.change_presence(activity=activity)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used for generating a real looking token for a user.',
         description='This command can be used for generating a real looking token for a user.',
         usage="", aliases=["randomtoken", "guesstoken", "gentoken", "generatetoken"])
@@ -10152,10 +10142,10 @@ class Support(commands.Cog):
         embed.add_field(name='User-id', value=member.id)
         embed.add_field(name='Generated token', value=randomtoken)
         embed.set_author(name=member.name, icon_url=asset)
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed,ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used for checking a token.',
         description='This command can be used for checking a token.',
         usage="", aliases=["checktoken", "token"])
@@ -10223,9 +10213,9 @@ class Support(commands.Cog):
             "." + original_string[last_char_index+1:]
         embed.add_field(name='User-flags', value=new_string)
         embed.set_author(name=user.name, icon_url=asset)
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used for checking user votes.',
         description='This command can be used for checking user votes.',
         usage="@member")
@@ -10245,12 +10235,12 @@ class Support(commands.Cog):
                 description="No Vote registered",
                 color=Color.red())
         try:
-            await ctx.send(embed=embedOne)
+            await ctx.respond(embed=embedOne,ephemeral=True)
         except:
             pass
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to get support-server invite.',
         description='This command can be used to get support-server invite.',
         usage="")
@@ -10267,21 +10257,21 @@ class Support(commands.Cog):
                            value="** **",
                            inline=False)
         try:
-            await ctx.send(embed=embedOne)
+            await ctx.respond(embed=embedOne,ephemeral=True)
         except:
             pass
 
-    @commands.command(brief='This command can be used to get uptime of this bot.', description='This command can be used to get uptime of this bot.', usage="")
+    @bridge.bridge_command(brief='This command can be used to get uptime of this bot.', description='This command can be used to get uptime of this bot.', usage="")
     @is_bot_staff()
     async def uptime(self, ctx):
         delta_uptime = datetime.utcnow() - bot.launch_time
         hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
         days, hours = divmod(hours, 24)
-        await ctx.send(f"I have been online for {days}d, {hours}h, {minutes}m, {seconds}s")
+        await ctx.respond(f"I have been online for {days}d, {hours}h, {minutes}m, {seconds}s",ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to invite this bot.',
         description='This command can be used to invite this bot.',
         usage="")
@@ -10291,12 +10281,12 @@ class Support(commands.Cog):
         embed = discord.Embed(
             title="Bot invitation", description=f"Invite {client.user.name} by this [url]({link} \" Aestron.\").")
         try:
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
         except:
-            await ctx.send(f"Invite {client.user.name} by this {link}.")
+            await ctx.respond(f"Invite {client.user.name} by this {link}.",ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to vote for this bot.',
         description='This command can be used to vote for this bot.',
         usage="", disabled=True)
@@ -10308,12 +10298,12 @@ class Support(commands.Cog):
                            value="** **",
                            inline=False)
         try:
-            await ctx.send(embed=embedOne)
+            await ctx.respond(embed=embedOne,ephemeral=True)
         except:
-            await ctx.send("**Voting websites :**")
-            await ctx.send("https://top.gg/bot/1061480715172200498/vote")
+            await ctx.respond("**Voting websites :**",ephemeral=True)
+            await ctx.respond("https://top.gg/bot/1061480715172200498/vote",ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to see bot joined servers.',
         description='This command can be used to see bot joined servers.',
         usage="")
@@ -10324,19 +10314,19 @@ class Support(commands.Cog):
                                  description="",
                                  color=Color.green())
         for guild in client.guilds:
-            await ctx.send(
-                f"{guild} is moderated by {client.user.name} with {guild.member_count} members."
+            await ctx.respond(
+                f"{guild} is moderated by {client.user.name} with {guild.member_count} members.",ephemeral=True
             )
             count = count + 1
         embedOne.add_field(name=f"Total number of guilds : {count}.",
                            value="** **",
                            inline=False)
         try:
-            await ctx.send(embed=embedOne)
+            await ctx.respond(embed=embedOne,ephemeral=True)
         except:
             pass
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to make bot status offline.',
         description='This command can be used to make bot status offline.',
         usage="")
@@ -10345,7 +10335,7 @@ class Support(commands.Cog):
         await client.change_presence(status=discord.Status.invisible)
         # print(f"Status was changed to invisible in {ctx.guild}")
 
-    @commands.command(aliases=["patchedbuilds", "botbuilds"],
+    @bridge.bridge_command(aliases=["patchedbuilds", "botbuilds"],
                       brief='This command shows all bot builds.',
                       description='This command shows all bot builds and can be used by bot staff. ')
     @commands.guild_only()
@@ -10359,11 +10349,11 @@ class Support(commands.Cog):
                 title=f"Build #{count}", description=build[1], timestamp=build[0])
             embed.add_field(
                 name=build[2], value="** **")
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
             count = count + 1
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to patch a build.',
         description='This command can be used patch a build and can be used by bot staff.',
         usage="buildname buildchanges", aliases=["patch"])
@@ -10374,7 +10364,7 @@ class Support(commands.Cog):
             embed = discord.Embed(
                 title=buildname, description="NOTE : builds usually get patched within 10-30 minutes , beware of bot restarts!", timestamp=datetime.today())
             embed.add_field(name="Build information", value=buildchanges)
-            msgsent = await ctx.send("Give confirmation to confirm 👍 this build ! ")
+            msgsent = await ctx.respond("Give confirmation to confirm 👍 this build ! ",ephemeral=True)
             await msgsent.add_reaction("👍")
 
             def check(reaction, user):
@@ -10383,9 +10373,9 @@ class Support(commands.Cog):
             try:
                 reaction, user = await client.wait_for('reaction_add', timeout=60.0, check=check)
             except asyncio.TimeoutError:
-                await ctx.send(f'👎 Alright the build named {buildname} was cancelled .')
+                await ctx.respond(f'👎 Alright the build named {buildname} was cancelled .',ephemeral=True)
             else:
-                await ctx.send('👍 Nice ,the build has been patched !')
+                await ctx.respond('👍 Nice ,the build has been patched !',ephemeral=True)
                 results = (
                     f"INSERT INTO botbuilds (buildtime,buildname,buildchanges) VALUES($1, $2, $3);")
                 async with pool.acquire() as con:
@@ -10393,7 +10383,7 @@ class Support(commands.Cog):
                 await channelbuildlogging.send(embed=embed)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to save code in python.',
         description='This command can be used to save code in python.',
         usage="*Code*", aliases=["savecode", "sharecode"])
@@ -10406,10 +10396,10 @@ class Support(commands.Cog):
                                  description=(
                                      f"Your python code is saved in {pastecode.url}"),
                                  color=Color.green())
-        await ctx.send(embed=embedtwo)
+        await ctx.respond(embed=embedtwo,ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=["execlang", "execlanguage"],
+    @bridge.bridge_command(aliases=["execlang", "execlanguage"],
                       brief='This command can be used to execute code in total of 6 languges!',
                       description='This command can be used to execute code in total of 6 languges!',
                       usage="*Code*")
@@ -10418,10 +10408,10 @@ class Support(commands.Cog):
             title="Select a language to execute code!", description="")
         codeblock = getcodeblock(code)
         code = codeblock[1]
-        await ctx.send(embed=embed, view=CodingLanguageView(code, ctx.author, ctx.channel))
+        await ctx.respond(embed=embed, view=CodingLanguageView(code, ctx.author, ctx.channel), ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to execute code in python.',
         description='This command can be used to execute code in python.',
         usage="*Code*", aliases=["exec", "runcode", "run"])
@@ -10514,19 +10504,19 @@ class Support(commands.Cog):
         except:
             pass
         try:
-            await ctx.send(embed=embedtwo, file=myFile)
+            await ctx.respond(embed=embedtwo, file=myFile,ephemeral=True)
         except:
             myFile = discord.File(io.StringIO(
                 str(output)), filename="output.text")
             try:
-                await ctx.send(embed=defaultembed, file=myFile)
+                await ctx.respond(embed=defaultembed, file=myFile,ephemeral=True)
             except:
                 try:
                     await ctx.message.add_reaction(":warning:")
                 except:
                     pass
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to evaluate a expression in python by bot staff.',
         description='This command can be used to evaluate a expression in python by bot staff.',
         usage="Your ", aliases=["output"])
@@ -10551,11 +10541,11 @@ class Support(commands.Cog):
                              ),
                 color=Color.red())
         try:
-            await ctx.send(embed=embedone)
+            await ctx.respond(embed=embedone,ephemeral=True)
         except:
             pass
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to create an embed with message.',
         description='This command can be used to create an embed with message and can be used by members having manage guild permission.',
         usage="", aliases=["embed", "message", "createmessage", "messagecreate", "createembed"])
@@ -10572,18 +10562,18 @@ class Support(commands.Cog):
             # print(f"{count} has been incremented.")
             return message.author == ctx.author and message.channel == ctx.channel
 
-        await ctx.send('What is the title ?')
+        await ctx.respond('What is the title ?',ephemeral=True)
         title = await client.wait_for('message', check=check)
 
-        await ctx.send('What is the description ?')
+        await ctx.respond('What is the description ?',ephemeral=True)
         desc = await client.wait_for('message', check=check)
         # print(f"Total count : {count}")
         try:
             await ctx.channel.purge(limit=count)
         except:
             try:
-                await ctx.send(
-                    "I do not have `manage messages` permissions to delete messages."
+                await ctx.respond(
+                    "I do not have `manage messages` permissions to delete messages.",ephemeral=True
                 )
             except:
                 pass
@@ -10592,9 +10582,9 @@ class Support(commands.Cog):
                                  color=Color.green())
         embedone.set_footer(
             text=f"Created by {ctx.author.name} using embedcreate command.")
-        await ctx.send(embed=embedone)
+        await ctx.respond(embed=embedone,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to make bot status online.',
         description='This command can be used to make bot status online.',
         usage="")
@@ -10629,7 +10619,7 @@ class Music(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.command(aliases=["next"],
+    @bridge.bridge_command(aliases=["next"],
                       brief='This command can be used to skip the currently playing song.',
                       description='This command can be used to skip the currently playing song by song invoke or members having manage channel permission.',
                       usage="")
@@ -10651,15 +10641,15 @@ class Music(commands.Cog):
             await on_command_error(ctx, f"You cannot skip the song played by <@{guildmusicauthor[ctx.guild.id][0]}>")
             return
         try:
-            await ctx.send(
-                f"The song {playingmusic} was skipped by {author.mention} .")
+            await ctx.respond(
+                f"The song {playingmusic} was skipped by {author.mention} .",ephemeral=True)
             guildmusicloop[ctx.guild.id] = False
             guildmusicskipped[ctx.guild.id] = True
             await ctx.guild.voice_client.stop()
         except:
             pass
 
-    @commands.command(aliases=['vc', 'connect'],
+    @bridge.bridge_command(aliases=['vc', 'connect'],
                       brief='This command can be used to summon the bot in your voice channel.',
                       description='This command can be used to summon the bot in your voice channel.',
                       usage="")
@@ -10679,7 +10669,7 @@ class Music(commands.Cog):
             await on_command_error(ctx, " The channel provided was not in this guild.")
             return
         try:
-            await ctx.send(f"I have successfully connected to {channel.mention}")
+            await ctx.respond(f"I have successfully connected to {channel.mention}",ephemeral=True)
         except:
             pass
         if ctx.voice_client is not None:
@@ -10688,7 +10678,7 @@ class Music(commands.Cog):
         await channel.connect()
 
     @commands.cooldown(1, 45, BucketType.member)
-    @commands.command(aliases=["lyrics"],
+    @bridge.bridge_command(aliases=["lyrics"],
                       brief='This command can be used to get subtitles/lyrics of a song.',
                       description='This command can be used to get subtitles/lyrics of a song.',
                       usage="songname")
@@ -10719,10 +10709,10 @@ class Music(commands.Cog):
             embed.set_thumbnail(url=output['image'])
         except:
             pass
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed,ephemeral=True)
 
     @commands.cooldown(1, 15, BucketType.member)
-    @commands.command(aliases=["np", "nowplaying"],
+    @bridge.bridge_command(aliases=["np", "nowplaying"],
                       brief='This command can be used to check the currently playing song.',
                       description='This command can be used to check the currently playing song.',
                       usage="")
@@ -10732,7 +10722,7 @@ class Music(commands.Cog):
         if guildmusiccp[ctx.guild.id]:
             embedVar = discord.Embed(title=f"Currently playing message",
                                      description=f"[Jump to message]({guildmusiccp[ctx.guild.id][1]})")
-            await ctx.send(embed=embedVar)
+            await ctx.respond(embed=embedVar,ephemeral=True)
             return
         playingmusic = None
         try:
@@ -10765,11 +10755,11 @@ class Music(commands.Cog):
         pbar = pbar + \
             f" [`{timedelta(seconds=guildmusictime[ctx.guild.id])}`/`{timedelta(seconds=guildmusictotaltime[ctx.guild.id])}`]"
         embedVar.add_field(name=playingmusic, value=pbar)
-        message = await ctx.send(embed=embedVar)
+        message = await ctx.respond(embed=embedVar,ephemeral=True)
         await currentlyplayingslider(message, ctx.guild, guildmusiccurrent[ctx.guild.id])
 
     @commands.cooldown(1, 45, BucketType.member)
-    @commands.command(aliases=["p"],
+    @bridge.bridge_command(aliases=["p"],
                       brief='This command can be used to play a song.',
                       description='This command can be used to play a song in a voice channel.',
                       usage="songname")
@@ -10779,7 +10769,7 @@ class Music(commands.Cog):
         await playmusic(ctx, songname)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(aliases=['exit', 's', 'leave', 'disconnect', 'dc'],
+    @bridge.bridge_command(aliases=['exit', 's', 'leave', 'disconnect', 'dc'],
                       brief='This command can be used to stop the playing song.',
                       description='This command can be used to stop the playing song in a voice channel.',
                       usage="")
@@ -10797,8 +10787,8 @@ class Music(commands.Cog):
             guildmusicname[ctx.guild.id].clear()
             guildmusicqueue[ctx.guild.id].clear()
             try:
-                await ctx.send(
-                    f"The audio has been stopped by {author.mention}")
+                await ctx.respond(
+                    f"The audio has been stopped by {author.mention}",ephemeral=True)
             except:
                 pass
             guildmusicskipped[ctx.guild.id] = True
@@ -10831,7 +10821,7 @@ class YoutubeTogether(commands.Cog):
     """This youtube command can play a video"""
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(brief='This command can be used to start a youtube activity in a voice channel.',
+    @bridge.bridge_command(brief='This command can be used to start a youtube activity in a voice channel.',
                       description='This command can be used to start a youtube activity in a voice channel.',
                       usage="", aliases=["youtubevideo", "video", "yt", "youtube", "ytstart"])
     @commands.guild_only()
@@ -10848,7 +10838,7 @@ class YoutubeTogether(commands.Cog):
         )
         embedVar.set_footer(
             text="Youtube together is a discord beta feature only supported on desktop versions of discord.")
-        await ctx.send(embed=embedVar)
+        await ctx.respond(embed=embedVar, ephemeral=True)
         # Alternatively, you can also use a bot variable to store and use DiscordTogether functions.
 
     @ytvideo.before_invoke
@@ -11039,7 +11029,7 @@ async def startvc(ctx, player, nonotice, norepeat=False, count=1):
         elif count == 2:
             embed = discord.Embed(title="📬 Music interruption",
                                   description="```Problems encountered playing this song, trying to resume.```")
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed,ephemeral=True)
             guildmusiccp[ctx.guild.id] = False
             guildmusicname[ctx.guild.id] = collections.deque([])
             guildmusicqueue[ctx.guild.id] = collections.deque([])
@@ -11150,11 +11140,11 @@ async def waitqueue(ctx, currentmusiccount, player, nonotice=False, repeated=Fal
             return
         # print(f"Breaking loop for {songname} as {guildmusiccount[ctx.guild.id]}=={currentmusiccount}")
         if viewobj and ctx.voice_client:
-            viewobj.set_message(await ctx.send(embed=embedVar, view=viewobj))
+            viewobj.set_message(await ctx.respond(embed=embedVar, view=viewobj,ephemeral=True))
         asyncio.create_task(startvc(ctx, player, nonotice, repeated))
     else:
         if viewobj and ctx.voice_client:
-            viewobj.set_message(await ctx.send(embed=embedVar, view=viewobj))
+            viewobj.set_message(await ctx.respond(embed=embedVar, view=viewobj, ephemeral=True))
         asyncio.create_task(startvc(ctx, player, nonotice, repeated))
 
 
@@ -11236,7 +11226,7 @@ async def playmusic(ctx, songname, start=None, end=None, nonotice=False, search=
                                 icon_url=ctx.author.display_avatar)
             if not nonotice:
                 try:
-                    await ctx.send(embed=embedVar)
+                    await ctx.respond(embed=embedVar,ephemeral=True)
                 except:
                     pass
 
@@ -11308,7 +11298,7 @@ async def playmusic(ctx, songname, start=None, end=None, nonotice=False, search=
                                         icon_url=ctx.author.display_avatar)
                     if not nonotice:
                         try:
-                            await ctx.send(embed=embedVar)
+                            await ctx.respond(embed=embedVar,ephemeral=True)
                         except:
                             pass
                 t1 = asyncio.create_task(
@@ -11368,7 +11358,7 @@ async def playmusic(ctx, songname, start=None, end=None, nonotice=False, search=
                                     icon_url=ctx.author.display_avatar)
                 if not nonotice:
                     try:
-                        await ctx.send(embed=embedVar)
+                        await ctx.respond(embed=embedVar,ephemeral=True)
                     except:
                         pass
             t1 = asyncio.create_task(
@@ -11428,7 +11418,7 @@ async def playmusic(ctx, songname, start=None, end=None, nonotice=False, search=
                                     icon_url=ctx.author.display_avatar)
                 if not nonotice:
                     try:
-                        await ctx.send(embed=embedVar)
+                        await ctx.respond(embed=embedVar,ephemeral=True)
                     except:
                         pass
             t1 = asyncio.create_task(
@@ -11470,7 +11460,7 @@ async def playmusic(ctx, songname, start=None, end=None, nonotice=False, search=
                                     icon_url=ctx.author.display_avatar)
                 if not nonotice:
                     try:
-                        await ctx.send(embed=embedVar)
+                        await ctx.respond(embed=embedVar,ephemeral=True)
                     except:
                         pass
             t1 = asyncio.create_task(
@@ -11500,7 +11490,7 @@ async def playmusic(ctx, songname, start=None, end=None, nonotice=False, search=
                                 icon_url=ctx.author.display_avatar)
             if not nonotice:
                 try:
-                    await ctx.send(embed=embedVar)
+                    await ctx.respond(embed=embedVar,ephemeral=True)
                 except:
                     pass
         t1 = await waitqueue(ctx, currentmusiccount, player, nonotice, repeated=norepeat)
@@ -11567,7 +11557,7 @@ async def playmusic(ctx, songname, start=None, end=None, nonotice=False, search=
                 except:
                     pass
             pagview = PaginateSongEmbed(listOfEmbeds, playerlist)
-            await ctx.send(view=pagview, embed=listOfEmbeds[0])
+            await ctx.respond(view=pagview, embed=listOfEmbeds[0],ephemeral=True)
             await pagview.wait()
             if pagview.value is None:
                 player = playerlist[0]
@@ -11586,7 +11576,7 @@ async def playmusic(ctx, songname, start=None, end=None, nonotice=False, search=
                                     icon_url=ctx.author.display_avatar)
                 if not nonotice:
                     try:
-                        await ctx.send(embed=embedVar)
+                        await ctx.respond(embed=embedVar,ephemeral=True)
                     except:
                         pass
             t1 = await waitqueue(ctx, currentmusiccount, player, nonotice, repeated=norepeat)
@@ -11622,7 +11612,7 @@ async def playmusic(ctx, songname, start=None, end=None, nonotice=False, search=
                                         icon_url=ctx.author.display_avatar)
                     if not nonotice:
                         try:
-                            await ctx.send(embed=embedVar)
+                            await ctx.respond(embed=embedVar, ephemeral=True)
                         except:
                             pass
                 t1 = await waitqueue(ctx, currentmusiccount, player, nonotice, repeated=norepeat)
@@ -12253,7 +12243,7 @@ class ValorantControls(discord.ui.View):
     async def roundstats(self, button: discord.ui.Button, interaction: discord.Interaction):
         await interaction.response.defer()
         valoview = ValorantStats(self.matches, self.currentplayerid)
-        msg = await self.ctx.send(embed=valoview.embeds[0], view=valoview)
+        msg = await self.ctx.respond(embed=valoview.embeds[0], view=valoview,ephemeral=True)
         valoview.set_initial_message(msg)
         button.disabled = True
         await interaction.response.edit_message(view=self)
@@ -12266,7 +12256,7 @@ class ValorantControls(discord.ui.View):
         2️⃣ Most kills with weapon
         3️⃣ Common round losing reasons
         """)
-        await self.ctx.send(embed=embed, view=ValorantDetailedStats(self.matches, self.currentplayerid))
+        await self.ctx.respond(embed=embed, view=ValorantDetailedStats(self.matches, self.currentplayerid), ephemeral=True)
         button.disabled = True
         await interaction.response.edit_message(view=self)
 
@@ -12640,7 +12630,7 @@ def is_guild(provguild, provname):
 class CustomCommands(commands.Cog):
     """ Guild custom commands """
     @commands.cooldown(1, 120, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to check the custom commands in this guild.',
         description='This command can be used to check the custom commands in this guild.',
         usage="")
@@ -12658,9 +12648,9 @@ class CustomCommands(commands.Cog):
         if nocommands:
             embed.add_field(
                 name=":no_entry: Nothing to see there , add a command by a!addcommand.", value="** **")
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed,ephemeral=True)
 
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to add your own commands and a custom response.',
         description='This command can be used to add your own commands and a custom response and can be used by members having manage guild permission.',
         usage="commandname output", aliases=["addcustomcommand"])
@@ -12683,7 +12673,7 @@ class CustomCommands(commands.Cog):
                 await con.execute(f"UPDATE customcommands VALUES SET commandoutput = '{Cmdoutput}' WHERE guildid = {ctx.guild.id} AND commandname = '{Cmdname}'")
 
         @commands.cooldown(1, 30, BucketType.member)
-        @commands.command(
+        @bridge.bridge_command(
             name=Cmdname,
             brief='This command outputs your custom provided output.',
             description='This command outputs your custom provided output.',
@@ -12704,13 +12694,13 @@ class CustomCommands(commands.Cog):
                 embed = discord.Embed(
                     title=f"{ctx.command.name} command", description=output)
                 embed.set_footer(text=f"{ctx.guild}'s custom command")
-                await ctx.send(embed=embed)
+                await ctx.respond(embed=embed,ephemeral=True)
             else:
                 output = "Welp looks like this command has been erased from our databases <:offline:886434154412113961>."
                 embed = discord.Embed(
                     title=f"{ctx.command.name} command", description=output)
                 embed.set_footer(text=f"{ctx.guild}'s custom command (ERASED)")
-                await ctx.send(embed=embed)
+                await ctx.respond(embed=embed,ephemeral=True)
         cmd.cog = self
         # And add it to the cog and the bot
         self.__cog_commands__ = self.__cog_commands__ + (cmd, )
@@ -12718,10 +12708,10 @@ class CustomCommands(commands.Cog):
             client.add_command(cmd)
         except:
             pass
-        await ctx.send(f"Successfully added a command called {Cmdname}")
+        await ctx.respond(f"Successfully added a command called {Cmdname}",ephemeral=True)
 
     @commands.cooldown(1, 240, BucketType.member)
-    @commands.command(
+    @bridge.bridge_command(
         brief='This command can be used to remove your custom command.',
         description='This command can be used to remove your custom command an can be used by members having manage guild permission.',
         usage="commandname", aliases=["removecustomcommand"])
@@ -12738,10 +12728,10 @@ class CustomCommands(commands.Cog):
                 commandAcq = True
                 break
         if not commandAcq:
-            return await ctx.send(f"There is no custom command called {Cmdname}")
+            return await ctx.respond(f"There is no custom command called {Cmdname}", ephemeral=True)
         async with pool.acquire() as con:
             customlist = await con.fetchrow(f"DELETE FROM customcommands WHERE guildid = {ctx.guild.id} AND commandname = '{Cmdname}'")
-        await ctx.send(f"Successfully removed a command called {Cmdname}")
+        await ctx.respond(f"Successfully removed a command called {Cmdname}",ephemeral=True)
 
 
 client.add_cog(CustomCommands(client))
@@ -13342,7 +13332,7 @@ async def on_message(message):
                     embed = discord.Embed(
                         title="Google result", description=f"Scraping results for {title}")
                     scrn = await take_screenshot(ctx, url=googleurl)
-                    await ctx.send(file=scrn, embed=embed)
+                    await ctx.respond(file=scrn, embed=embed,ephemeral=True)
                 except Exception as ex:
                     print(f"Exception in trivia cmd : {ex}")
 
@@ -13384,7 +13374,7 @@ async def on_message(message):
                 async with pool.acquire() as con:
                     warninglist = await con.fetchrow(f"SELECT * FROM levelsettings WHERE channelid = {message.channel.id}")
                 prefix = await get_prefix(client, message)
-                await ctx.send(f"Alert: leveling was automatically disabled in this channel, do {message.guild.me.mention}leveltoggle to turn on leveling!", delete_after=60)
+                await ctx.respond(f"Alert: leveling was automatically disabled in this channel, do {message.guild.me.mention}leveltoggle to turn on leveling!", delete_after=60,ephemeral=True)
             if warninglist[1]:
                 async with pool.acquire() as con:
                     levelconfiglist = await con.fetchrow(f"SELECT * FROM levelconfig WHERE channelid = {message.channel.id}")
@@ -13434,7 +13424,7 @@ async def on_message(message):
                         except:
                             automodembedOne = discord.Embed(
                                 title="Automod Error", description="I don't have `manage messages` permission.")
-                            messagesent = await ctx.send(embed=automodembedOne)
+                            messagesent = await ctx.respond(embed=automodembedOne,ephemeral=True)
                             await asyncio.sleep(2)
                             await messagesent.delete()
                         cmd = client.get_command("mute")
@@ -13453,7 +13443,7 @@ async def on_message(message):
                             automodembed.add_field(
                                 value=f"I couldn't mute {message.author.mention} , I don't have `manage roles` permission.", name="** **")
                             if not message.channel.id in disabledChannels:
-                                messagesent = await ctx.send(embed=automodembed)
+                                messagesent = await ctx.respond(embed=automodembed,ephemeral=True)
                                 await asyncio.sleep(2)
                                 await messagesent.delete()
                         return
@@ -13466,7 +13456,7 @@ async def on_message(message):
                             except:
                                 automodembedOne = discord.Embed(
                                     title="Automod Error", description="I don't have `manage messages` permission.")
-                                messagesent = await ctx.send(embed=automodembedOne)
+                                messagesent = await ctx.respond(embed=automodembedOne,ephemeral=True)
                                 await asyncio.sleep(2)
                                 await messagesent.delete()
                             cmd = client.get_command("mute")
@@ -13481,7 +13471,7 @@ async def on_message(message):
                                 automodembed.add_field(
                                     value=f"I couldn't mute {message.author.mention} , I don't have `manage roles` permission.", name="** **")
                                 if not message.channel.id in disabledChannels:
-                                    messagesent = await ctx.send(embed=automodembed)
+                                    messagesent = await ctx.respond(embed=automodembed,ephemeral=True)
                                     await asyncio.sleep(2)
                                     await messagesent.delete()
                             return
@@ -13492,7 +13482,7 @@ async def on_message(message):
                             except:
                                 automodembedOne = discord.Embed(
                                     title="Automod Error", description="I don't have `manage messages` permission.")
-                                messagesent = await ctx.send(embed=automodembedOne)
+                                messagesent = await ctx.respond(embed=automodembedOne,ephemeral=True)
                                 await asyncio.sleep(2)
                                 await messagesent.delete()
                             cmd = client.get_command("mute")
@@ -13507,7 +13497,7 @@ async def on_message(message):
                                 automodembed.add_field(
                                     value=f"I couldn't mute {message.author.mention} , I don't have `manage roles` permission.", name="** **")
                                 if not message.channel.id in disabledChannels:
-                                    messagesent = await ctx.send(embed=automodembed)
+                                    messagesent = await ctx.respond(embed=automodembed,ephemeral=True)
                                     await asyncio.sleep(2)
                                     await messagesent.delete()
                             return
@@ -13581,7 +13571,7 @@ async def on_message(message):
                                            value=i + "** **",
                                            inline=False)
                         if checkstaff(ctx.author):
-                            await (ctx.reply(embed=embedtwo))
+                            await ctx.respond(embed=embedtwo)
                         embedtwo = discord.Embed(title="",
                                                  description=("** **"),
                                                  color=Color.green())
@@ -13596,12 +13586,8 @@ async def on_message(message):
                         await ctx.message.add_reaction("❌")
                 except:
                     pass
-                try:
-                    if checkstaff(ctx.author):
-                        await ctx.reply(embed=embedone)
-                except:
-                    if checkstaff(ctx.author):
-                        await ctx.send(embed=embedone)
+                if checkstaff(ctx.author):
+                    await ctx.respond(embed=embedone,ephemeral=True)
         bucket = bot.cooldownvar.get_bucket(message)
         retry_after = bucket.update_rate_limit()
         if retry_after and message.guild:
@@ -13614,7 +13600,7 @@ async def on_message(message):
                     automodembedOne = discord.Embed(
                         title="Automod Error", description="I don't have `manage messages` permission.")
                     if not message.channel.id in disabledChannels:
-                        messagesent = await ctx.send(embed=automodembedOne)
+                        messagesent = await ctx.respond(embed=automodembedOne,ephemeral=True)
                         await asyncio.sleep(2)
                         await messagesent.delete()
                 cmd = client.get_command("mute")
@@ -13629,7 +13615,7 @@ async def on_message(message):
                     automodembed.add_field(
                         value=f"I couldn't mute {message.author.mention} , I don't have `manage roles` permission.", name="** **")
                     if not message.channel.id in disabledChannels:
-                        messagesent = await ctx.send(embed=automodembed)
+                        messagesent = await ctx.respond(embed=automodembed,ephemeral=True)
                         await asyncio.sleep(2)
                         await messagesent.delete()
         if message.guild:
@@ -13644,14 +13630,14 @@ async def on_message(message):
                             await message.delete()
                         except:
                             pass
-                        await ctx.send(f"{message.author.mention} You are being warned as a rare offender , further continuation will result in a mute.")
+                        await ctx.respond(f"{message.author.mention} You are being warned as a rare offender , further continuation will result in a mute.",ephemeral=True)
                         return
                     try:
                         await message.delete()
                     except:
                         automodembedOne = discord.Embed(
                             title="Automod Error", description="I don't have `manage messages` permission.")
-                        messagesent = await ctx.send(embed=automodembedOne)
+                        messagesent = await ctx.respond(embed=automodembedOne,ephemeral=True)
                         await asyncio.sleep(2)
                         await messagesent.delete()
                     cmd = client.get_command("mute")
@@ -13666,7 +13652,7 @@ async def on_message(message):
                         automodembed.add_field(
                             value=f"I couldn't mute {message.author.mention} , I don't have `manage roles` permission.", name="** **")
                         if not message.channel.id in disabledChannels:
-                            messagesent = await ctx.send(embed=automodembed)
+                            messagesent = await ctx.respond(embed=automodembed,ephemeral=True)
                             await asyncio.sleep(2)
                             await messagesent.delete()
                     return
@@ -13678,14 +13664,14 @@ async def on_message(message):
                             await message.delete()
                         except:
                             pass
-                        await ctx.send(f"{message.author.mention} You are being warned as a rare offender , further continuation will result in a mute.")
+                        await ctx.respond(f"{message.author.mention} You are being warned as a rare offender , further continuation will result in a mute.",ephemeral=True)
                         return
                     try:
                         await message.delete()
                     except:
                         automodembedOne = discord.Embed(
                             title="Automod Error", description="I don't have `manage messages` permission.")
-                        messagesent = await ctx.send(embed=automodembedOne)
+                        messagesent = await ctx.respond(embed=automodembedOne,ephemeral=True)
                         await asyncio.sleep(2)
                         await messagesent.delete()
                     cmd = client.get_command("mute")
@@ -13700,7 +13686,7 @@ async def on_message(message):
                         automodembed.add_field(
                             value=f"I couldn't mute {message.author.mention} , I don't have `manage roles` permission.", name="** **")
                         if not message.channel.id in disabledChannels:
-                            messagesent = await ctx.send(embed=automodembed)
+                            messagesent = await ctx.respond(embed=automodembed, ephemeral=True)
                             await asyncio.sleep(2)
                             await messagesent.delete()
                     return
