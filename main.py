@@ -5170,7 +5170,7 @@ class SupportTicket(commands.Cog):
                                 *,
                                 supportmessage: str = None):
         check_ensure_permissions(
-            ctx, ctx.guild.me, ["manage_roles","manage_channels","add_reactions","send_messages","embed_links"])
+            ctx, ctx.guild.me, ["manage_roles", "manage_channels", "add_reactions", "send_messages", "embed_links"])
         if channelname.guild != ctx.guild:
             await on_command_error(ctx, "The channel provided was not in this guild.")
             return
@@ -8522,13 +8522,11 @@ class Call(commands.Cog):
     @commands.cooldown(1, 60, BucketType.member)
     @bridge.bridge_command(brief=" This command can be used to talk to people.", description=" This command can be used to talk to people.", usage="@member reason")
     @commands.guild_only()
-    async def call(self, ctx, member: typing.Union[discord.User, int], reason: str = None):
-        if isinstance(member, int):
+    async def call(self, ctx, member: typing.Union[discord.User, discord.TextChannel], reason: str = None):
+        if isinstance(member, discord.TextChannel):
             if not checkstaff(ctx.author):
                 raise commands.CommandError(
-                    "You do not have permissions to run this command.")
-                return
-            member = client.get_channel(member)
+                    "You do not have permissions to run this command with the textchannel.")
             exEmoji = "<a:checkmark:877399181285793842>"
             if reason == None:
                 reason = "no reason"
