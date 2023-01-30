@@ -2417,9 +2417,10 @@ async def gitcommitcheck():
                             await viewobj._message.edit(view=viewobj)
                         except:
                             pass
+
                 await channeldev.send(subprocess.run(f"nohup python3.9 main.py restart {channeldev.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
                 await client.close()
-                sys.exit(0)
+                subprocess.run(f"kill -9 {os.getpid()}", shell=True)
 
 
 async def runBot():  # Bot START Aestron START
@@ -2821,7 +2822,7 @@ async def shutdown(ctx):
             except:
                 pass
     await client.close()
-    sys.exit(0)
+    subprocess.run(f"kill -9 {os.getpid()}", shell=True)
 
 
 def compare_local_remote_git_repo(files):
@@ -2880,7 +2881,7 @@ async def restartlatestcommit(ctx, *, files=None):
                 pass
     await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
     await client.close()
-    sys.exit(0)
+    subprocess.run(f"kill -9 {os.getpid()}", shell=True)
 
 
 @client.command()
@@ -2898,7 +2899,7 @@ async def restart(ctx):
                 pass
     await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
     await client.close()
-    sys.exit(0)
+    subprocess.run(f"kill -9 {os.getpid()}", shell=True)
 
 
 class AestronInfo(commands.Cog):
