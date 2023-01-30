@@ -2417,7 +2417,7 @@ async def gitcommitcheck():
                             await viewobj._message.edit(view=viewobj)
                         except:
                             pass
-                await channeldev.send(subprocess.run(f"python3.9 main.py restart {channeldev.id}", shell=True, stdout=subprocess.PIPE).stdout)
+                await channeldev.send(subprocess.run(f"nohup python3.9 main.py restart {channeldev.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
                 await client.close()
                 sys.exit(0)
 
@@ -2878,7 +2878,7 @@ async def restartlatestcommit(ctx, *, files=None):
                 await viewobj._message.edit(view=viewobj)
             except:
                 pass
-    await ctx.send(subprocess.run(f"python3.9 main.py restart {ctx.channel.id}", shell=True, stdout=subprocess.PIPE).stdout)
+    await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
     await client.close()
     sys.exit(0)
 
@@ -2896,7 +2896,7 @@ async def restart(ctx):
                 await viewobj._message.edit(view=viewobj)
             except:
                 pass
-    await ctx.send(subprocess.run(f"python3.9 main.py restart {ctx.channel.id}", shell=True, stdout=subprocess.PIPE).stdout)
+    await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
     await client.close()
     sys.exit(0)
 
