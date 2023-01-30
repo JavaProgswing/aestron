@@ -2420,7 +2420,7 @@ async def gitcommitcheck():
 
                 await channeldev.send(subprocess.run(f"nohup python3.9 main.py restart {channeldev.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
                 await asyncio.sleep(3)
-                sys.exit(0)
+                os._exit(1)
 
 
 async def runBot():  # Bot START Aestron START
@@ -2821,7 +2821,7 @@ async def shutdown(ctx):
                 await viewobj._message.edit(view=viewobj)
             except:
                 pass
-    sys.exit(0)
+    os._exit(1)
 
 
 def compare_local_remote_git_repo(files):
@@ -2880,7 +2880,7 @@ async def restartlatestcommit(ctx, *, files=None):
                 pass
     await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
     await asyncio.sleep(3)
-    sys.exit(0)
+    os._exit(1)
 
 
 @client.command()
@@ -2898,7 +2898,7 @@ async def restart(ctx):
                 pass
     await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)   
     await asyncio.sleep(3) 
-    sys.exit(0)
+    os._exit(1)
 
 
 class AestronInfo(commands.Cog):
@@ -8426,7 +8426,7 @@ class Fun(commands.Cog):
 
     @commands.cooldown(1, 3600, BucketType.member)
     @commands.guild_only()
-    @commands.group(invoke_without_command=True, brief=" This command can be used to play Chess in the Park (chess)")
+    @commands.group(invoke_without_command=True, brief=" This command can be used to play Chess in the Park (chess)", description=" This command can be used to play Chess in the Park (chess)")
     async def playgame(self, ctx):
         await on_command_error(ctx, "No argument was provided in the playgame command.")
         return
