@@ -529,7 +529,7 @@ class MyHelp(commands.HelpCommand):
                 pass
         embed = discord.Embed(title="Aestron help", description="""Aestron is a cool social bot having features such as Moderation, Logging, Music, Giveaways, Custom commands and more...
 
-Features:
+**Features:**
 
 1. Anti-raid Protection
 2. Auto Moderation
@@ -664,7 +664,7 @@ class CommandHelpSelect(discord.ui.Select):
 
 class CommandHelp(discord.ui.View):
     def __init__(self, cog, author):
-        super().__init__(timeout=150)
+        super().__init__(timeout=65)
         self.add_item(CommandHelpSelect(cog, author))
 
     async def on_timeout(self):
@@ -829,14 +829,14 @@ class DefaultHelpSelect(discord.ui.Select):
         embed = discord.Embed(title=f"{cogemoji[cogname]} {cogname}")
         for c in cog.get_commands():
             if c.name in self.fcommands and (isinstance(c, discord.ext.bridge.core.BridgeExtCommand) or isinstance(c, discord.ext.commands.core.Command)):
-                embed.add_field(name=c.name, value=c.brief, inline=False)
+                embed.add_field(name=c.name, value=c.description, inline=False)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 class DefaultHelp(discord.ui.View):
     def __init__(self, filteredcmds, allcommands, author):
-        super().__init__(timeout=150)
+        super().__init__(timeout=65)
         self.filteredcmds = filteredcmds
         self.allcommands = allcommands
         self.showAll = False
@@ -845,15 +845,15 @@ class DefaultHelp(discord.ui.View):
             filteredcmds, self.author, self.showAll)
         self.add_item(self.currentSelectMenu)
 
-    @discord.ui.button(label='⚪(Showing your commands)', style=discord.ButtonStyle.green)
+    @discord.ui.button(label='⚪Click to toggle(Showing your commands)', style=discord.ButtonStyle.green)
     async def toggle(self, button: discord.ui.Button, interaction: discord.Interaction):
         self.showAll = not self.showAll
         if self.showAll:
-            button.label = "🔵(Showing all commands)"
+            button.label = "🔵Click to toggle(Showing all commands)"
             await interaction.response.send_message(content='Help toggled to show all commands!', ephemeral=True)
             cmds = self.allcommands
         else:
-            button.label = "⚪(Showing your commands)"
+            button.label = "⚪Click to toggle(Showing your commands)"
             await interaction.response.send_message(content='Help toggled to show only commands you can use!', ephemeral=True)
             cmds = self.filteredcmds
 
@@ -4337,8 +4337,8 @@ client.add_cog(Logging(client))
 class AutoMod(commands.Cog):
     """ Auto moderation settings for various purposes."""
     @bridge.bridge_command(
-        brief='This command stops checking spammed messages in a certain channel.',
-        description='This command stops checking for spammed messages in a certain channel(requires manage guild).',
+        brief='This command stops checking spammed messages in a channel.',
+        description='This command stops checking for spammed messages in a channel(requires manage guild).',
         usage="#channel", aliases=["disableantispam", "enablespam", "allowspamming"])
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
@@ -4503,8 +4503,8 @@ class AutoMod(commands.Cog):
             await ctx.respond(embed=embed, ephemeral=True)
 
     @bridge.bridge_command(
-        brief='This command stops checking for profanity in certain channels.',
-        description='This command stops checking for profanity in certain channel(requires manage guild).',
+        brief='This command stops checking for profanity in a channel.',
+        description='This command stops checking for profanity in a channel(requires manage guild).',
         usage="#channel", aliases=["disableprofanefilter", "enableprofane", "disablefilter"])
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
@@ -4546,8 +4546,8 @@ class AutoMod(commands.Cog):
             await ctx.respond(embed=embed, ephemeral=True)
 
     @bridge.bridge_command(
-        brief='This command checks for links in certain channels.',
-        description='This command checks for links in certain channel(requires manage guild).',
+        brief='This command checks for links in a channel.',
+        description='This command checks for links in a channel(requires manage guild).',
         usage="#channel", aliases=["enableantilink", "disablelink", "disablelinks"])
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
@@ -4589,8 +4589,8 @@ class AutoMod(commands.Cog):
             await ctx.respond(embed=embed, ephemeral=True)
 
     @bridge.bridge_command(
-        brief='This command stops checking for links in certain channels.',
-        description='This command stops checking for links in certain channel(requires manage guild).',
+        brief='This command stops checking for links in a channel.',
+        description='This command stops checking for links in a channel(requires manage guild).',
         usage="#channel", aliases=["disableantilink", "enablelink", "enablelinks"])
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
@@ -8208,7 +8208,7 @@ client.add_cog(Misc(client))
     brief='This command can be used to translate text into another language.',
     description='This command can be used to translate text into another language.',
     usage="language text", aliases=["translate", "lang", "convertlang"])
-async def translatetext(self, ctx, text: str, language: str = "en"):
+async def translatetext(ctx, text: str, language: str = "en"):
     origmessage = text
     origlanguage = detect(text)
     translator = Translator(to_lang=language, from_lang=origlanguage)
@@ -12261,8 +12261,8 @@ class CustomCommands(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(
-        brief='This command can be used to add your own commands and a custom response.',
-        description='This command can be used to add your own commands and a custom response(requires manage guild).',
+        brief='This command can be used to add your own commands with a custom response.',
+        description='This command can be used to add your own commands with a custom response(requires manage guild).',
         usage="commandname output", aliases=["addcustomcommand"])
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
