@@ -9258,8 +9258,8 @@ class Giveaways(commands.Cog):
             f"{members[randomnumber].mention} has won the giveaway hosted by {ctx.author.mention}.", ephemeral=True)
 
     @bridge.bridge_command(
-        brief='This command can be used to do a giveaway with a prize for certain time interval.',
-        description='This command can be used to do a giveaway with a prize for certain time interval(requires manage guild).',
+        brief='This command can be used to do a giveaway with a prize for a time interval.',
+        description='This command can be used to do a giveaway with a prize for a time interval(requires manage guild).',
         usage="")
     @commands.guild_only()
     @commands.check_any(is_bot_staff(),
