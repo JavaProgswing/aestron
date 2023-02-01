@@ -87,8 +87,8 @@ sp = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials(
 # https://developer.spotify.com/dashboard/applications
 # REQUIRES API KEY
 
-maintenancemodestatus = True
-onlystaffaccess = True
+maintenancemodestatus = False
+onlystaffaccess = False
 maintenancemodereason = "fixing a bug"
 forcelogerrors = False
 youtube_dl.utils.bug_reports_message = lambda: ''
