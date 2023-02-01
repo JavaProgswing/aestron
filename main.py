@@ -1126,6 +1126,7 @@ customCog = None
 timer = 0.005
 devtimer = 2
 botVersion = "2.1: Added cmdusage command, use it to check a command's usage."
+botGitVersion = "1675258361.8610396"
 bot.cooldownself = commands.CooldownMapping.from_cooldown(
     1.0, 1.0, commands.BucketType.member)
 bot.cmdcooldownvar = commands.CooldownMapping.from_cooldown(
