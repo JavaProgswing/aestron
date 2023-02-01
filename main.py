@@ -87,7 +87,8 @@ sp = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials(
 # https://developer.spotify.com/dashboard/applications
 # REQUIRES API KEY
 
-maintenancemodestatus = False
+maintenancemodestatus = True
+onlystaffaccess = True
 maintenancemodereason = "fixing a bug"
 forcelogerrors = False
 youtube_dl.utils.bug_reports_message = lambda: ''
@@ -2896,8 +2897,8 @@ async def restart(ctx):
                 await viewobj._message.edit(view=viewobj)
             except:
                 pass
-    await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)   
-    await asyncio.sleep(3) 
+    await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
+    await asyncio.sleep(3)
     os._exit(1)
 
 
@@ -11351,12 +11352,18 @@ def constructctx(guild, member, channel=None):
             raise channelNotProvided("No channels found to send a message to!")
         await channel.send(content=content, tts=tts, embed=embed, embeds=embeds, file=file, files=files, stickers=stickers, delete_after=delete_after, nonce=nonce, allowed_mentions=allowed_mentions, reference=reference, mention_author=mention_author, view=view)
 
+    async def defrespond(content="** **", tts=None, embed=None, embeds=None, file=None, files=None, stickers=None, delete_after=None, nonce=None, allowed_mentions=None, reference=None, mention_author=None, view=None, ephemeral=None):
+        if channel is None:
+            raise channelNotProvided("No channels found to send a message to!")
+        await channel.send(content=content, tts=tts, embed=embed, embeds=embeds, file=file, files=files, stickers=stickers, delete_after=delete_after, nonce=nonce, allowed_mentions=allowed_mentions, reference=reference, mention_author=mention_author, view=view)
+
     class defcontext:
         def __init__(self, guild, member):
             self.guild = guild
             self.author = member
             self.channel = channel
             self.send = defsend
+            self.respond = defrespond
             self.me = guild.me
             self.voice_client = guild.voice_client
     constructedctx = defcontext(guild, member)
@@ -12824,7 +12831,7 @@ async def on_message(message):
                 await asyncio.sleep(0.5)
             await on_message(message)
             return
-        if maintenancemodestatus:
+        if maintenancemodestatus and not onlystaffaccess:
             if ("<@!1061480715172200498>"
                     in message.content) or ("<@1061480715172200498>"
                                             in message.content):
@@ -13311,23 +13318,20 @@ async def on_message(message):
 async def on_guild_channel_create(channel):
     logguild = channel.guild
     logchannel = None
+    antiraidchannel = None
     async with pool.acquire() as con:
         logchannellist = await con.fetchrow(f"SELECT * FROM logchannels WHERE guildid = {logguild.id}")
     async with pool.acquire() as con:
         antiraidchannellist = await con.fetchrow(f"SELECT * FROM antiraid WHERE guildid = {logguild.id}")
-    antiraidinactive = antiraidchannellist is None
-    if not logchannellist is None:
+    if logchannellist:
         channelid = logchannellist[1]
         logchannel = logguild.get_channel(channelid)
-    elif antiraidinactive:
-        return
-    else:
+    if antiraidchannellist:
         channelid = antiraidchannellist[1]
-        logchannel = logguild.get_channel(channelid)
-    checklog = logchannel.permissions_for(logguild.me).view_audit_log
+        antiraidchannel = logguild.get_channel(channelid)
+    checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
-        return
     currententry = None
     async for entry in logguild.audit_logs(limit=1, action=discord.AuditLogAction.channel_create):
         currententry = entry
@@ -13336,7 +13340,8 @@ async def on_guild_channel_create(channel):
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
         message = constructmsg(logguild, mod)
-        ctx = constructctx(logguild, mod, logchannel)
+        ctx = constructctx(logguild, mod, antiraidchannel)
+        ctx.bot = client
         bucket = bot.channel_createcooldown.get_bucket(message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
@@ -13344,7 +13349,7 @@ async def on_guild_channel_create(channel):
             try:
                 await cmd(
                     ctx,
-                    mod,
+                    str(mod),
                     reason=(f"""AUTO-MOD for exceeding channel create limit."""
                             ))
             except Exception as ex:
@@ -13353,13 +13358,13 @@ async def on_guild_channel_create(channel):
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
             await removeguildcaution(logguild.id)
+            return
     try:
         embed = discord.Embed(title=f"Channel creation",
                               description=channel.mention, color=Color.green())
         embed.add_field(name="Category", value=channel.category)
         embed.add_field(name=f"Moderator", value=f"{mod.mention}")
-        if antiraidinactive:
-            await logchannel.send(embed=embed)
+        await logchannel.send(embed=embed)
     except Exception as ex:
         print(f" on_guild_channel_create Logging error {ex}")
 
@@ -13368,23 +13373,20 @@ async def on_guild_channel_create(channel):
 async def on_guild_channel_delete(channel):
     logguild = channel.guild
     logchannel = None
+    antiraidchannel = None
     async with pool.acquire() as con:
         logchannellist = await con.fetchrow(f"SELECT * FROM logchannels WHERE guildid = {logguild.id}")
     async with pool.acquire() as con:
         antiraidchannellist = await con.fetchrow(f"SELECT * FROM antiraid WHERE guildid = {logguild.id}")
-    antiraidinactive = antiraidchannellist is None
-    if not logchannellist is None:
+    if logchannellist:
         channelid = logchannellist[1]
         logchannel = logguild.get_channel(channelid)
-    elif antiraidinactive:
-        return
-    else:
+    if antiraidchannellist:
         channelid = antiraidchannellist[1]
-        logchannel = logguild.get_channel(channelid)
-    checklog = logchannel.permissions_for(logguild.me).view_audit_log
+        antiraidchannel = logguild.get_channel(channelid)
+    checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
-        return
     currententry = None
     async for entry in logguild.audit_logs(limit=1, action=discord.AuditLogAction.channel_delete):
         currententry = entry
@@ -13393,7 +13395,8 @@ async def on_guild_channel_delete(channel):
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
         message = constructmsg(logguild, mod)
-        ctx = constructctx(logguild, mod, logchannel)
+        ctx = constructctx(logguild, mod, antiraidchannel)
+        ctx.bot = client
         bucket = bot.channel_deletecooldown.get_bucket(message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
@@ -13401,7 +13404,7 @@ async def on_guild_channel_delete(channel):
             try:
                 await cmd(
                     ctx,
-                    mod,
+                    str(mod),
                     reason=(f"""AUTO-MOD for exceeding channel delete limit."""
                             ))
             except Exception as ex:
@@ -13410,13 +13413,13 @@ async def on_guild_channel_delete(channel):
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
             await removeguildcaution(logguild.id)
+            return
     try:
         embed = discord.Embed(title=f"Channel deletion",
                               description=channel, color=Color.red())
         embed.add_field(name="Category", value=channel.category)
         embed.add_field(name=f"Moderator", value=f"{mod.mention}")
-        if antiraidinactive:
-            await logchannel.send(embed=embed)
+        await logchannel.send(embed=embed)
     except Exception as ex:
         print(f" on_guild_channel_delete Logging error {ex}")
 
@@ -13429,23 +13432,20 @@ async def on_guild_channel_update(before, after):
         beforechannelupdate.append(before)
         afterchannelupdate.append(after)
     logchannel = None
+    antiraidchannel = None
     async with pool.acquire() as con:
         logchannellist = await con.fetchrow(f"SELECT * FROM logchannels WHERE guildid = {logguild.id}")
     async with pool.acquire() as con:
         antiraidchannellist = await con.fetchrow(f"SELECT * FROM antiraid WHERE guildid = {logguild.id}")
-    antiraidinactive = antiraidchannellist is None
-    if not logchannellist is None:
+    if logchannellist:
         channelid = logchannellist[1]
         logchannel = logguild.get_channel(channelid)
-    elif antiraidinactive:
-        return
-    else:
+    if antiraidchannellist:
         channelid = antiraidchannellist[1]
-        logchannel = logguild.get_channel(channelid)
-    checklog = logchannel.permissions_for(logguild.me).view_audit_log
+        antiraidchannel = logguild.get_channel(channelid)
+    checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
-        return
     dirs = [a for a in dir(before) if not a.startswith('__')]
     changedetected = False
     for a in dirs:
@@ -13461,22 +13461,14 @@ async def on_guild_channel_update(before, after):
     if not changedetected:
         return
     currententry = None
-    channelentry = None
-    overwritecreateentry = None
-    overwriteupdateentry = None
-    overwritedeleteentry = None
     ut = []
     async for entry in logguild.audit_logs(limit=1, action=discord.AuditLogAction.channel_update):
-        channelentry = entry
         ut.append(entry)
     async for entry in logguild.audit_logs(limit=1, action=discord.AuditLogAction.overwrite_create):
-        overwritecreateentry = entry
         ut.append(entry)
     async for entry in logguild.audit_logs(limit=1, action=discord.AuditLogAction.overwrite_update):
-        overwriteupdateentry = entry
         ut.append(entry)
     async for entry in logguild.audit_logs(limit=1, action=discord.AuditLogAction.overwrite_delete):
-        overwritedeleteentry = entry
         ut.append(entry)
     ut.sort(key=lambda x: x.created_at, reverse=True)
     currententry = ut[0]
@@ -13485,7 +13477,8 @@ async def on_guild_channel_update(before, after):
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
         message = constructmsg(logguild, mod)
-        ctx = constructctx(logguild, mod, logchannel)
+        ctx = constructctx(logguild, mod, antiraidchannel)
+        ctx.bot = client
         bucket = bot.channel_updatecooldown.get_bucket(message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
@@ -13493,15 +13486,16 @@ async def on_guild_channel_update(before, after):
             try:
                 await cmd(
                     ctx,
-                    mod,
+                    str(mod),
                     reason=(f"""AUTO-MOD for exceeding channel update limit."""
                             ))
             except Exception as ex:
-                pass
+                print(f"on_guild_channel_update error {ex}")
             statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
             await removeguildcaution(logguild.id)
+            return
     try:
 
         changes = ""
@@ -13794,8 +13788,7 @@ async def on_guild_channel_update(before, after):
                                   description=before.mention, color=Color.blue())
             embed.add_field(name=f"** **", value=changes)
             embed.add_field(name="Moderator", value=f"{mod.mention}")
-            if antiraidinactive:
-                await logchannel.send(embed=embed)
+            await logchannel.send(embed=embed)
 
     except Exception as ex:
         print(f" on_guild_channel_update Logging error {ex}")
@@ -13805,23 +13798,20 @@ async def on_guild_channel_update(before, after):
 async def on_guild_update(before, after):
     logguild = before
     logchannel = None
+    antiraidchannel = None
     async with pool.acquire() as con:
         logchannellist = await con.fetchrow(f"SELECT * FROM logchannels WHERE guildid = {logguild.id}")
     async with pool.acquire() as con:
         antiraidchannellist = await con.fetchrow(f"SELECT * FROM antiraid WHERE guildid = {logguild.id}")
-    antiraidinactive = antiraidchannellist is None
-    if not logchannellist is None:
+    if logchannellist:
         channelid = logchannellist[1]
         logchannel = logguild.get_channel(channelid)
-    elif antiraidinactive:
-        return
-    else:
+    if antiraidchannellist:
         channelid = antiraidchannellist[1]
-        logchannel = logguild.get_channel(channelid)
-    checklog = logchannel.permissions_for(logguild.me).view_audit_log
+        antiraidchannel = logguild.get_channel(channelid)
+    checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
-        return
     currententry = None
     async for entry in logguild.audit_logs(limit=1, action=discord.AuditLogAction.guild_update):
         currententry = entry
@@ -13830,7 +13820,8 @@ async def on_guild_update(before, after):
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
         message = constructmsg(logguild, mod)
-        ctx = constructctx(logguild, mod, logchannel)
+        ctx = constructctx(logguild, mod, antiraidchannel)
+        ctx.bot = client
         bucket = bot.guild_updatecooldown.get_bucket(message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
@@ -13838,15 +13829,16 @@ async def on_guild_update(before, after):
             try:
                 await cmd(
                     ctx,
-                    mod,
+                    str(mod),
                     reason=(f"""AUTO-MOD for exceeding guild update limit."""
                             ))
             except Exception as ex:
-                pass
+                print(f"on_guild_update Blacklist error {ex}")
             statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
             await removeguildcaution(logguild.id)
+            return
     try:
         changes = ""
         if before.name != after.name:
@@ -13886,8 +13878,7 @@ async def on_guild_update(before, after):
                                   description=before.name, color=Color.blue())
             embed.add_field(name=f"** **", value=changes)
             embed.add_field(name="Moderator", value=f"{mod.mention}")
-            if antiraidinactive:
-                await logchannel.send(embed=embed)
+            await logchannel.send(embed=embed)
     except Exception as ex:
         print(f" on_guild_update Logging error {ex}")
 
@@ -13896,23 +13887,20 @@ async def on_guild_update(before, after):
 async def on_guild_role_create(role):
     logguild = role.guild
     logchannel = None
+    antiraidchannel = None
     async with pool.acquire() as con:
         logchannellist = await con.fetchrow(f"SELECT * FROM logchannels WHERE guildid = {logguild.id}")
     async with pool.acquire() as con:
         antiraidchannellist = await con.fetchrow(f"SELECT * FROM antiraid WHERE guildid = {logguild.id}")
-    antiraidinactive = antiraidchannellist is None
-    if not logchannellist is None:
+    if logchannellist:
         channelid = logchannellist[1]
         logchannel = logguild.get_channel(channelid)
-    elif antiraidinactive:
-        return
-    else:
+    if antiraidchannellist:
         channelid = antiraidchannellist[1]
-        logchannel = logguild.get_channel(channelid)
-    checklog = logchannel.permissions_for(logguild.me).view_audit_log
+        antiraidchannel = logguild.get_channel(channelid)
+    checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
-        return
     currententry = None
     async for entry in logguild.audit_logs(limit=1, action=discord.AuditLogAction.role_create):
         currententry = entry
@@ -13921,7 +13909,8 @@ async def on_guild_role_create(role):
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
         message = constructmsg(logguild, mod)
-        ctx = constructctx(logguild, mod, logchannel)
+        ctx = constructctx(logguild, mod, antiraidchannel)
+        ctx.bot = client
         bucket = bot.role_createcooldown.get_bucket(message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
@@ -13929,15 +13918,16 @@ async def on_guild_role_create(role):
             try:
                 await cmd(
                     ctx,
-                    mod,
+                    str(mod),
                     reason=(f"""AUTO-MOD for exceeding role create limit."""
                             ))
             except Exception as ex:
-                pass
+                print(f"on_guild_role_create Blacklist error {ex}")
             statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
             await removeguildcaution(logguild.id)
+            return
     try:
         hoistmsg = "not displayed seperately"
         if role.hoist:
@@ -13950,8 +13940,7 @@ async def on_guild_role_create(role):
                               description=role.mention, color=Color.green())
         embed.add_field(name=f"** **", value=changes)
         embed.add_field(name="Moderator", value=f"{mod.mention}")
-        if antiraidinactive:
-            await logchannel.send(embed=embed)
+        await logchannel.send(embed=embed)
 
     except Exception as ex:
         print(f" on_guild_role_create Logging error {ex}")
@@ -13961,23 +13950,20 @@ async def on_guild_role_create(role):
 async def on_guild_role_delete(role):
     logguild = role.guild
     logchannel = None
+    antiraidchannel = None
     async with pool.acquire() as con:
         logchannellist = await con.fetchrow(f"SELECT * FROM logchannels WHERE guildid = {logguild.id}")
     async with pool.acquire() as con:
         antiraidchannellist = await con.fetchrow(f"SELECT * FROM antiraid WHERE guildid = {logguild.id}")
-    antiraidinactive = antiraidchannellist is None
-    if not logchannellist is None:
+    if logchannellist:
         channelid = logchannellist[1]
         logchannel = logguild.get_channel(channelid)
-    elif antiraidinactive:
-        return
-    else:
+    if antiraidchannellist:
         channelid = antiraidchannellist[1]
-        logchannel = logguild.get_channel(channelid)
-    checklog = logchannel.permissions_for(logguild.me).view_audit_log
+        antiraidchannel = logguild.get_channel(channelid)
+    checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
-        return
     currententry = None
     async for entry in logguild.audit_logs(limit=1, action=discord.AuditLogAction.role_delete):
         currententry = entry
@@ -13986,7 +13972,8 @@ async def on_guild_role_delete(role):
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
         message = constructmsg(logguild, mod)
-        ctx = constructctx(logguild, mod, logchannel)
+        ctx = constructctx(logguild, mod, antiraidchannel)
+        ctx.bot = client
         bucket = bot.role_deletecooldown.get_bucket(message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
@@ -13994,22 +13981,21 @@ async def on_guild_role_delete(role):
             try:
                 await cmd(
                     ctx,
-                    mod,
+                    str(mod),
                     reason=(f"""AUTO-MOD for exceeding role delete limit."""
                             ))
             except Exception as ex:
-                pass
+                print(f"on_guild_role_delete Blacklist error {ex}")
             statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
             await removeguildcaution(logguild.id)
+            return
     try:
         embed = discord.Embed(title=(f"Role deletion"),
                               description=f"{role}", color=Color.red())
         embed.add_field(name="Moderator", value=f"{mod.mention}")
-        if antiraidinactive:
-            await logchannel.send(embed=embed)
-
+        await logchannel.send(embed=embed)
     except Exception as ex:
         print(f" on_guild_role_delete Logging error {ex}")
 
@@ -14018,23 +14004,20 @@ async def on_guild_role_delete(role):
 async def on_guild_role_update(before, after):
     logguild = before.guild
     logchannel = None
+    antiraidchannel = None
     async with pool.acquire() as con:
         logchannellist = await con.fetchrow(f"SELECT * FROM logchannels WHERE guildid = {logguild.id}")
     async with pool.acquire() as con:
         antiraidchannellist = await con.fetchrow(f"SELECT * FROM antiraid WHERE guildid = {logguild.id}")
-    antiraidinactive = antiraidchannellist is None
-    if not logchannellist is None:
+    if logchannellist:
         channelid = logchannellist[1]
         logchannel = logguild.get_channel(channelid)
-    elif antiraidinactive:
-        return
-    else:
+    if antiraidchannellist:
         channelid = antiraidchannellist[1]
-        logchannel = logguild.get_channel(channelid)
-    checklog = logchannel.permissions_for(logguild.me).view_audit_log
+        antiraidchannel = logguild.get_channel(channelid)
+    checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
-        return
     currententry = None
     async for entry in logguild.audit_logs(limit=1, action=discord.AuditLogAction.role_update):
         currententry = entry
@@ -14043,7 +14026,8 @@ async def on_guild_role_update(before, after):
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
         message = constructmsg(logguild, mod)
-        ctx = constructctx(logguild, mod, logchannel)
+        ctx = constructctx(logguild, mod, antiraidchannel)
+        ctx.bot = client
         bucket = bot.role_updatecooldown.get_bucket(message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
@@ -14051,15 +14035,16 @@ async def on_guild_role_update(before, after):
             try:
                 await cmd(
                     ctx,
-                    mod,
+                    str(mod),
                     reason=(f"""AUTO-MOD for exceeding role update limit."""
                             ))
             except Exception as ex:
-                pass
+                print(f"on_guild_role_update Blacklist error {ex}")
             statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
             await removeguildcaution(logguild.id)
+            return
     try:
         changes = ""
         if before.color != after.color:
@@ -14342,8 +14327,7 @@ async def on_guild_role_update(before, after):
                                   description=after.mention, color=Color.blue())
             embed.add_field(name=f"** **", value=changes)
             embed.add_field(name="Moderator", value=f"{mod.mention}")
-            if antiraidinactive:
-                await logchannel.send(embed=embed)
+            await logchannel.send(embed=embed)
     except Exception as ex:
         print(f" on_guild_role_update Logging error {ex}")
 
@@ -14352,23 +14336,20 @@ async def on_guild_role_update(before, after):
 async def on_member_ban(guild, member):
     logguild = guild
     logchannel = None
+    antiraidchannel = None
     async with pool.acquire() as con:
         logchannellist = await con.fetchrow(f"SELECT * FROM logchannels WHERE guildid = {logguild.id}")
     async with pool.acquire() as con:
         antiraidchannellist = await con.fetchrow(f"SELECT * FROM antiraid WHERE guildid = {logguild.id}")
-    antiraidinactive = antiraidchannellist is None
-    if not logchannellist is None:
+    if logchannellist:
         channelid = logchannellist[1]
         logchannel = logguild.get_channel(channelid)
-    elif antiraidinactive:
-        return
-    else:
+    if antiraidchannellist:
         channelid = antiraidchannellist[1]
-        logchannel = logguild.get_channel(channelid)
-    checklog = logchannel.permissions_for(logguild.me).view_audit_log
+        antiraidchannel = logguild.get_channel(channelid)
+    checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
-        return
     currententry = None
     async for entry in logguild.audit_logs(limit=1, action=discord.AuditLogAction.ban):
         currententry = entry
@@ -14377,7 +14358,8 @@ async def on_member_ban(guild, member):
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
         message = constructmsg(logguild, mod)
-        ctx = constructctx(logguild, mod, logchannel)
+        ctx = constructctx(logguild, mod, antiraidchannel)
+        ctx.bot = client
         bucket = bot.member_bancooldown.get_bucket(message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
@@ -14385,22 +14367,22 @@ async def on_member_ban(guild, member):
             try:
                 await cmd(
                     ctx,
-                    mod,
+                    str(mod),
                     reason=(f"""AUTO-MOD for exceeding member ban limit."""
                             ))
             except Exception as ex:
-                pass
+                print(f" on_member_ban Blacklist error {ex}")
             statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
             await removeguildcaution(logguild.id)
+            return
     try:
         embed = discord.Embed(title=(f"Member banned"),
                               description=member.mention, color=Color.red())
         embed.add_field(
             name="** **", value=f" The member {member.mention} was banned from {logguild} by {mod.mention}.")
-        if antiraidinactive:
-            await logchannel.send(embed=embed)
+        await logchannel.send(embed=embed)
     except Exception as ex:
         print(f" on_member_ban Logging error {ex}")
 
@@ -14409,24 +14391,21 @@ async def on_member_ban(guild, member):
 async def on_member_unban(guild, member):
     logguild = guild
     logchannel = None
+    antiraidchannel = None
     async with pool.acquire() as con:
         logchannellist = await con.fetchrow(f"SELECT * FROM logchannels WHERE guildid = {logguild.id}")
     async with pool.acquire() as con:
         antiraidchannellist = await con.fetchrow(f"SELECT * FROM antiraid WHERE guildid = {logguild.id}")
-    antiraidinactive = antiraidchannellist is None
-    if not logchannellist is None:
+    if logchannellist:
         channelid = logchannellist[1]
         logchannel = logguild.get_channel(channelid)
-    elif antiraidinactive:
-        return
-    else:
+    if antiraidchannellist:
         channelid = antiraidchannellist[1]
-        logchannel = logguild.get_channel(channelid)
+        antiraidchannel = logguild.get_channel(channelid)
+    checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     currententry = None
-    checklog = logchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
-        return
     async for entry in logguild.audit_logs(limit=1, action=discord.AuditLogAction.unban):
         currententry = entry
     modid = currententry.user.id
@@ -14434,7 +14413,8 @@ async def on_member_unban(guild, member):
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
         message = constructmsg(logguild, mod)
-        ctx = constructctx(logguild, mod, logchannel)
+        ctx = constructctx(logguild, mod, antiraidchannel)
+        ctx.bot = client
         bucket = bot.member_unbancooldown.get_bucket(message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
@@ -14442,22 +14422,22 @@ async def on_member_unban(guild, member):
             try:
                 await cmd(
                     ctx,
-                    mod,
+                    str(mod),
                     reason=(f"""AUTO-MOD for exceeding member unban limit."""
                             ))
             except Exception as ex:
-                pass
+                print(f" on_member_unban Blacklist error {ex}")
             statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
             await removeguildcaution(logguild.id)
+            return
     try:
         embed = discord.Embed(title=(f"Member unbanned"),
                               description=member.mention, color=Color.green())
         embed.add_field(
             name="** **", value=f" The member {member.mention} was unbanned from {logguild} by {mod.mention}.")
-        if antiraidinactive:
-            await logchannel.send(embed=embed)
+        await logchannel.send(embed=embed)
     except Exception as ex:
         print(f" on_member_unban Logging error {ex}")
 
