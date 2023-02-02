@@ -1008,35 +1008,38 @@ class MCShop(discord.ui.View):
 
 
 async def get_prefix(client, message):
-    if message.guild:
-        try:
-            async with pool.acquire() as con:
-                prefixeslist = await con.fetchrow(f"SELECT * FROM prefixes WHERE guildid = {message.guild.id}")
-            if prefixeslist is None:
-                statement = """INSERT INTO prefixes (guildid,
-                                    prefix) VALUES($1, $2);"""
+    if not onlystaffaccess:
+        if message.guild:
+            try:
                 async with pool.acquire() as con:
-                    await con.execute(statement, message.guild.id, "a!")
-                async with pool.acquire() as con:
-                    await con.execute(f"INSERT INTO prefixes VALUES (%s,%s)", (message.guild.id, "a!"))
-                chars = "a!"
-            else:
-                chars = prefixeslist[1]
-                if chars == "None":
+                    prefixeslist = await con.fetchrow(f"SELECT * FROM prefixes WHERE guildid = {message.guild.id}")
+                if prefixeslist is None:
+                    statement = """INSERT INTO prefixes (guildid,
+                                        prefix) VALUES($1, $2);"""
+                    async with pool.acquire() as con:
+                        await con.execute(statement, message.guild.id, "a!")
+                    async with pool.acquire() as con:
+                        await con.execute(f"INSERT INTO prefixes VALUES (%s,%s)", (message.guild.id, "a!"))
                     chars = "a!"
-            results = list(map(''.join, itertools.product(
-                *zip(chars.upper(), chars.lower()))))
-            return commands.when_mentioned_or(*results)(client, message)
-        except:
+                else:
+                    chars = prefixeslist[1]
+                    if chars == "None":
+                        chars = "a!"
+                results = list(map(''.join, itertools.product(
+                    *zip(chars.upper(), chars.lower()))))
+                return commands.when_mentioned_or(*results)(client, message)
+            except:
+                chars = "a!"
+                results = list(map(''.join, itertools.product(
+                    *zip(chars.upper(), chars.lower()))))
+                return commands.when_mentioned_or(*results)(client, message)
+        else:
             chars = "a!"
             results = list(map(''.join, itertools.product(
                 *zip(chars.upper(), chars.lower()))))
             return commands.when_mentioned_or(*results)(client, message)
     else:
-        chars = "a!"
-        results = list(map(''.join, itertools.product(
-            *zip(chars.upper(), chars.lower()))))
-        return commands.when_mentioned_or(*results)(client, message)
+        return "sa!"
 intents = discord.Intents.all()
 Dactivity = discord.Activity(name="@Aestron for commands.",
                              type=discord.ActivityType.watching)
@@ -1368,7 +1371,7 @@ class Songpanel(discord.ui.View):
         try:
             await interaction.edit_original_message(embed=embed)
         except Exception as ex:
-            print(ex)
+            pass
 
     @discord.ui.button(label='🛑', style=discord.ButtonStyle.red, custom_id="songpanel:stop")
     async def stop(self, button: discord.ui.Button, interaction: discord.Interaction):
@@ -1630,7 +1633,7 @@ async def on_application_command_error(ctx, error):
     try:
         errorMsg = await ctx.respond(embed=embedone, ephemeral=True)
     except:
-        errorMsg = await ctx.respond(embed=embedone)
+        errorMsg = await ctx.send(embed=embedone)
 
 
 @client.event
@@ -1664,7 +1667,7 @@ async def on_command_error(ctx, error, tracebackreq=False, forcelog=forcelogerro
         error = error.original
     if isinstance(error, commands.CommandNotFound):
         return
-    if isinstance(error, commands.CheckAnyFailure):
+    if isinstance(error, commands.CheckAnyFailure) or isinstance(error, commands.CheckFailure):
         try:
             errordata = error.errors[0]
             copyError = error
@@ -3250,7 +3253,10 @@ class Moderation(commands.Cog):
                               description=f"{number} messages .")
         embed.add_field(name="Moderator", value=ctx.author.mention)
         embed.add_field(name="Reason", value=reason)
-        await ctx.respond(embed=embed, ephemeral=True)
+        try:
+            await ctx.respond(embed=embed, ephemeral=True)
+        except:
+            await ctx.send(embed=embed, ephemeral=True)
 
     @bridge.bridge_command(
         brief='This command clears given number of messages from the same channel.',
@@ -3298,7 +3304,10 @@ class Moderation(commands.Cog):
                                   description=f"{number} messages .")
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.respond(embed=embed, ephemeral=True)
+            try:
+                await ctx.respond(embed=embed, ephemeral=True)
+            except:
+                await ctx.send(embed=embed, ephemeral=True)
         else:
             try:
                 number = int(numberstr)
@@ -3324,7 +3333,10 @@ class Moderation(commands.Cog):
                     title="Messages purged", description=f"{number} messages from {member.mention}.")
                 embed.add_field(name="Moderator", value=ctx.author.mention)
                 embed.add_field(name="Reason", value=reason)
-                await ctx.respond(embed=embed, ephemeral=True)
+                try:
+                    await ctx.respond(embed=embed, ephemeral=True)
+                except:
+                    await ctx.send(embed=embed, ephemeral=True)
 
     @bridge.bridge_command(
         brief='This command prevents users from viewing any channels on the server.',
@@ -10210,7 +10222,7 @@ async def playwavelink(ctx: commands.Context, url: str):
 
 
 class Music(commands.Cog):
-    """ Youtube music commands """
+    """ YouTube music commands """
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -10361,7 +10373,7 @@ class Music(commands.Cog):
                            usage="songname")
     @commands.guild_only()
     async def play(self, ctx, *, songname: str):
-        """Streams from a url (same as yt, but doesn't predownload)"""
+        """Streams from an url (same as yt, but doesn't predownload)"""
         await playmusic(ctx, songname)
 
     @commands.cooldown(1, 30, BucketType.member)
@@ -10430,7 +10442,7 @@ async def multipleplay(ctx, songname: str, multiplesearch: discord.Option(bool, 
 
 
 class YoutubeTogether(commands.Cog):
-    """This youtube command can play a video"""
+    """This YouTube command can play a video"""
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(brief='This command can be used to start a youtube activity in a voice channel.',
@@ -10547,7 +10559,7 @@ async def startvc(ctx, player, nonotice, norepeat=False, count=1):
     guildmusiccurrent[ctx.guild.id] = player
     guildmusicrecent[ctx.guild.id][ctx.author.id] = player.title
     if voice is None:
-        print("STOPPING AS VOICE CLIENT NONE")
+        #print("STOPPING AS VOICE CLIENT NONE")
         guildmusiccp[ctx.guild.id] = False
         guildmusicname[ctx.guild.id] = collections.deque([])
         guildmusicqueue[ctx.guild.id] = collections.deque([])
@@ -10571,15 +10583,15 @@ async def startvc(ctx, player, nonotice, norepeat=False, count=1):
         try:
             asyncio.create_task(ctx.voice_client.play(source=cplayer))
         except Exception as ex:
-            print(f"Player error {ex}")
+            pass
     else:
         cplayer = player
         try:
             ctx.voice_client.play(source=cplayer)
         except Exception as ex:
-            print(f"Player error {ex}")
-    print(f"{player.wavelink}(wavelink) player trying to play!")
-    print(f"{player.requester.name} -> {player.title}")
+            pass
+    #print(f"{player.wavelink}(wavelink) player trying to play!")
+    #print(f"{player.requester.name} -> {player.title}")
     guildmusictotaltime[ctx.guild.id] = vidduration
     starttime = -1
     endtime = -1
@@ -10588,10 +10600,10 @@ async def startvc(ctx, player, nonotice, norepeat=False, count=1):
     pausedendtime = -1
     totalpausedtime = 0
     songpaused = False
-    print(f"Song {player.title} started in {starttime}")
+    #print(f"Song {player.title} started in {starttime}")
     while (voice.is_playing() or voice.is_paused()) and ((endtime-starttime)-totalpausedtime) < vidduration:
         endtime = time.time()
-        print(f"Song playing till {endtime}...")
+        #print(f"Song playing till {endtime}...")
         if songpaused and voice.is_playing():
             # print(f"Songpaused TRUE and voice playing!")
             pausedendtime = time.time()
@@ -10614,7 +10626,7 @@ async def startvc(ctx, player, nonotice, norepeat=False, count=1):
         if voice is None:
             break
         await asyncio.sleep(1)
-    print(f"Song {player.title} ended.")
+    #print(f"Song {player.title} ended.")
     guildmusictime[ctx.guild.id] = ((endtime-starttime)-totalpausedtime)
     try:
         guildmusicname[ctx.guild.id].remove(player)
@@ -10623,8 +10635,8 @@ async def startvc(ctx, player, nonotice, norepeat=False, count=1):
     except:
         pass
     timetaken = ((endtime-starttime)-totalpausedtime)+1
-    print(f"Time taken {timetaken}")
-    print(f"Vid duration {vidduration}")
+    #print(f"Time taken {timetaken}")
+    #print(f"Vid duration {vidduration}")
     if (timetaken+5) < vidduration:
         if guildmusicskipped[ctx.guild.id]:
             guildmusicskipped[ctx.guild.id] = False
@@ -10683,7 +10695,7 @@ async def startvc(ctx, player, nonotice, norepeat=False, count=1):
         try:
             guildmusiccount[ctx.guild.id] = guildmusicids[ctx.guild.id][0]
         except Exception as ex:
-            print(f"{ex} while setting guildmusiccount")
+            pass
         guildmusiccurrent[ctx.guild.id] = ""
 
 
@@ -10780,17 +10792,17 @@ async def playmusic(ctx, songname, start=None, end=None, nonotice=False, search=
     except:
         pass
     sptrackcheck = re.compile(
-        "^((?:https?:)?//)?((?:www|m).)?((?:open.spotify.com|spotify.com))(/track)")
+        "^((?:https?:)?//)?((?:www|m).)?(open.spotify.com|spotify.com)(/track)")
     spplaylistcheck = re.compile(
-        "^((?:https?:)?//)?((?:www|m).)?((?:open.spotify.com|spotify.com))(/playlist)")
+        "^((?:https?:)?//)?((?:www|m).)?(open.spotify.com|spotify.com)(/playlist)")
     spartistcheck = re.compile(
-        "^((?:https?:)?//)?((?:www|m).)?((?:open.spotify.com|spotify.com))(/artist)|(/artists)")
+        "^((?:https?:)?//)?((?:www|m).)?(open.spotify.com|spotify.com)(/artist)|(/artists)")
     spalbumcheck = re.compile(
-        "^((?:https?:)?//)?((?:www|m).)?((?:open.spotify.com|spotify.com))(/album)|(/albums)")
+        "^((?:https?:)?//)?((?:www|m).)?(open.spotify.com|spotify.com)(/album)|(/albums)")
     ytplaylistcheck = re.compile(
-        "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))(/playlist)")
+        "^((?:https?:)?//)?((?:www|m).)?(youtube.com|youtu.be)(/playlist)")
     yttrackcheck = re.compile(
-        "^(https?\:\/\/)?((www\.)?youtube\.com|youtu\.be)\/.+$")
+        "^(https?://)?((www\.)?youtube\.com|youtu\.be)/.+$")
     norepeat = start is not None
     if sptrackcheck.match(songname):
         try:
