@@ -4360,7 +4360,7 @@ class AutoMod(commands.Cog):
     async def allowspam(self, ctx, channel: discord.TextChannel = None):
         givenTitle = ""
         if channel is None:
-            channel = ctx.guild
+            channel = ctx.channel
 
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
@@ -4402,7 +4402,7 @@ class AutoMod(commands.Cog):
     async def disallowspam(self, ctx, channel: discord.TextChannel = None):
         givenTitle = ""
         if channel is None:
-            channel = ctx.guild
+            channel = ctx.channel
 
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
@@ -4483,7 +4483,7 @@ class AutoMod(commands.Cog):
         global antifilter
         givenTitle = ""
         if channel is None:
-            channel = ctx.guild
+            channel = ctx.channel
 
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
@@ -4527,7 +4527,7 @@ class AutoMod(commands.Cog):
         global antifilter
         givenTitle = ""
         if channel is None:
-            channel = ctx.guild
+            channel = ctx.channel
 
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
@@ -4570,7 +4570,7 @@ class AutoMod(commands.Cog):
         global antilink
         givenTitle = ""
         if channel is None:
-            channel = ctx.guild
+            channel = ctx.channel
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
             return
@@ -4613,7 +4613,7 @@ class AutoMod(commands.Cog):
         global antilink
         givenTitle = ""
         if channel is None:
-            channel = ctx.guild
+            channel = ctx.channel
 
         if channel.guild != ctx.guild:
             await on_command_error(ctx, " The channel provided was not in this guild.")
