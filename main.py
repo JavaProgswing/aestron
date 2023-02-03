@@ -2423,7 +2423,7 @@ async def gitcommitcheck():
                         except:
                             pass
 
-                await channeldev.send(subprocess.run(f"nohup python3.9 main.py restart {channeldev.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
+                await channeldev.send(subprocess.run(f"nohup python3.9 main.py restart {channeldev.id} &> output.log &", shell=True, stdout=subprocess.PIPE).stdout)
                 await asyncio.sleep(3)
                 os._exit(1)
 
@@ -2883,7 +2883,7 @@ async def restartlatestcommit(ctx, *, files=None):
                 await viewobj._message.edit(view=viewobj)
             except:
                 pass
-    await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
+    await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} &> output.log &", shell=True, stdout=subprocess.PIPE).stdout)
     await asyncio.sleep(3)
     os._exit(1)
 
@@ -2901,7 +2901,7 @@ async def restart(ctx):
                 await viewobj._message.edit(view=viewobj)
             except:
                 pass
-    await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} > output.log &", shell=True, stdout=subprocess.PIPE).stdout)
+    await ctx.send(subprocess.run(f"nohup python3.9 main.py restart {ctx.channel.id} &> output.log &", shell=True, stdout=subprocess.PIPE).stdout)
     await asyncio.sleep(3)
     os._exit(1)
 
@@ -4764,8 +4764,7 @@ class Templates(commands.Cog):
         embed = discord.Embed(title=f"{ctx.guild}'s backup template",
                               description=f"https://discord.new/{backupTemplate}", timestamp=discord.utils.utcnow())
         embedStatusDel = discord.Embed(
-            title="Deletion status", description="<a:loadingone:877403280391696444> Deleting.")
-        # await ctx.respond(embed=embed)
+            title="Deleting old channels/roles", description="Status <a:loadingone:877403280391696444>")
         messagesent = await ctx.respond(embed=embedStatusDel, ephemeral=True)
         changesstrDel = ""
         for channel in ctx.guild.channels:
@@ -4796,9 +4795,9 @@ class Templates(commands.Cog):
                     (f"(Role) {role.name} was not deleted.\n")
         myFileDel = discord.File(io.StringIO(str(changesstrDel)),
                                  filename="DELETEDchanges.text")
-        await ctx.respond(file=myFileDel, ephemeral=True)
+        await ctx.send(file=myFileDel)
         for embedLoop in messagesent.embeds:
-            embedLoop.description = "<a:yes:872664918736928858> Deleted."
+            embedLoop.description = "Status <a:yes:872664918736928858>"
             embedLoop.color = Color.green()
             await messagesent.edit(embed=embedLoop)
         try:
@@ -4806,8 +4805,7 @@ class Templates(commands.Cog):
         except:
             pass
         embedStatus = discord.Embed(
-            title="Creation status", description="<a:loadingone:877403280391696444> Creating.")
-        # await ctx.respond(embed=embed)
+            title="Creating channels/roles", description="Status <a:loadingone:877403280391696444>")
         messagesent = None
         changesstr = ""
         firsttxtchnl = None
@@ -4886,11 +4884,11 @@ class Templates(commands.Cog):
                 str(changesstr)), filename="CREATEDchanges.text")
             myFileDel = discord.File(io.StringIO(str(changesstrDel)),
                                      filename="DELETEDchanges.text")
-            await firsttxtchnl.send(file=myFileDel, ephemeral=True)
-            embedStatusDel.description = "<a:yes:872664918736928858> Deleted."
+            await firsttxtchnl.send(file=myFileDel)
+            embedStatusDel.description = "Status <a:yes:872664918736928858>"
             embedStatusDel.color = Color.green()
-            await firsttxtchnl.send(embed=embedStatusDel, ephemeral=True)
-            await firsttxtchnl.send(file=myFile, ephemeral=True)
+            await firsttxtchnl.send(embed=embedStatusDel)
+            await firsttxtchnl.send(file=myFile)
         await ctx.channel.delete()
         guild = ctx.guild
         muterole = discord.utils.get(guild.roles, name='muted')
