@@ -5472,6 +5472,33 @@ class Captcha(commands.Cog):
         if count != 0:
             await ctx.respond(embed=embed, ephemeral=True)
 
+    @bridge.bridge_command(aliases=["unsetverificationchannel"],
+                           brief='This command removes a verification channel in the guild.',
+                           description='This command removes a verification channel in the guild(requires manage guild).',
+                           usage="")
+    @commands.guild_only()
+    @commands.check_any(is_bot_staff(),
+                        commands.has_permissions(manage_guild=True))
+    async def removeverification(self, ctx):
+        statement = """DELETE FROM verifychannels WHERE guildid = $1"""
+        async with pool.acquire() as con:
+            await con.execute(statement, ctx.guild.id)
+        statement = """SELECT * FROM verifymsg WHERE guildid = $1"""
+        async with pool.acquire() as con:
+            row = await con.fetchrow(statement, ctx.guild.id)
+        if row:
+            guild=ctx.guild
+            verifychannel=guild.get_channel(row['channelid'])
+            verifymessage=await verifychannel.fetch_message(row['messageid'])
+            try:
+                await verifymessage.delete()
+            except:
+               pass
+        statement = """DELETE FROM verifymsg WHERE guildid = $1"""
+        async with pool.acquire() as con:
+            await con.execute(statement, ctx.guild.id)
+        await ctx.respond("Successfully removed the verification channel.", ephemeral=True)
+
     @bridge.bridge_command(aliases=["setverificationchannel"],
                            brief='This command sets up a verification channel in the guild.',
                            description='This command sets up a verification channel in the guild(requires manage guild).',
@@ -5486,6 +5513,7 @@ class Captcha(commands.Cog):
             await on_command_error(ctx, " The channel provided was not in this guild.")
             return
         global prefixlist, verifyonly
+
         verifyrole = discord.utils.get(ctx.guild.roles, name='Verified')
         if verifyrole is None:
             perms = discord.Permissions(view_channel=True)
@@ -5514,9 +5542,12 @@ class Captcha(commands.Cog):
                     overwrites=over)
             except:
                 pass
-        statement = """INSERT INTO verifychannels (channelid) VALUES($1);"""
+        statement = """DELETE FROM verifychannels WHERE guildid = $1"""
         async with pool.acquire() as con:
-            await con.execute(statement, verifychannel.id)
+            await con.execute(statement, ctx.guild.id)
+        statement = """INSERT INTO verifychannels (channelid,guildid) VALUES($1,$2);"""
+        async with pool.acquire() as con:
+            await con.execute(statement, verifychannel.id, ctx.guild.id)
         over = {
             ctx.guild.default_role:
             discord.PermissionOverwrite(
@@ -5560,13 +5591,14 @@ class Captcha(commands.Cog):
                 clonedchannel = await verifychannel.clone()
                 await verifychannel.send('Ok I am purging the channel.')
                 await verifychannel.send(f'Hey go to {clonedchannel} for a new purged channel .')
+                statement = """DELETE FROM verifychannels WHERE guildid = $1"""
                 async with pool.acquire() as con:
-                    await con.execute(f"DELETE FROM verifychannels WHERE channelid = {verifychannel.id}")
+                    await con.execute(statement, ctx.guild.id)
                 await verifychannel.delete()
                 verifychannel = clonedchannel
-                statement = """INSERT INTO verifychannels (channelid) VALUES($1);"""
+                statement = """INSERT INTO verifychannels (channelid,guildid) VALUES($1,$2);"""
                 async with pool.acquire() as con:
-                    await con.execute(statement, verifychannel.id)
+                    await con.execute(statement, verifychannel.id, ctx.guild.id)
         e = discord.Embed(
             title=f"{ctx.guild} Verification",
             description="""Hello! You are required to complete a captcha <:captcha:879225291136991292> before entering the server.
