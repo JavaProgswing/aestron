@@ -622,7 +622,9 @@ class MyHelp(commands.HelpCommand):
 13. Valorant commands""",
         )
         embed.add_field(name="Version and info", value=f"v{botVersion}")
-        embed.add_field(name="Additional Usage: ", value="`a!help <command>`\n`a!help <category>`")
+        embed.add_field(
+            name="Additional Usage: ", value="`a!help <command>`\n`a!help <category>`"
+        )
         embed.set_footer(
             text="Want support? Join here: https://discord.gg/TZDYSHSZgg",
             icon_url=self.context.author.display_avatar,
