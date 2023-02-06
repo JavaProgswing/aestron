@@ -15363,8 +15363,8 @@ async def on_message(message):
             if not checkstaff(message.author):
                 return
             #logger.info(
-                f" {message.author} sent {message.content} in {message.channel} ."
-            )
+            #    f" {message.author} sent {message.content} in {message.channel} ."
+            #)
             print(f" {message.author} sent {message.content} in {message.channel} .")
         ctx = await client.get_context(message)
         if (
