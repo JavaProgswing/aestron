@@ -203,7 +203,7 @@ conn = None
 newconn = None
 pool = None
 newpool = None
-
+logger = None
 
 class YTDLRateLimited(Exception):
     pass
