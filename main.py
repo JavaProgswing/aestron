@@ -572,9 +572,9 @@ class MyHelp(commands.HelpCommand):
         await super().on_help_command_error(ctx, error)
         print(error)
         print(type(error))
-        logger.warning(f"Error {error} in help command")
+        #logger.warning(f"Error {error} in help command")
         print(get_traceback(error))
-        logger.warning(get_traceback(error))
+        #logger.warning(get_traceback(error))
 
     async def send_bot_help(self, mapping):
         global customCog
@@ -1972,8 +1972,8 @@ def get_traceback(error):
 
 @client.event
 async def on_application_command_error(ctx, error):
-    logger.warning(f"Error {error} in {ctx.command} app command.")
-    logger.warning(get_traceback(error))
+    #logger.warning(f"Error {error} in {ctx.command} app command.")
+    #logger.warning(get_traceback(error))
     global channelerrorlogging, verifyCommand, maintenancemodestatus
     prefix = ""
     errordata = error
@@ -2089,8 +2089,8 @@ async def on_application_command_error(ctx, error):
 async def on_command_error(
     ctx, error, tracebackreq=False, forcelog=forcelogerrors, userlog=True
 ):
-    logger.warning(f"Error {error} in {ctx.command} command.")
-    logger.warning(get_traceback(error))
+    #logger.warning(f"Error {error} in {ctx.command} command.")
+    #logger.warning(get_traceback(error))
     global channeldev, channelerrorlogging, verifyCommand, maintenancemodestatus, tempbotowners
     isSlashCmd = False
     verifyDelete = True
@@ -2958,14 +2958,14 @@ async def gitcommitcheck():
 
 async def runBot():  # Bot START Aestron START
     logger = logging.getLogger("Aestron")
-    logger.setLevel(logging.DEBUG)
+    #logger.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(CustomFormatter())
-    logger.addHandler(ch)
-    logger.info("Starting Aestron...")
+    #logger.addHandler(ch)
+    #logger.info("Starting Aestron...")
     await client.wait_until_ready()
-    logger.info("Aestron is ready!")
+    #logger.info("Aestron is ready!")
     client.start_status = BotStartStatus.PROCESSING
     # Testing commit
     bot.launch_time = datetime.utcnow()
@@ -2980,7 +2980,7 @@ async def runBot():  # Bot START Aestron START
     newpool = await asyncpg.create_pool(
         DATABASE_URL, max_size=max(20, len(client.guilds)), min_size=1
     )
-    logger.info("The database has been set to %s.", conn)
+    #logger.info("The database has been set to %s.", conn)
     print(f"The database sql has been set to {conn}")
     print(f"The new database sql has been set to {newconn}")
     client.session = aiohttp.ClientSession()
@@ -2992,7 +2992,7 @@ async def runBot():  # Bot START Aestron START
     channeldev = client.get_channel(843081057506426880)
     channelgitlogging = client.get_channel(895884797099008050)
     print(f"The logging channel has been set to {channelerrorlogging}.")
-    logger.info("The logging channel has been set to %s.", channelerrorlogging)
+    #logger.info("The logging channel has been set to %s.", channelerrorlogging)
     if len(sys.argv) > 1 and sys.argv[1] == "restart":
         if len(sys.argv) > 2:
             channelid = int(sys.argv[2])
@@ -15362,7 +15362,7 @@ async def on_message(message):
             # print(f" {message.author} sent {message.content} in {message.channel} .")
             if not checkstaff(message.author):
                 return
-            logger.info(
+            #logger.info(
                 f" {message.author} sent {message.content} in {message.channel} ."
             )
             print(f" {message.author} sent {message.content} in {message.channel} .")
