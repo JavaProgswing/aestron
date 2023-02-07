@@ -1006,10 +1006,8 @@ class DefaultHelpSelect(discord.ui.Select):
             return
         embed = discord.Embed(title=f"{cogemoji[cogname]} {cogname}")
         for c in cog.get_commands():
-            if isinstance(c, discord.ext.bridge.BridgeCommand):
-                c = c.ext_variant
             if c.name in self.fcommands and (
-                isinstance(c, discord.ext.bridge.BridgeExtCommand)
+                isinstance(c, discord.ext.bridge.core.BridgeExtCommand)
                 or isinstance(c, discord.ext.commands.core.Command)
             ):
                 embed.add_field(name=c.name, value=c.description, inline=False)
