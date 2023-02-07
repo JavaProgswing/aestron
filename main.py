@@ -6285,7 +6285,7 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
-    async def verifyreadadd(self, ctx, greedytextstagevoicechannels: str):
+    async def verifyreadadd(self, ctx, *,greedytextstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
@@ -6340,7 +6340,7 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
-    async def verifyreadremove(self, ctx, greedytextstagevoicechannels: str):
+    async def verifyreadremove(self, ctx,  *,greedytextstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
@@ -6397,7 +6397,7 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
-    async def verifyfulladd(self, ctx, greedytextstagevoicechannels: str):
+    async def verifyfulladd(self, ctx,  *,greedytextstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
@@ -6453,7 +6453,7 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
-    async def verifyfullremove(self, ctx, greedytextstagevoicechannels: str):
+    async def verifyfullremove(self, ctx,  *,greedytextstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
@@ -6889,8 +6889,8 @@ class MinecraftFun(commands.Cog):
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
             async with newpool.acquire() as con:
-                await con.execute(statement, member.id, 500, json.dumps(newjson))
-            oldbalance = 500
+                await con.execute(statement, member.id, 1500, json.dumps(newjson))
+            oldbalance = 1500
         embed = discord.Embed(
             title=f"{member.name}'s balance", description=f"{oldbalance} currency"
         )
@@ -6913,7 +6913,7 @@ class MinecraftFun(commands.Cog):
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
             async with newpool.acquire() as con:
-                await con.execute(statement, ctx.author.id, 500, json.dumps(newjson))
+                await con.execute(statement, ctx.author.id, 1500, json.dumps(newjson))
             async with newpool.acquire() as con:
                 memberoneeco = await con.fetchrow(
                     f"SELECT * FROM mceconomy WHERE memberid = {ctx.author.id}"
@@ -6945,7 +6945,7 @@ class MinecraftFun(commands.Cog):
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
             async with newpool.acquire() as con:
-                await con.execute(statement, ctx.author.id, 500, json.dumps(newjson))
+                await con.execute(statement, ctx.author.id, 1500, json.dumps(newjson))
             async with newpool.acquire() as con:
                 memberoneeco = await con.fetchrow(
                     f"SELECT * FROM mceconomy WHERE memberid = {ctx.author.id}"
@@ -7008,7 +7008,7 @@ class MinecraftFun(commands.Cog):
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
             async with newpool.acquire() as con:
-                await con.execute(statement, member.id, 500, json.dumps(newjson))
+                await con.execute(statement, member.id, 1500, json.dumps(newjson))
             async with newpool.acquire() as con:
                 memberoneeco = await con.fetchrow(
                     f"SELECT * FROM mceconomy WHERE memberid = {member.id}"
@@ -7054,7 +7054,7 @@ class MinecraftFun(commands.Cog):
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
             async with newpool.acquire() as con:
-                await con.execute(statement, ctx.author.id, 500, json.dumps(newjson))
+                await con.execute(statement, ctx.author.id, 1500, json.dumps(newjson))
         embed = discord.Embed(
             title="Minecraft shop",
             description="Click on dropdown to view items and buy them!",
@@ -7076,9 +7076,9 @@ class MinecraftFun(commands.Cog):
                 ephemeral=True,
             )
             return
-        if member == ctx.guild.me:
+        if member.bot:
             await ctx.respond(
-                "You cannot battle me ,I cannot be defeated!", ephemeral=True
+                "You cannot battle bots,we cannot be defeated!", ephemeral=True
             )
             return
         if vhc is not None:
@@ -7097,7 +7097,7 @@ class MinecraftFun(commands.Cog):
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
             async with newpool.acquire() as con:
-                await con.execute(statement, ctx.author.id, 500, json.dumps(newjson))
+                await con.execute(statement, ctx.author.id, 1500, json.dumps(newjson))
             async with newpool.acquire() as con:
                 memberoneeco = await con.fetchrow(
                     f"SELECT * FROM mceconomy WHERE memberid = {ctx.author.id}"
@@ -7111,7 +7111,7 @@ class MinecraftFun(commands.Cog):
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
             async with newpool.acquire() as con:
-                await con.execute(statement, member.id, 500, json.dumps(newjson))
+                await con.execute(statement, member.id, 1500, json.dumps(newjson))
             async with newpool.acquire() as con:
                 membertwoeco = await con.fetchrow(
                     f"SELECT * FROM mceconomy WHERE memberid = {member.id}"
@@ -10614,7 +10614,7 @@ class Giveaways(commands.Cog):
             name="Percentage of votes <a:verified:875327156572532736>/<a:denied:877399177208954912>",
             value="0/0 %",
         )
-        msgsent = await ctx.respond(embed=embed, ephemeral=True)
+        msgsent = await ctx.respond(embed=embed)
         await msgsent.add_reaction("<a:verified:875327156572532736>")
         await msgsent.add_reaction("<a:denied:877399177208954912>")
         results = f"INSERT INTO polls (messageid) VALUES($1);"
@@ -10653,8 +10653,7 @@ class Giveaways(commands.Cog):
         length = len(members)
         randomnumber = random.randrange(0, (length - 1))
         await ctx.respond(
-            f"{members[randomnumber].mention} has won the giveaway hosted by {ctx.author.mention}.",
-            ephemeral=True,
+            f"{members[randomnumber].mention} has won the giveaway hosted by {ctx.author.mention}."
         )
 
     @bridge.bridge_command(
@@ -15465,48 +15464,29 @@ async def on_message(message):
             )
         if restrictlist is not None and ctx.valid:
             return
-        if message.content.casefold() == "pls trivia":
-            bucket = bot.triviacooldownvar.get_bucket(message)
-            retry_after = bucket.update_rate_limit()
-            if retry_after and not checkstaff(ctx.author):
-                pass
-                # await on_command_error(ctx, f"You exceeded the maximum allowed ratelimit for trivia answers!")
-            else:
-                statement = """INSERT INTO pendingTrivia (channelid) VALUES($1);"""
-                async with pool.acquire() as con:
-                    await con.execute(statement, ctx.channel.id)
-        async with pool.acquire() as con:
-            trivialist = await con.fetchrow(
-                f"SELECT * FROM pendingTrivia WHERE channelid = {message.channel.id}"
-            )
-        if trivialist is not None:
-            if ctx.author.id == 270904126974590976:
-                try:
-                    embed = message.embeds[0]
-                    jsonGot = embed.to_dict()
-                    title = jsonGot["author"]["name"]
-                    async with pool.acquire() as con:
-                        trivia = await con.fetch(
-                            f"DELETE FROM pendingTrivia WHERE channelid = {message.channel.id}"
-                        )
-                    question = jsonGot["description"].split("\n")[0]
-                    if "these" in question:
-                        labels = ""
-                        for cm in message.components:
-                            for btn in cm.children:
-                                labels = labels + "," + str(btn.label)
-                        question = question.replace("these", labels)
-                    question = question.replace("**", "")
-                    question = question.replace(" ", "+")
-                    googleurl = f"https://www.google.com/search?q={question}"
-                    embed = discord.Embed(
-                        title="Google result",
-                        description=f"Scraping results for {title}",
-                    )
-                    scrn = await take_screenshot(ctx, url=googleurl)
-                    await ctx.send(file=scrn, embed=embed)
-                except Exception as ex:
-                    print(f"Exception in trivia cmd : {ex}")
+        if ctx.author.id == 270904126974590976 and message.type==discord.MessageType.application_command and message.interaction.name=="trivia":
+            try:
+                embed = message.embeds[0]
+                jsonGot = embed.to_dict()
+                title = jsonGot["author"]["name"]
+                question = jsonGot["description"].split("\n")[0]
+                if "these" in question:
+                    labels = ""
+                    for cm in message.components:
+                        for btn in cm.children:
+                            labels = labels + "," + str(btn.label)
+                    question = question.replace("these", labels)
+                question = question.replace("**", "")
+                question = question.replace(" ", "+")
+                googleurl = f"https://www.google.com/search?q={question}"
+                embed = discord.Embed(
+                    title="Google result",
+                    description=f"Scraping results for {title}",
+                )
+                scrn = await take_screenshot(ctx, url=googleurl)
+                await ctx.send(file=scrn, embed=embed)
+            except Exception as ex:
+                print(f"Exception in trivia cmd : {ex}")
 
         if ctx.valid:
             print(
@@ -15562,10 +15542,10 @@ async def on_message(message):
                         f"SELECT * FROM levelsettings WHERE channelid = {message.channel.id}"
                     )
                 prefix = await get_prefix(client, message)
-                await ctx.send(
-                    f"Alert: leveling was automatically disabled in this channel, do {message.guild.me.mention}leveltoggle to turn on leveling!",
-                    delete_after=5,
-                )
+                #await ctx.send(
+                #    f"Alert: leveling was automatically disabled in this channel, do {message.guild.me.mention}leveltoggle to turn on leveling!",
+                #    delete_after=5,
+                #)
             if warninglist[1]:
                 async with pool.acquire() as con:
                     levelconfiglist = await con.fetchrow(
