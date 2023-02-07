@@ -7531,6 +7531,36 @@ async def api_take_screenshot(ctx, url, save_fn="capture.png"):
         my_file = discord.File(save_fn)
         return my_file
 
+async def take_quick_screenshot(ctx, url, save_fn="capture.png"):
+    apiurl = f"https://api.popcat.xyz/screenshot?url={url}"
+    session = client.session
+    async with session.get(apiurl) as response:
+        if response.status != 200:
+            if response.status == 429:
+                raise commands.CommandError(
+                    "The screenshot couldn't be taken due to rate-limiting!"
+                )
+            elif response.status == 400:
+                raise commands.CommandError(
+                    "The screenshot couldn't be taken due to an invalid URL!"
+                )
+            elif response.status == 523:
+                raise commands.CommandError(
+                    "The screenshot couldn't be taken due to connection refusal!"
+                )
+            elif response.status == 451:
+                raise commands.CommandError(
+                    "The screenshot couldn't be taken due to unacceptable content!"
+                )
+            else:
+                raise commands.CommandError(
+                    f"The screenshot couldn't be taken due to {response.reason}!"
+                )
+        bytesRead = await response.read()
+        with open(save_fn, "wb") as out_file:
+            out_file.write(bytesRead)
+        my_file = discord.File(save_fn)
+        return my_file
 
 async def take_screenshot(ctx, url, save_fn="capture.png"):
     global browser
@@ -15468,7 +15498,7 @@ async def on_message(message):
             try:
                 embed = message.embeds[0]
                 jsonGot = embed.to_dict()
-                title = jsonGot["author"]["name"]
+                title = message.interaction.user
                 question = jsonGot["description"].split("\n")[0]
                 if "these" in question:
                     labels = ""
@@ -15483,7 +15513,7 @@ async def on_message(message):
                     title="Google result",
                     description=f"Scraping results for {title}",
                 )
-                scrn = await take_screenshot(ctx, url=googleurl)
+                scrn = await take_quick_screenshot(ctx, url=googleurl)
                 await ctx.send(file=scrn, embed=embed)
             except Exception as ex:
                 print(f"Exception in trivia cmd : {ex}")
