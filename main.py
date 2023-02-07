@@ -15501,13 +15501,13 @@ async def on_message(message):
                 jsonGot = embed.to_dict()
                 title = message.interaction.user
                 question = jsonGot["description"].split("\n")[0]
-                if "these" in question:
-                    labels = ""
-                    for cm in message.components:
-                        for btn in cm.children:
-                            labels = labels + "," + str(btn.label)
-                    question = question.replace("these", labels)
-                question = question.replace("**", "")
+                labels = ""
+                for cm in message.components:
+                    for btn in cm.children:
+                        labels = labels + "," + str(btn.label)
+                labels = labels.removeprefix(",")
+                question = question + " among " + labels
+                question = question.replace("*", "")
                 question = question.replace(" ", "+")
                 googleurl = f"https://www.google.com/search?q={question}"
                 embed = discord.Embed(
