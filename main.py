@@ -7532,7 +7532,6 @@ async def api_take_screenshot(ctx, url, save_fn="capture.png"):
         return my_file
 
 async def take_quick_screenshot(ctx, url, save_fn="capture.png"):
-    url=url.replace("+","-")
     apiurl = f"https://api.popcat.xyz/screenshot?url={url}"
     session = client.session
     async with session.get(apiurl) as response:
@@ -15508,7 +15507,7 @@ async def on_message(message):
                 labels = labels.removeprefix(",")
                 question = question + " among " + labels
                 question = question.replace("*", "")
-                question = question.replace(" ", "+")
+                question = question.replace(" ", "%2b")
                 googleurl = f"https://www.google.com/search?q={question}"
                 embed = discord.Embed(
                     title="Google result",
