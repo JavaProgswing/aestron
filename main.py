@@ -2099,7 +2099,7 @@ async def on_command_error(
     try:
         prefix = ctx.prefix
     except:
-        prefix = "a!"
+        prefix = "/"
     try:
         messageid = ctx.message.id
     except:
@@ -3559,8 +3559,12 @@ class AestronInfo(commands.Cog):
                         exampleLine
                         + "\n\nNote: (OPT.) means that argument in the command is optional."
                     )
+                try:
+                    prefix = ctx.prefix
+                except:
+                    prefix = "/"
                 embedVar.add_field(
-                    name="Usage", value=f"{ctx.prefix}{command} {exampleLine}"
+                    name="Usage", value=f"{prefix}{command} {exampleLine}"
                 )
                 embedVar.set_image(url=f"attachment://{commandUsage}")
                 embeds.append(embedVar)
@@ -5333,7 +5337,11 @@ class AutoMod(commands.Cog):
             description="",
             color=Color.blue(),
         )
-        guildPrefix = ctx.prefix
+        try:
+            prefix = ctx.prefix
+        except:
+            prefix = "/"
+        guildPrefix = prefix
         spamEmoji = "<:nope:906421140157780008>"
         async with pool.acquire() as con:
             spamlist = await con.fetchrow(
@@ -6722,8 +6730,12 @@ Why?
 This is to protect the server against
 targeted attacks using automated user accounts.""",
         )
+        try:
+            prefix = ctx.prefix
+        except:
+            prefix = "/"
         e.add_field(
-            name=f"Type {ctx.prefix}verify to get verified and gain access to channels.",
+            name=f"Type {prefix}verify to get verified and gain access to channels.",
             value="** **",
         )
         msg = await verifychannel.send(embed=e, view=Verification())
@@ -7917,6 +7929,10 @@ class Leveling(commands.Cog):
             warninglist = await con.fetchrow(
                 f"SELECT * FROM levelsettings WHERE channelid = {ctx.channel.id}"
             )
+        try:
+            prefix = ctx.prefix
+        except:
+            prefix = "/"
         if warninglist is None:
             statement = (
                 """INSERT INTO levelsettings (channelid,setting) VALUES($1,$2);"""
@@ -7928,12 +7944,12 @@ class Leveling(commands.Cog):
                     f"SELECT * FROM levelsettings WHERE channelid = {ctx.channel.id}"
                 )
             await ctx.respond(
-                f"Alert: leveling was automatically enabled in this channel, do {ctx.prefix}leveltoggle to turn off leveling!",
+                f"Alert: leveling was automatically enabled in this channel, do {prefix}leveltoggle to turn off leveling!",
                 ephemeral=True,
             )
         if not warninglist[1]:
             raise commands.CommandError(
-                f"The leveling setting has been disabled in this channel , do {ctx.prefix}leveltoggle to turn on leveling."
+                f"The leveling setting has been disabled in this channel , do {prefix}leveltoggle to turn on leveling."
             )
             return
         async with pool.acquire() as con:
@@ -8047,6 +8063,10 @@ class Leveling(commands.Cog):
             warninglist = await con.fetchrow(
                 f"SELECT * FROM levelsettings WHERE channelid = {ctx.channel.id}"
             )
+        try:
+            prefix = ctx.prefix
+        except:
+            prefix = "/"
         if warninglist is None:
             statement = (
                 """INSERT INTO levelsettings (channelid,setting) VALUES($1,$2);"""
@@ -8058,12 +8078,12 @@ class Leveling(commands.Cog):
                     f"SELECT * FROM levelsettings WHERE channelid = {ctx.channel.id}"
                 )
             await ctx.respond(
-                f"Alert: leveling was automatically enabled in this channel, do {ctx.prefix}leveltoggle to turn off leveling!",
+                f"Alert: leveling was automatically enabled in this channel, do {prefix}leveltoggle to turn off leveling!",
                 ephemeral=True,
             )
         if not warninglist[1]:
             raise commands.CommandError(
-                f"The leveling setting has been disabled in this channel , do {ctx.prefix}leveltoggle to turn on leveling."
+                f"The leveling setting has been disabled in this channel , do {prefix}leveltoggle to turn on leveling."
             )
             return
         async with pool.acquire() as con:
@@ -9815,6 +9835,10 @@ class Call(commands.Cog):
         )
         embed.add_field(name="Dialer", value=ctx.author.mention)
         embed.add_field(name="Receiver", value=member.mention)
+        try:
+            prefix = ctx.prefix
+        except:
+            prefix = "/"
         messageonesent = None
         try:
             messageonesent = await ctx.author.send(embed=embed)
@@ -9935,8 +9959,8 @@ class Call(commands.Cog):
                     if message.author == member:
                         theMessage = message.content
                         if (
-                            theMessage == f"{ctx.prefix}end"
-                            or theMessage == f"{ctx.prefix}hangup"
+                            theMessage == f"{prefix}end"
+                            or theMessage == f"{prefix}hangup"
                         ):
                             return True
                         if checkProfane(theMessage):
@@ -9979,8 +10003,8 @@ class Call(commands.Cog):
                     elif message.author == ctx.author:
                         theMessage = message.content
                         if (
-                            theMessage == f"{ctx.prefix}end"
-                            or theMessage == f"{ctx.prefix}hangup"
+                            theMessage == f"{prefix}end"
+                            or theMessage == f"{prefix}hangup"
                         ):
                             return False
                         if checkProfane(theMessage):
