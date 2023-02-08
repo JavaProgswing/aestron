@@ -205,6 +205,7 @@ pool = None
 newpool = None
 logger = None
 
+
 class YTDLRateLimited(Exception):
     pass
 
@@ -572,9 +573,9 @@ class MyHelp(commands.HelpCommand):
         await super().on_help_command_error(ctx, error)
         print(error)
         print(type(error))
-        #logger.warning(f"Error {error} in help command")
+        # logger.warning(f"Error {error} in help command")
         print(get_traceback(error))
-        #logger.warning(get_traceback(error))
+        # logger.warning(get_traceback(error))
 
     async def send_bot_help(self, mapping):
         global customCog
@@ -1604,15 +1605,15 @@ class Songpanel(discord.ui.View):
             guildmusicloop[guild.id] = True
             try:
                 await interaction.response.send_message(
-                f"The loop has been activated by {interaction.user.mention}",
-                delete_after=2,
-                allowed_mentions=discord.AllowedMentions.none(),
+                    f"The loop has been activated by {interaction.user.mention}",
+                    delete_after=2,
+                    allowed_mentions=discord.AllowedMentions.none(),
                 )
             except:
                 await interaction.followup.send(
-                f"The loop has been activated by {interaction.user.mention}",
-                delete_after=2,
-                allowed_mentions=discord.AllowedMentions.none(),
+                    f"The loop has been activated by {interaction.user.mention}",
+                    delete_after=2,
+                    allowed_mentions=discord.AllowedMentions.none(),
                 )
             guildmusiccurrentstate[guild.id] = "🔁"
         else:
@@ -1776,21 +1777,24 @@ class Songpanel(discord.ui.View):
             songname = guildmusicname[guild.id][0].title
         except:
             await interaction.followup.send(
-                "I could not find any playing song.", ephemeral=True,
-            delete_after=2,
+                "I could not find any playing song.",
+                ephemeral=True,
+                delete_after=2,
             )
             return
         try:
             output = extract_lyrics.get_lyrics(songname)
         except:
             await interaction.followup.send(
-                "No lyrics found for that song.", ephemeral=True,
+                "No lyrics found for that song.",
+                ephemeral=True,
                 delete_after=2,
             )
             return
         if output.get("error"):
             await interaction.followup.send(
-                "No lyrics found for that song.", ephemeral=True,
+                "No lyrics found for that song.",
+                ephemeral=True,
                 delete_after=2,
             )
             return
@@ -2011,8 +2015,8 @@ def get_traceback(error):
 
 @client.event
 async def on_application_command_error(ctx, error):
-    #logger.warning(f"Error {error} in {ctx.command} app command.")
-    #logger.warning(get_traceback(error))
+    # logger.warning(f"Error {error} in {ctx.command} app command.")
+    # logger.warning(get_traceback(error))
     global channelerrorlogging, verifyCommand, maintenancemodestatus
     prefix = ""
     errordata = error
@@ -2128,8 +2132,8 @@ async def on_application_command_error(ctx, error):
 async def on_command_error(
     ctx, error, tracebackreq=False, forcelog=forcelogerrors, userlog=True
 ):
-    #logger.warning(f"Error {error} in {ctx.command} command.")
-    #logger.warning(get_traceback(error))
+    # logger.warning(f"Error {error} in {ctx.command} command.")
+    # logger.warning(get_traceback(error))
     global channeldev, channelerrorlogging, verifyCommand, maintenancemodestatus, tempbotowners
     isSlashCmd = False
     verifyDelete = True
@@ -2997,14 +3001,14 @@ async def gitcommitcheck():
 
 async def runBot():  # Bot START Aestron START
     logger = logging.getLogger("Aestron")
-    #logger.setLevel(logging.DEBUG)
+    # logger.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(CustomFormatter())
-    #logger.addHandler(ch)
-    #logger.info("Starting Aestron...")
+    # logger.addHandler(ch)
+    # logger.info("Starting Aestron...")
     await client.wait_until_ready()
-    #logger.info("Aestron is ready!")
+    # logger.info("Aestron is ready!")
     client.start_status = BotStartStatus.PROCESSING
     # Testing commit
     bot.launch_time = datetime.utcnow()
@@ -3019,7 +3023,7 @@ async def runBot():  # Bot START Aestron START
     newpool = await asyncpg.create_pool(
         DATABASE_URL, max_size=max(20, len(client.guilds)), min_size=1
     )
-    #logger.info("The database has been set to %s.", conn)
+    # logger.info("The database has been set to %s.", conn)
     print(f"The database sql has been set to {conn}")
     print(f"The new database sql has been set to {newconn}")
     client.session = aiohttp.ClientSession()
@@ -3031,7 +3035,7 @@ async def runBot():  # Bot START Aestron START
     channeldev = client.get_channel(843081057506426880)
     channelgitlogging = client.get_channel(895884797099008050)
     print(f"The logging channel has been set to {channelerrorlogging}.")
-    #logger.info("The logging channel has been set to %s.", channelerrorlogging)
+    # logger.info("The logging channel has been set to %s.", channelerrorlogging)
     if len(sys.argv) > 1 and sys.argv[1] == "restart":
         if len(sys.argv) > 2:
             channelid = int(sys.argv[2])
@@ -6332,7 +6336,7 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
-    async def verifyreadadd(self, ctx, *,greedytextstagevoicechannels: str):
+    async def verifyreadadd(self, ctx, *, greedytextstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
@@ -6387,7 +6391,7 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
-    async def verifyreadremove(self, ctx,  *,greedytextstagevoicechannels: str):
+    async def verifyreadremove(self, ctx, *, greedytextstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
@@ -6444,7 +6448,7 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
-    async def verifyfulladd(self, ctx,  *,greedytextstagevoicechannels: str):
+    async def verifyfulladd(self, ctx, *, greedytextstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
@@ -6500,7 +6504,7 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
-    async def verifyfullremove(self, ctx,  *,greedytextstagevoicechannels: str):
+    async def verifyfullremove(self, ctx, *, greedytextstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
@@ -7582,6 +7586,7 @@ async def api_take_screenshot(ctx, url, save_fn="capture.png"):
         my_file = discord.File(save_fn)
         return my_file
 
+
 async def take_quick_screenshot(ctx, url, save_fn="capture.png"):
     apiurl = f"https://api.popcat.xyz/screenshot?url={url}"
     session = client.session
@@ -7612,6 +7617,7 @@ async def take_quick_screenshot(ctx, url, save_fn="capture.png"):
             out_file.write(bytesRead)
         my_file = discord.File(save_fn)
         return my_file
+
 
 async def take_screenshot(ctx, url, save_fn="capture.png"):
     global browser
@@ -15452,9 +15458,9 @@ async def on_message(message):
             # print(f" {message.author} sent {message.content} in {message.channel} .")
             if not checkstaff(message.author):
                 return
-            #logger.info(
+            # logger.info(
             #    f" {message.author} sent {message.content} in {message.channel} ."
-            #)
+            # )
             print(f" {message.author} sent {message.content} in {message.channel} .")
         ctx = await client.get_context(message)
         if (
@@ -15555,7 +15561,11 @@ async def on_message(message):
             )
         if restrictlist is not None and ctx.valid:
             return
-        if ctx.author.id == 270904126974590976 and message.type==discord.MessageType.application_command and message.interaction.name=="trivia":
+        if (
+            ctx.author.id == 270904126974590976
+            and message.type == discord.MessageType.application_command
+            and message.interaction.name == "trivia"
+        ):
             try:
                 embed = message.embeds[0]
                 jsonGot = embed.to_dict()
@@ -15611,11 +15621,18 @@ async def on_message(message):
                     f"SELECT * FROM verifychannels WHERE channelid = {message.channel.id}"
                 )
             if verifylist is not None:
-                if not (ctx.valid and ctx.command == verifyCommand):
+                if not ctx.valid:
                     try:
                         await ctx.message.delete()
                     except:
                         pass
+                    return
+                elif not ctx.command.name == "verify":
+                    try:
+                        await ctx.message.delete()
+                    except:
+                        pass
+                    return
                 await client.process_commands(message)
                 return
             async with pool.acquire() as con:
@@ -15633,10 +15650,10 @@ async def on_message(message):
                         f"SELECT * FROM levelsettings WHERE channelid = {message.channel.id}"
                     )
                 prefix = await get_prefix(client, message)
-                #await ctx.send(
+                # await ctx.send(
                 #    f"Alert: leveling was automatically disabled in this channel, do {message.guild.me.mention}leveltoggle to turn on leveling!",
                 #    delete_after=5,
-                #)
+                # )
             if warninglist[1]:
                 async with pool.acquire() as con:
                     levelconfiglist = await con.fetchrow(
