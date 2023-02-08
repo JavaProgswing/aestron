@@ -1534,10 +1534,15 @@ class Songpanel(discord.ui.View):
                     await interaction.response.send_message(
                         f"The audio has been paused by {interaction.user.mention}",
                         delete_after=2,
+                        allowed_mentions=discord.AllowedMentions.none(),
                     )
                     await self.message.edit(view=self)
                 except:
-                    pass
+                    await interaction.followup.send(
+                        f"The audio has been paused by {interaction.user.mention}",
+                        delete_after=2,
+                        allowed_mentions=discord.AllowedMentions.none(),
+                    )
             elif voice.is_paused():
                 if not guildmusicloop[guild.id]:
                     guildmusiccurrentstate[guild.id] = "▶️"
@@ -1549,11 +1554,15 @@ class Songpanel(discord.ui.View):
                     await interaction.response.send_message(
                         f"The audio has been resumed by {interaction.user.mention}",
                         delete_after=2,
+                        allowed_mentions=discord.AllowedMentions.none(),
                     )
-
                     await self.message.edit(view=self)
                 except:
-                    pass
+                    await interaction.followup.send(
+                        f"The audio has been resumed by {interaction.user.mention}",
+                        delete_after=2,
+                        allowed_mentions=discord.AllowedMentions.none(),
+                    )
             else:
                 await interaction.response.send_message(
                     "You didn't request a song to be played that can be paused.",
@@ -1593,10 +1602,18 @@ class Songpanel(discord.ui.View):
             return
         if not guildmusicloop[guild.id]:
             guildmusicloop[guild.id] = True
-            await interaction.response.send_message(
+            try:
+                await interaction.response.send_message(
                 f"The loop has been activated by {interaction.user.mention}",
                 delete_after=2,
-            )
+                allowed_mentions=discord.AllowedMentions.none(),
+                )
+            except:
+                await interaction.followup.send(
+                f"The loop has been activated by {interaction.user.mention}",
+                delete_after=2,
+                allowed_mentions=discord.AllowedMentions.none(),
+                )
             guildmusiccurrentstate[guild.id] = "🔁"
         else:
             channel = self.channel
@@ -1609,10 +1626,18 @@ class Songpanel(discord.ui.View):
                 )
                 return
             guildmusicloop[guild.id] = False
-            await interaction.response.send_message(
-                f"The loop has been de-activated by {interaction.user.mention}",
-                delete_after=2,
-            )
+            try:
+                await interaction.response.send_message(
+                    f"The loop has been de-activated by {interaction.user.mention}",
+                    delete_after=2,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+            except:
+                await interaction.followup.send(
+                    f"The loop has been de-activated by {interaction.user.mention}",
+                    delete_after=2,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
             guildmusiccurrentstate[guild.id] = "▶️"
             return
         songname = playingmusic
@@ -1658,10 +1683,16 @@ class Songpanel(discord.ui.View):
         try:
             guild.voice_client.source.volume = guild.voice_client.source.volume + 0.05
             await interaction.response.send_message(
-                f"{interaction.user.mention} has changed 🔉 to {int(guild.voice_client.source.volume*100)}."
+                f"{interaction.user.mention} has changed 🔉 to {int(guild.voice_client.source.volume*100)}.",
+                delete_after=2,
+                allowed_mentions=discord.AllowedMentions.none(),
             )
         except:
-            pass
+            await interaction.followup.send(
+                f"{interaction.user.mention} has changed 🔉 to {int(guild.voice_client.source.volume*100)}.",
+                delete_after=2,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
 
     @discord.ui.button(
         label="⬇️", style=discord.ButtonStyle.green, custom_id="songpanel:volumedown"
@@ -1688,9 +1719,14 @@ class Songpanel(discord.ui.View):
             await interaction.response.send_message(
                 f"{interaction.user.mention} has changed 🔉 to {int(guild.voice_client.source.volume*100)}.",
                 delete_after=2,
+                allowed_mentions=discord.AllowedMentions.none(),
             )
         except:
-            pass
+            await interaction.followup.send(
+                f"{interaction.user.mention} has changed 🔉 to {int(guild.voice_client.source.volume*100)}.",
+                delete_after=2,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
 
     @discord.ui.button(
         label="📖", style=discord.ButtonStyle.green, custom_id="songpanel:queue"
@@ -1739,20 +1775,23 @@ class Songpanel(discord.ui.View):
         try:
             songname = guildmusicname[guild.id][0].title
         except:
-            await interaction.response.send_message(
-                "I could not find any playing song.", ephemeral=True
+            await interaction.followup.send(
+                "I could not find any playing song.", ephemeral=True,
+            delete_after=2,
             )
             return
         try:
             output = extract_lyrics.get_lyrics(songname)
         except:
-            await interaction.response.send_message(
-                "No lyrics found for that song.", ephemeral=True
+            await interaction.followup.send(
+                "No lyrics found for that song.", ephemeral=True,
+                delete_after=2,
             )
             return
         if output.get("error"):
-            await interaction.response.send_message(
-                "No lyrics found for that song.", ephemeral=True
+            await interaction.followup.send(
+                "No lyrics found for that song.", ephemeral=True,
+                delete_after=2,
             )
             return
         try:
@@ -12767,10 +12806,9 @@ async def waitqueue(ctx, currentmusiccount, player, nonotice=False, repeated=Fal
         description=f"`{timedelta(seconds=viddur)}`",
         color=0x00FF00,
     )
-    embedVar.add_field(name="Ratings", value=f"`{vidlikes}`:thumbsup:")
     embedVar.add_field(
         name="Views | publish time",
-        value=str(vidviews) + " views | published " + str(vidpublished),
+        value=str(vidviews) + " | " + str(vidpublished),
     )
     embedVar.set_footer(text=ctx.author.name, icon_url=ctx.author.display_avatar)
     if player.thumbnail is not None:
@@ -13267,10 +13305,9 @@ async def playmusic(ctx, songname, start=None, end=None, nonotice=False, search=
                         description=f"`{timedelta(seconds=viddur)}`",
                         color=0x00FF00,
                     )
-                    embedVar.add_field(name="Ratings", value=f"`{vidlikes}`:thumbsup:")
                     embedVar.add_field(
                         name="Views | publish time",
-                        value=str(vidviews) + " views | published " + str(vidpublished),
+                        value=str(vidviews) + " | " + str(vidpublished),
                     )
                     if player.thumbnail is not None:
                         try:
