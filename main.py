@@ -12619,7 +12619,7 @@ async def constructsong(url, start=None, end=None):
     player = await YTDLSource.from_url(
         url, loop=client.loop, stream=True, start=start, end=end
     )
-    if player.is_live:
+    if not player or player.is_live:
         player = await YTDLSource.from_url(
             url, loop=client.loop, stream=True, start=start, end=end, wavelinkBool=True
         )
