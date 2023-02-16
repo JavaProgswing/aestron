@@ -3976,7 +3976,7 @@ class Moderation(commands.Cog):
         try:
             await ctx.respond(embed=embed, ephemeral=True)
         except:
-            await ctx.send(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed)
 
     @bridge.bridge_command(
         brief="This command clears given number of messages from the same channel.",
@@ -4026,7 +4026,7 @@ class Moderation(commands.Cog):
             try:
                 await ctx.respond(embed=embed, ephemeral=True)
             except:
-                await ctx.send(embed=embed, ephemeral=True)
+                await ctx.send(embed=embed)
         else:
             try:
                 number = int(numberstr)
@@ -4059,7 +4059,7 @@ class Moderation(commands.Cog):
                 try:
                     await ctx.respond(embed=embed, ephemeral=True)
                 except:
-                    await ctx.send(embed=embed, ephemeral=True)
+                    await ctx.send(embed=embed)
 
     @bridge.bridge_command(
         brief="This command prevents users from viewing any channels on the server.",
