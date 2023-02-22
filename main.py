@@ -807,6 +807,9 @@ class CodingLanguageSelect(discord.ui.Select):
             discord.SelectOption(label="java", description="Run code in Java"),
             discord.SelectOption(label="nodejs", description="Run code in NodeJS"),
             discord.SelectOption(label="lua", description="Run code in Lua"),
+            discord.SelectOption(label="sql", description="Run code in SQL"),
+            discord.SelectOption(label="rust", description="Run code in Rust"),
+            discord.SelectOption(label="ruby", description="Run code in Ruby"),
         ]
         super().__init__(
             placeholder="Select a language!",
