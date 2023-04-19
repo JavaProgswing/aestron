@@ -29,6 +29,7 @@ Line no. 2429 in main.py
 Also you have to add these tables into the sql server
 
 ```
+CREATE TABLE debugCommand(requestid bigint);
 CREATE TABLE riotmatches
 (discorduserid bigint PRIMARY KEY,accountpuuid text,matchids text[]);
 CREATE TABLE callsettings
