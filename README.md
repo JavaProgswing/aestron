@@ -26,7 +26,7 @@ Line no. 2429 in main.py
     channelgitlogging = client.get_channel(GITHUB LOGS CHANNEL ID)
 ```
 
-Also you have to add these tables into the OLD sql server
+Also you have to add these tables into the sql server
 
 ```
 CREATE TABLE riotmatches
@@ -98,11 +98,6 @@ CREATE TABLE riotseason (
     episode text
 );
 CREATE TABLE riotparsedmatches (id text PRIMARY KEY, data bytea);
-```
-
-Similarly add this onto the new sql server
-
-```
 CREATE TABLE mceconomy
 (memberid bigint PRIMARY KEY,balance bigint,inventory text);
 ```
