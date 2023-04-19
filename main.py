@@ -128,7 +128,9 @@ async def chatbotfetch(session, url):
         return ex
 
 
-async def fetch_json(session, url, headers={}):
+async def fetch_json(session, url, headers=None):
+    if headers is None:
+        headers = {}
     async with session.get(url, headers=headers) as response:
         if response.status == 200:
             json_data = await response.json()
@@ -2916,7 +2918,7 @@ async def gitcommitcheck():
                 githubcommitinfo = await con.fetchrow(
                     f"SELECT * FROM githubcommits WHERE userid = {client.user.id}"
                 )
-            if githubcommitinfo["latestcommitsha"] != commitsha:
+            if githubcommitinfo is None or githubcommitinfo["latestcommitsha"] != commitsha:
                 results = f"INSERT INTO githubcommits (userid, latestcommitsha) VALUES($1, $2) ON CONFLICT (userid) DO UPDATE SET latestcommitsha = EXCLUDED.latestcommitsha;"
                 async with pool.acquire() as con:
                     await con.execute(results, client.user.id, commitsha)
