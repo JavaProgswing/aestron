@@ -2917,12 +2917,12 @@ async def gitcommitcheck():
             commiturl = response_json[0]["url"]
             async with pool.acquire() as con:
                 githubcommitinfo = await con.fetchrow(
-                    f"SELECT * FROM githubcommits WHERE userid = {client.user.id}"
+                    f"SELECT * FROM githubcommits WHERE userid = '{client.user.id}'"
                 )
             if githubcommitinfo is None or githubcommitinfo["latestcommitsha"] != commitsha:
                 results = f"INSERT INTO githubcommits (userid, latestcommitsha) VALUES($1, $2) ON CONFLICT (userid) DO UPDATE SET latestcommitsha = EXCLUDED.latestcommitsha;"
                 async with pool.acquire() as con:
-                    await con.execute(results, client.user.id, commitsha)
+                    await con.execute(results, str(client.user.id), commitsha)
                 await channeldev.send(
                     f"New commit detected! {commiturl}, restarting..."
                 )
@@ -2951,7 +2951,7 @@ async def gitcommitcheck():
                             pass
 
                 subprocess.run(
-                    f"nohup python3.9 main.py restart {channeldev.id} &> output.log &",
+                    f"nohup python3 main.py restart {channeldev.id} &> output.log &",
                     shell=True,
                 )
                 await asyncio.sleep(3)
@@ -2974,6 +2974,7 @@ async def runBot():  # Bot START Aestron START
     global channeldev, channelerrorlogging, channelbuglogging, botVersion, verifyCommand, customCog, conn, pool, DATABASE_URL, guildids, guildmusiccount, guildmusicname, guildmusicrecent, guildmusicauthor, channelbuildlogging, guildmusicloop, newconn, newpool, guildmusicskipped, guildmusictime, guildmusictotaltime, guildmusiccurrent, token, togetherControl, dashtoken, browser, guildmusiccurrentstate, guildmusicqueue, guildmusicids, guildmusiccp, channelgitlogging
     togetherControl = await DiscordTogether(token)
     token = ""
+    print(f"Trying to connect to {DATABASE_URL}")
     conn = await asyncpg.connect(DATABASE_URL)
     newconn = await asyncpg.connect(DATABASE_URL)
     pool = await asyncpg.create_pool(
@@ -3482,7 +3483,7 @@ async def restartlatestcommit(ctx, *, files=None):
                 pass
     await ctx.send(
         subprocess.run(
-            f"nohup python3.9 main.py restart {ctx.channel.id} &> output.log &",
+            f"nohup python3 main.py restart {ctx.channel.id} &> output.log &",
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout
@@ -3506,7 +3507,7 @@ async def restart(ctx):
                 pass
     await ctx.send(
         subprocess.run(
-            f"nohup python3.9 main.py restart {ctx.channel.id} &> output.log &",
+            f"nohup python3 main.py restart {ctx.channel.id} &> output.log &",
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout
