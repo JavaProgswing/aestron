@@ -68,6 +68,7 @@ def noglobal(f):
 
 load_dotenv()
 load_dotenv(dotenv_path="github.env")
+load_dotenv(dotenv_path="database.env")
 botowners = ["488643992628494347", "625265223250608138"]
 token = os.getenv("DISCORD_TOKEN")
 valorant_api_key = os.getenv("VAL_API_TOKEN")
@@ -191,7 +192,7 @@ class LyricsExtractor:
 
 extract_lyrics = LyricsExtractor()
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
-DATABASE_URL = "postgres://aestron:aestronDC8@ec2-13-127-63-136.ap-south-1.compute.amazonaws.com:5432/aestrondb"
+DATABASE_URL = f"postgres://{os.getenv('DATABASE_USERNAME')}:{os.getenv('DATABASE_PASSWORD')}@{os.getenv('DATABASE_URL')}:{os.getenv('DATABASE_PORT')}/{os.getenv('DATABASE_NAME')}"
 # Sql database 1
 # REQUIRES API KEY
 
