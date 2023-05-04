@@ -104,6 +104,7 @@ celerybeat.pid
 # Environments
 .env
 github.env
+database.env
 .venv
 env/
 venv/

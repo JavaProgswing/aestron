@@ -700,7 +700,6 @@ class CommandHelpSelect(discord.ui.Select):
         command = client.get_command(commandname)
         if command is None:
             raise commands.CommandError(f"No commands named {commandname} were found!")
-            return
         embed = discord.Embed(
             title=f"{commandname} help", description=command.description
         )
@@ -8761,7 +8760,7 @@ class FormatData:
         else:
             return "NA"
 
-    def get_rounds_won(self, rounds: Rounds) -> str:
+    def get_rounds_won(self, rounds: list[Round]) -> str:
         attcount = 0
         defcount = 0
         for round in rounds:
@@ -9707,24 +9706,25 @@ class Misc(commands.Cog):
                 f"Are you sure you want to change the prefix to `{prefix}`",
                 ephemeral=True,
             )
-            await msg.add_reaction("👍")
+            if not isinstance(msg, discord.Interaction):
+                await msg.add_reaction("👍")
 
-            def check(reaction, user):
-                return (
-                    user == ctx.author
-                    and str(reaction.emoji) == "👍"
-                    and reaction.message == msg
-                )
+                def check(reaction, user):
+                    return (
+                        user == ctx.author
+                        and str(reaction.emoji) == "👍"
+                        and reaction.message == msg
+                    )
 
-            try:
-                reaction, user = await client.wait_for(
-                    "reaction_add", timeout=5.0, check=check
-                )
-            except asyncio.TimeoutError:
-                await ctx.channel.send(f"Ok I won't change the prefix to `{prefix}`")
-                return
-            else:
-                pass
+                try:
+                    reaction, user = await client.wait_for(
+                        "reaction_add", timeout=5.0, check=check
+                    )
+                except asyncio.TimeoutError:
+                    await ctx.channel.send(f"Ok I won't change the prefix to `{prefix}`")
+                    return
+                else:
+                    pass
             async with pool.acquire() as con:
                 await con.execute(
                     f"UPDATE prefixes VALUES SET prefix = '{prefix}' WHERE guildid = {ctx.guild.id}"
