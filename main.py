@@ -967,14 +967,14 @@ class DefaultHelpSelect(discord.ui.Select):
         for c in cog.get_commands():
             cmd_name = None
             cmd_description = None
+            if isinstance(c, discord.ext.bridge.core.BridgeExtCommand) or isinstance(c, discord.ext.bridge.core.BridgeSlashCommand):
+                continue
             if isinstance(c, discord.ext.bridge.BridgeCommand):
                 cmd_name = c.ext_variant.name
                 cmd_description = c.ext_variant.description
             else:
                 cmd_name = c.name
                 cmd_description = c.description
-            print(cmd_name, cmd_description)
-            print(type(c))
             embed.add_field(name=cmd_name, value=cmd_description, inline=False)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
