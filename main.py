@@ -473,7 +473,7 @@ async def get_guild_prefixid(guildid):
                     )
                 chars = "a!"
             else:
-                chars = prefixeslist[1]
+                chars = prefixeslist["prefix"]
                 if chars == "None":
                     chars = "a!"
         except:
@@ -966,12 +966,14 @@ class DefaultHelpSelect(discord.ui.Select):
         embed = discord.Embed(title=f"{cogemoji[cogname]} {cogname}")
         for c in cog.get_commands():
             cmd_name = None
+            cmd_description = None
             if isinstance(c, discord.ext.bridge.BridgeCommand):
                 cmd_name = c.ext_variant.name
+                cmd_description = c.ext_variant.description
             else:
                 cmd_name = c.name
-            if cmd_name in self.fcommands:
-                embed.add_field(name=c.name, value=c.description, inline=False)
+                cmd_description = c.description
+            embed.add_field(name=cmd_name, value=cmd_description, inline=False)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
