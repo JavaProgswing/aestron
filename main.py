@@ -293,7 +293,6 @@ verifyCommand = None
 afterchannelupdate = []
 beforechannelupdate = []
 
-
 def get_example(command, guild):
     commandDict = dict(command.clean_params)
     exStr = ""
@@ -373,15 +372,12 @@ def get_example(command, guild):
             elif key == "duration":
                 exStr = exStr + "10s"
             elif key == "avatarprovided":
-                exStr = (
-                        exStr
-                        + "https://cdn.discordapp.com/avatars/1061480715172200498/89424d67ceb481fa6ad2613e3037ae43.png?size=1024"
-                )
+                exStr = exStr + "https://cdn.discordapp.com/avatars/1061480715172200498/89424d67ceb481fa6ad2613e3037ae43.png?size=1024"
             elif key == "riotaccount":
                 exStr = exStr + "ValoName#Id"
             elif key == "copytemplate":
                 exStr = exStr + "H5qAZdEEeWdR"
-            elif value == "list_members":
+            elif key == "list_members":
                 if len(guild.members):
                     exStr = (
                             exStr
@@ -392,7 +388,7 @@ def get_example(command, guild):
                     )
                 else:
                     exStr = exStr + "Member-A Member-B ..."
-            elif value == "list_users":
+            elif key == "list_users":
                 if len(guild.members):
                     exStr = (
                             exStr
@@ -403,7 +399,7 @@ def get_example(command, guild):
                     )
                 else:
                     exStr = exStr + "Member-A Member-B ..."
-            elif value == "list_textstagevoicechannels":
+            elif key == "list_textstagevoicechannels":
                 if len(guild.channels):
                     exStr = (
                             exStr
@@ -414,7 +410,7 @@ def get_example(command, guild):
                     )
                 else:
                     exStr = exStr + "Channel-A VoiceChannel-B ..."
-            elif value == "list_textchannels":
+            elif key == "list_textchannels":
                 if len(guild.text_channels):
                     exStr = (
                             exStr
@@ -425,7 +421,7 @@ def get_example(command, guild):
                     )
                 else:
                     exStr = exStr + "Channel-A Channel-B ..."
-            elif value == "list_guilds":
+            elif key == "list_guilds":
                 if len(client.guilds):
                     exStr = (
                             exStr
@@ -437,9 +433,8 @@ def get_example(command, guild):
                 else:
                     exStr = exStr + "Guild-A Guild-B" + " ..."
             else:
-                exStr = exStr + f" {origvalue.name}"
+                exStr = exStr + key
     return (exStr, optType)
-
 
 async def get_guild_prefixid(guildid):
     if guildid:
