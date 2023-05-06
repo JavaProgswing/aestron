@@ -3938,7 +3938,7 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_messages=True))
     async def purge(
-            self, ctx, numberstr: int, greedymembers: str = None, *, reason: str = None
+            self, ctx, numberstr: int, list_members: str = None, *, reason: str = None
     ):
         check_ensure_permissions(
             ctx, ctx.guild.me, ["manage_messages", "read_message_history"]
@@ -3946,8 +3946,9 @@ class Moderation(commands.Cog):
         if reason is None:
             reason = "no reason provided"
         members = None
-        if greedymembers:
-            membernames = greedymembers
+
+        if list_members:
+            membernames = list_members.replace(" ", ",")
             members = []
             for membername in membernames.split(","):
                 try:
@@ -4022,11 +4023,11 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_roles=True))
     async def blacklist(
-            self, ctx, greedymembers: str, timenum: str = None, *, reason: str = None
+            self, ctx, list_members: str, timenum: str = None, *, reason: str = None
     ):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
         global currentlyblacklisting
-        membernames = greedymembers
+        membernames = list_members.replace(" ", ",")
         members = []
         for membername in membernames.split(","):
             try:
@@ -4227,10 +4228,10 @@ class Moderation(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_roles=True))
-    async def unblacklist(self, ctx, greedymembers: str, *, reason: str = None):
+    async def unblacklist(self, ctx, list_members: str, *, reason: str = None):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
         global currentlyunblacklisting
-        membernames = greedymembers
+        membernames = list_members.replace(" ", ",")
         blacklistedmembers = []
         for membername in membernames.split(","):
             try:
@@ -4354,8 +4355,8 @@ class Moderation(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_roles=True))
-    async def warn(self, ctx, greedymembers: str, *, reason: str = None):
-        membernames = greedymembers
+    async def warn(self, ctx, list_members: str, *, reason: str = None):
+        membernames = list_members.replace(" ", ",")
         members = []
         for membername in membernames.split(","):
             try:
@@ -4413,8 +4414,8 @@ class Moderation(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_roles=True))
-    async def warnings(self, ctx, greedymembers: str):
-        membernames = greedymembers
+    async def warnings(self, ctx, list_members: str):
+        membernames = list_members.replace(" ", ",")
         members = []
         for membername in membernames.split(","):
             try:
@@ -4456,11 +4457,11 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_roles=True))
     async def mute(
-            self, ctx, greedymembers: str, timenum: str = None, *, reason: str = None
+            self, ctx, list_members: str, timenum: str = None, *, reason: str = None
     ):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
         global currentlymuting
-        membernames = greedymembers
+        membernames = list_members.replace(" ", ",")
         members = []
         for membername in membernames.split(","):
             try:
@@ -4686,10 +4687,10 @@ class Moderation(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_roles=True))
-    async def unmute(self, ctx, greedymembers: str, *, reason: str = None):
+    async def unmute(self, ctx, list_members: str, *, reason: str = None):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
         global currentlyunmuting
-        membernames = greedymembers
+        membernames = list_members.replace(" ", ",")
         mutedmembers = []
         for membername in membernames.split(","):
             try:
@@ -4803,8 +4804,8 @@ class Moderation(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(ban_members=True))
-    async def unban(self, ctx, greedymembers: str, *, reason: str = None):
-        membernames = greedymembers
+    async def unban(self, ctx, list_members: str, *, reason: str = None):
+        membernames = list_members.replace(" ", ",")
         members = []
         for membername in membernames.split(","):
             try:
@@ -4904,8 +4905,8 @@ class Moderation(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(ban_members=True))
-    async def ban(self, ctx, greedymembers: str, *, reason: str = None):
-        membernames = greedymembers
+    async def ban(self, ctx, list_members: str, *, reason: str = None):
+        membernames = list_members.replace(" ", ",")
         members = []
         for membername in membernames.split(","):
             try:
@@ -4989,8 +4990,8 @@ class Moderation(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(kick_members=True))
-    async def kick(self, ctx, greedymembers: str, *, reason: str = None):
-        membernames = greedymembers
+    async def kick(self, ctx, list_members: str, *, reason: str = None):
+        membernames = list_members.replace(" ", ",")
         members = []
         for membername in membernames.split(","):
             try:
@@ -6289,7 +6290,7 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
-    async def verifyreadadd(self, ctx, *, greedytextstagevoicechannels: str):
+    async def verifyreadadd(self, ctx, *, list_textstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
@@ -6299,7 +6300,7 @@ class Captcha(commands.Cog):
             )
             return
         embed = discord.Embed(title="Added channels", description=verifyrole.mention)
-        channelnames = greedytextstagevoicechannels
+        channelnames = list_textstagevoicechannels.replace(" ", ",")
         channels = []
         for channelname in channelnames.split(","):
             try:
@@ -6344,7 +6345,7 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
-    async def verifyreadremove(self, ctx, *, greedytextstagevoicechannels: str):
+    async def verifyreadremove(self, ctx, *, list_textstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
@@ -6354,7 +6355,7 @@ class Captcha(commands.Cog):
             )
             return
         embed = discord.Embed(title="Removed channels", description=verifyrole.mention)
-        channelnames = greedytextstagevoicechannels
+        channelnames = list_textstagevoicechannels.replace(" ", ",")
         channels = []
         for channelname in channelnames.split(","):
             try:
@@ -6401,7 +6402,7 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
-    async def verifyfulladd(self, ctx, *, greedytextstagevoicechannels: str):
+    async def verifyfulladd(self, ctx, *, list_textstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
@@ -6411,7 +6412,7 @@ class Captcha(commands.Cog):
             )
             return
         embed = discord.Embed(title="Added channels", description=verifyrole.mention)
-        channelnames = greedytextstagevoicechannels
+        channelnames = list_textstagevoicechannels.replace(" ", ",")
         channels = []
         for channelname in channelnames.split(","):
             try:
@@ -6457,7 +6458,7 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
-    async def verifyfullremove(self, ctx, *, greedytextstagevoicechannels: str):
+    async def verifyfullremove(self, ctx, *, list_textstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
@@ -6467,7 +6468,7 @@ class Captcha(commands.Cog):
             )
             return
         embed = discord.Embed(title="Removed channels", description=verifyrole.mention)
-        channelnames = greedytextstagevoicechannels
+        channelnames = list_textstagevoicechannels.replace(" ", ",")
         channels = []
         for channelname in channelnames.split(","):
             try:
@@ -10690,8 +10691,8 @@ class Giveaways(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_guild=True))
-    async def instantgiveaway(self, ctx, greedymembers: str):
-        membernames = greedymembers
+    async def instantgiveaway(self, ctx, list_members: str):
+        membernames = list_members.replace(" ", ",")
         members = []
         for membername in membernames.split(","):
             try:
