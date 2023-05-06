@@ -331,7 +331,7 @@ def get_example(command, guild):
                 exStr = exStr + "ValoName#Id"
             elif key == "copytemplate":
                 exStr = exStr + "H5qAZdEEeWdR"
-            elif value == "greedymembers":
+            elif value == "list_members":
                 if len(guild.members):
                     exStr = (
                             exStr
@@ -342,7 +342,7 @@ def get_example(command, guild):
                     )
                 else:
                     exStr = exStr + "Member-A Member-B ..."
-            elif value == "greedyusers":
+            elif value == "list_users":
                 if len(guild.members):
                     exStr = (
                             exStr
@@ -353,7 +353,7 @@ def get_example(command, guild):
                     )
                 else:
                     exStr = exStr + "Member-A Member-B ..."
-            elif value == "greedytextstagevoicechannels":
+            elif value == "list_textstagevoicechannels":
                 if len(guild.channels):
                     exStr = (
                             exStr
@@ -364,7 +364,7 @@ def get_example(command, guild):
                     )
                 else:
                     exStr = exStr + "Channel-A VoiceChannel-B ..."
-            elif value == "greedytextchannels":
+            elif value == "list_textchannels":
                 if len(guild.text_channels):
                     exStr = (
                             exStr
@@ -375,7 +375,7 @@ def get_example(command, guild):
                     )
                 else:
                     exStr = exStr + "Channel-A Channel-B ..."
-            elif value == "greedyguilds":
+            elif value == "list_guilds":
                 if len(client.guilds):
                     exStr = (
                             exStr
@@ -3954,10 +3954,9 @@ class Moderation(commands.Cog):
             for membername in membernames.split(","):
                 try:
                     member = await commands.MemberConverter().convert(ctx, membername)
+                    members.append(member)
                 except:
                     pass
-                else:
-                    members.append(member)
         if members is None:
             try:
                 number = int(numberstr)
@@ -4033,10 +4032,10 @@ class Moderation(commands.Cog):
         for membername in membernames.split(","):
             try:
                 member = await commands.MemberConverter().convert(ctx, membername)
+                members.append(member)
             except:
                 pass
-            else:
-                members.append(member)
+
         for member in members:
             if member.id in currentlyblacklisting:
                 continue
@@ -4237,10 +4236,10 @@ class Moderation(commands.Cog):
         for membername in membernames.split(","):
             try:
                 member = await commands.MemberConverter().convert(ctx, membername)
+                blacklistedmembers.append(member)
             except:
                 pass
-            else:
-                blacklistedmembers.append(member)
+
         if len(blacklistedmembers) == 0:
             raise commands.BadArgument("Nothing")
         for blacklistedmember in blacklistedmembers:
@@ -4362,10 +4361,10 @@ class Moderation(commands.Cog):
         for membername in membernames.split(","):
             try:
                 member = await commands.MemberConverter().convert(ctx, membername)
+                members.append(member)
             except:
                 pass
-            else:
-                members.append(member)
+
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
         for member in members:
@@ -4421,10 +4420,10 @@ class Moderation(commands.Cog):
         for membername in membernames.split(","):
             try:
                 member = await commands.MemberConverter().convert(ctx, membername)
+                members.append(member)
             except:
                 pass
-            else:
-                members.append(member)
+
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
         for member in members:
@@ -4467,10 +4466,10 @@ class Moderation(commands.Cog):
         for membername in membernames.split(","):
             try:
                 member = await commands.MemberConverter().convert(ctx, membername)
+                members.append(member)
             except:
                 pass
-            else:
-                members.append(member)
+
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
         for member in members:
@@ -4696,10 +4695,10 @@ class Moderation(commands.Cog):
         for membername in membernames.split(","):
             try:
                 member = await commands.MemberConverter().convert(ctx, membername)
+                mutedmembers.append(member)
             except:
                 pass
-            else:
-                mutedmembers.append(member)
+
         if len(mutedmembers) == 0:
             raise commands.BadArgument("Nothing")
         for mutedmember in mutedmembers:
@@ -4811,10 +4810,10 @@ class Moderation(commands.Cog):
         for membername in membernames.split(","):
             try:
                 member = await commands.MemberConverter().convert(ctx, membername)
+                members.append(member)
             except:
                 pass
-            else:
-                members.append(member)
+
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
         bannedmembers = await ctx.guild.bans(limit=None).flatten()
@@ -4912,10 +4911,10 @@ class Moderation(commands.Cog):
         for membername in membernames.split(","):
             try:
                 member = await commands.MemberConverter().convert(ctx, membername)
+                members.append(member)
             except:
                 pass
-            else:
-                members.append(member)
+
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
         bannedmembers = await ctx.guild.bans(limit=None).flatten()
@@ -4997,10 +4996,10 @@ class Moderation(commands.Cog):
         for membername in membernames.split(","):
             try:
                 member = await commands.MemberConverter().convert(ctx, membername)
+                members.append(member)
             except:
                 pass
-            else:
-                members.append(member)
+
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
         for member in members:
@@ -6292,8 +6291,6 @@ class Captcha(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
     async def verifyreadadd(self, ctx, *, list_textstagevoicechannels):
-        print("VERIFY READ ADD")
-        print(list_textstagevoicechannels)
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
@@ -6310,22 +6307,23 @@ class Captcha(commands.Cog):
                 channel = await commands.TextChannelConverter().convert(
                     ctx, channelname
                 )
+                channels.append(channel)
             except:
                 pass
             try:
                 channel = await commands.StageChannelConverter().convert(
                     ctx, channelname
                 )
+                channels.append(channel)
             except:
                 pass
             try:
                 channel = await commands.VoiceChannelConverter().convert(
                     ctx, channelname
                 )
+                channels.append(channel)
             except:
                 pass
-            else:
-                channels.append(channel)
         if len(channels) == 0:
             raise commands.BadArgument("Nothing")
         for channel in channels:
@@ -6365,22 +6363,24 @@ class Captcha(commands.Cog):
                 channel = await commands.TextChannelConverter().convert(
                     ctx, channelname
                 )
+                channels.append(channel)
             except:
                 pass
             try:
                 channel = await commands.StageChannelConverter().convert(
                     ctx, channelname
                 )
+                channels.append(channel)
             except:
                 pass
             try:
                 channel = await commands.VoiceChannelConverter().convert(
                     ctx, channelname
                 )
+                channels.append(channel)
             except:
                 pass
-            else:
-                channels.append(channel)
+
         if len(channels) == 0:
             raise commands.BadArgument("Nothing")
         for channel in channels:
@@ -6422,22 +6422,24 @@ class Captcha(commands.Cog):
                 channel = await commands.TextChannelConverter().convert(
                     ctx, channelname
                 )
+                channels.append(channel)
             except:
                 pass
             try:
                 channel = await commands.StageChannelConverter().convert(
                     ctx, channelname
                 )
+                channels.append(channel)
             except:
                 pass
             try:
                 channel = await commands.VoiceChannelConverter().convert(
                     ctx, channelname
                 )
+                channels.append(channel)
             except:
                 pass
-            else:
-                channels.append(channel)
+
         if len(channels) == 0:
             raise commands.BadArgument("Nothing")
         for channel in channels:
@@ -6478,22 +6480,24 @@ class Captcha(commands.Cog):
                 channel = await commands.TextChannelConverter().convert(
                     ctx, channelname
                 )
+                channels.append(channel)
             except:
                 pass
             try:
                 channel = await commands.StageChannelConverter().convert(
                     ctx, channelname
                 )
+                channels.append(channel)
             except:
                 pass
             try:
                 channel = await commands.VoiceChannelConverter().convert(
                     ctx, channelname
                 )
+                channels.append(channel)
             except:
                 pass
-            else:
-                channels.append(channel)
+
         if len(channels) == 0:
             raise commands.BadArgument("Nothing")
         for channel in channels:
@@ -10700,10 +10704,10 @@ class Giveaways(commands.Cog):
         for membername in membernames.split(","):
             try:
                 member = await commands.MemberConverter().convert(ctx, membername)
+                members.append(member)
             except:
                 pass
-            else:
-                members.append(member)
+
         if len(members) == 0:
             raise commands.BadArgument("Nothing")
         length = len(members)
