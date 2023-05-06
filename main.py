@@ -973,6 +973,8 @@ class DefaultHelpSelect(discord.ui.Select):
             else:
                 cmd_name = c.name
                 cmd_description = c.description
+            print(cmd_name, cmd_description)
+            print(type(c))
             embed.add_field(name=cmd_name, value=cmd_description, inline=False)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
