@@ -307,7 +307,57 @@ def get_example(command, guild):
             exStr = exStr + " (OPT.)"
         origvalue = value
         value = value.annotation
-        if value == str:
+        if value == typing.Union[discord.guild.Guild, discord.channel.TextChannel]:
+            if len(guild.text_channels):
+                exStr = exStr + str(random.choice(guild.text_channels).mention)
+            else:
+                exStr = exStr + "#textchannel"
+        elif value == typing.Union[discord.user.User, int]:
+            exStr = exStr + "Coder.py#7250"
+        elif value == typing.Union[discord.user.User, discord.member.Member]:
+            if len(guild.members):
+                exStr = exStr + str(random.choice(guild.members).mention)
+            else:
+                exStr = exStr + "@members"
+        elif value == discord.Member or value == discord.User:
+            if len(guild.members):
+                exStr = exStr + str(random.choice(guild.members).mention)
+            else:
+                exStr = exStr + "@members"
+        elif value == discord.Role:
+            if len(guild.roles):
+                exStr = exStr + str(random.choice(guild.roles).mention)
+            else:
+                exStr = exStr + "@rolename"
+        elif value == typing.Union[discord.channel.TextChannel, str] or value == discord.TextChannel:
+            if len(guild.text_channels):
+                exStr = exStr + str(random.choice(guild.text_channels).mention)
+            else:
+                exStr = exStr + "#textchannel"
+        elif value == typing.Union[discord.channel.VoiceChannel, str] or value == discord.VoiceChannel:
+            if len(guild.voice_channels):
+                exStr = exStr + str(random.choice(guild.voice_channels).mention)
+            else:
+                exStr = exStr + "#voicechannel"
+        elif value == typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel]:
+            if len(guild.text_channels):
+                exStr = exStr + str(random.choice(guild.text_channels).mention)
+            else:
+                exStr = exStr + "#textchannel"
+        elif value == int:
+            exStr = exStr + "1"
+        elif value == bool:
+            exStr = exStr + "False"
+        elif value == discord.Guild:
+            exStr = exStr + "Guild-A"
+        elif value == discord.Emoji:
+            if len(guild.emojis):
+                exStr = exStr + str(random.choice(guild.emojis))
+            else:
+                exStr = exStr + ":emojiname:"
+        else:
+            if value != str:
+                key = origvalue.name
             if key == "timenum":
                 exStr = exStr + "15m"
             elif key == "Cmdoutput":
@@ -388,70 +438,6 @@ def get_example(command, guild):
                     exStr = exStr + "Guild-A Guild-B" + " ..."
             else:
                 exStr = exStr + f" {origvalue.name}"
-        elif value == typing.Union[discord.guild.Guild, discord.channel.TextChannel]:
-            if len(guild.text_channels):
-                exStr = exStr + str(random.choice(guild.text_channels).mention)
-            else:
-                exStr = exStr + "#textchannel"
-        elif value == typing.Union[discord.user.User, int]:
-            exStr = exStr + "Coder.py#7250"
-        elif value == typing.Union[discord.user.User, discord.member.Member]:
-            if len(guild.members):
-                exStr = exStr + str(random.choice(guild.members).mention)
-            else:
-                exStr = exStr + "@members"
-        elif value == discord.Member or value == discord.User:
-            if len(guild.members):
-                exStr = exStr + str(random.choice(guild.members).mention)
-            else:
-                exStr = exStr + "@members"
-        elif value == discord.Role:
-            if len(guild.roles):
-                exStr = exStr + str(random.choice(guild.roles).mention)
-            else:
-                exStr = exStr + "@rolename"
-        elif (
-                value == typing.Union[discord.channel.TextChannel, str]
-                or value == discord.TextChannel
-        ):
-            if len(guild.text_channels):
-                exStr = exStr + str(random.choice(guild.text_channels).mention)
-            else:
-                exStr = exStr + "#textchannel"
-        elif (
-                value == typing.Union[discord.channel.VoiceChannel, str]
-                or value == discord.VoiceChannel
-        ):
-            if len(guild.voice_channels):
-                exStr = exStr + str(random.choice(guild.voice_channels).mention)
-            else:
-                exStr = exStr + "#voicechannel"
-        elif (
-                value
-                == typing.Union[
-                    discord.VoiceChannel, discord.TextChannel, discord.StageChannel
-                ]
-        ):
-            if len(guild.text_channels):
-                exStr = exStr + str(random.choice(guild.text_channels).mention)
-            else:
-                exStr = exStr + "#textchannel"
-        elif value == int:
-            exStr = exStr + "1"
-        elif value == bool:
-            exStr = exStr + "False"
-        elif value == discord.Guild:
-            exStr = exStr + "Guild-A"
-        elif value == discord.Emoji:
-            if len(guild.emojis):
-                exStr = exStr + str(random.choice(guild.emojis))
-            else:
-                exStr = exStr + ":emojiname:"
-        else:
-            print(
-                f"Logging the non detected argument type ({key}) {value} in {command}."
-            )
-            exStr = exStr + f" {origvalue.name}"
     return (exStr, optType)
 
 
@@ -6290,7 +6276,7 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
-    async def verifyreadadd(self, ctx, *, list_textstagevoicechannels):
+    async def verifyreadadd(self, ctx, *, list_textstagevoicechannels : str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
