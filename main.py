@@ -967,7 +967,8 @@ class DefaultHelpSelect(discord.ui.Select):
         for c in cog.get_commands():
             cmd_name = None
             cmd_description = None
-            if isinstance(c, discord.ext.bridge.core.BridgeExtCommand) or isinstance(c, discord.ext.bridge.core.BridgeSlashCommand):
+            if isinstance(c, discord.ext.bridge.core.BridgeExtCommand) or isinstance(c,
+                                                                                     discord.ext.bridge.core.BridgeSlashCommand):
                 continue
             if isinstance(c, discord.ext.bridge.BridgeCommand):
                 cmd_name = c.ext_variant.name
@@ -6290,8 +6291,9 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff())
-    async def parsechecker(self,ctx ,*args):
+    async def parsechecker(self, ctx, *, args):
         await ctx.send(args)
+
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
     async def verifyreadadd(self, ctx, *, list_textstagevoicechannels: str):
