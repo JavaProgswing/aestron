@@ -6297,8 +6297,9 @@ class Captcha(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
     async def verifyreadadd(self, ctx, *, list_textstagevoicechannels):
+        print("VERIFY READ ADD")
+        print(list_textstagevoicechannels)
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
-        await ctx.send(list_textstagevoicechannels)
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
             await on_command_error(
