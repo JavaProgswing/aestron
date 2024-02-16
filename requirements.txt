@@ -25,3 +25,4 @@ jishaku >= 2.5.1
 aiohttp~=3.8.4
 requests~=2.25.1
 beautifulsoup4~=4.12.2
+discord-together >= 1.2.6

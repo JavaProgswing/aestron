@@ -42,6 +42,7 @@ from captcha.image import ImageCaptcha
 from discord import Color, Webhook
 from discord.ext import commands, tasks, bridge
 from discord.ext.commands import BucketType, bot
+from discord_together import DiscordTogether
 from dotenv import load_dotenv
 from googleapiclient import discovery
 from googlesearch import search as gsearch
@@ -7566,6 +7567,7 @@ async def take_screenshot(ctx, url, save_fn="capture.png"):
             raise commands.CommandError(
                 "The url provided to take a screenshot was invalid!"
             )
+            return
         elif isinstance(ex, selenium.common.exceptions.InvalidSessionIdException):
             options = webdriver.ChromeOptions()
             options.add_argument("--headless")
@@ -7581,6 +7583,7 @@ async def take_screenshot(ctx, url, save_fn="capture.png"):
             return
         else:
             raise ex
+            return
     try:
         browser.save_screenshot(save_fn)
     except:
