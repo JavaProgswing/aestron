@@ -2905,7 +2905,7 @@ async def gitcommitcheck():
                 await channeldev.send(
                     f"New commit detected! {commiturl}, restarting..."
                 )
-                files = ["main.py"]
+                files = ["main.py","requirements.txt","cookies.txt",".env","github.env","database.env"]
                 changed_files = compare_local_remote_git_repo(files)
                 if len(changed_files) == 0:
                     await channeldev.send("No file changes detected.")
@@ -3434,7 +3434,7 @@ def compare_local_remote_git_repo(files):
 @is_bot_staff()
 async def restartlatestcommit(ctx, *, files=None):
     if files is None:
-        files = ["main.py"]
+        files = ["main.py","requirements.txt","cookies.txt",".env","github.env","database.env"]
     else:
         files = files.split(",")
     await ctx.send("Restarting to latest commit...")
