@@ -21,7 +21,6 @@ Line no. 2429 in main.py
 ```
     channelerrorlogging = client.get_channel(ERROR LOGGING CHANNEL ID)
     channelbuglogging = client.get_channel(BUG LOGGING CHANNEL ID)
-    channelbuildlogging = client.get_channel(OPTIONAL BUILD LOGS(DEPRECIATED) CHANNEL ID)))
     channeldev = client.get_channel(DEVELOPER TESTING CHANNEL ID)
     channelgitlogging = client.get_channel(GITHUB LOGS CHANNEL ID)
 ```
@@ -42,8 +41,6 @@ CREATE TABLE developer
 (bypass boolean ,userid bigint );
 CREATE TABLE logchannels
 (channelid bigint ,guildid bigint PRIMARY KEY);
-CREATE TABLE botbuilds
-(buildchanges text ,buildname text ,buildtime timestamp without time zone PRIMARY KEY);
 CREATE TABLE customcommands
 (commandoutput text ,commandname text ,guildid bigint );
 CREATE TABLE polls
