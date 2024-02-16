@@ -30,8 +30,6 @@ Also you have to add these tables into the sql server
 
 ```
 CREATE TABLE debugCommand(requestid bigint);
-CREATE TABLE riotmatches
-(discorduserid bigint PRIMARY KEY,accountpuuid text,matchids text[]);
 CREATE TABLE callsettings
 (settingbool boolean ,userid bigint PRIMARY KEY);
 CREATE TABLE spamchannels
@@ -90,15 +88,21 @@ CREATE TABLE dankcmds
 (implemented boolean ,rawtext text );
 CREATE TABLE commandguildstatus
 (commandname text ,guildid bigint);
+CREATE TABLE riotmatches
+(discorduserid bigint PRIMARY KEY,accountpuuid text,matchids text[]);
 CREATE TABLE riotaccount
 (accounttag text ,accountname text ,accountimage text ,accountregion text ,accountpuuid text ,discorduserid bigint PRIMARY KEY);
+CREATE TABLE riotseason (
+    act text,
+    episode text
+);
+CREATE TABLE riotparsedmatches (id text PRIMARY KEY, data bytea);
 CREATE TABLE restrictedusers
 (epochtime bigint ,memberid bigint PRIMARY KEY,guildid bigint);
 CREATE TABLE riotseason (
     act text,
     episode text
 );
-CREATE TABLE riotparsedmatches (id text PRIMARY KEY, data bytea);
 CREATE TABLE mceconomy
 (memberid bigint PRIMARY KEY,balance bigint,inventory text);
 ```
