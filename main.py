@@ -38,7 +38,7 @@ from aiohttp.client import ClientTimeout
 from bs4 import BeautifulSoup
 from captcha.image import ImageCaptcha
 from discord import Color, Webhook
-from discord.ext import commands, tasks, bridge
+from discord.ext import commands, tasks
 from discord.ext.commands import BucketType, bot
 from discord_together import DiscordTogether
 from dotenv import load_dotenv
@@ -57,8 +57,8 @@ import sys
 import subprocess
 import logging
 import wavelink
-from wavelink.tracks import TrackInfoPayload
 from typing import cast
+from discord import app_commands
 
 def noglobal(f):
     return types.FunctionType(f.__code__, {}, argdefs=f.__defaults__)
@@ -166,15 +166,16 @@ DATABASE_URL = f"postgres://{os.getenv('DATABASE_USERNAME')}:{os.getenv('DATABAS
 
 CHATBOT_ID = os.getenv("CHATBOT_ID")
 CHATBOT_TOKEN = os.getenv("CHATBOT_TOKEN")
+CHANNEL_ERROR_LOGGING_ID = 840193232885121094
+CHANNEL_BUG_LOGGING_ID = 855310400366444584
+CHANNEL_DEV_ID = 843081057506426880
+CHANNEL_GIT_LOGGING_ID = 895884797099008050
 # REQUIRES API KEY
 # https://brainshop.ai/
 conn = None
-newconn = None
 pool = None
-newpool = None
 logger = None
 forceexecstop = False
-verifyCommand = None
 afterchannelupdate = []
 beforechannelupdate = []
 
@@ -537,7 +538,7 @@ class CommandHelpSelect(discord.ui.Select):
         commands = [
             cmd
             for cmd in cog.get_commands()
-            if isinstance(cmd, discord.ext.bridge.core.BridgeExtCommand)
+            if isinstance(cmd, discord.ext.commands.HybridCommand)
         ]
         options = []
         for c in commands:
@@ -827,17 +828,8 @@ class DefaultHelpSelect(discord.ui.Select):
             return
         embed = discord.Embed(title=f"{cogemoji[cogname]} {cogname}")
         for c in cog.get_commands():
-            cmd_name = None
-            cmd_description = None
-            if isinstance(c, discord.ext.bridge.core.BridgeExtCommand) or isinstance(c,
-                                                                                     discord.ext.bridge.core.BridgeSlashCommand):
-                continue
-            if isinstance(c, discord.ext.bridge.BridgeCommand):
-                cmd_name = c.ext_variant.name
-                cmd_description = c.ext_variant.description
-            else:
-                cmd_name = c.name
-                cmd_description = c.description
+            cmd_name = c.name
+            cmd_description = c.description
             embed.add_field(name=cmd_name, value=cmd_description, inline=False)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -887,16 +879,16 @@ class DefaultHelp(discord.ui.View):
 
 
 async def addmoney(userid, money):
-    async with newpool.acquire() as con:
+    async with pool.acquire() as con:
         memberoneeco = await con.fetchrow(
             f"SELECT * FROM mceconomy WHERE memberid = {userid}"
         )
         if memberoneeco is None:
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 await con.execute(statement, userid, 500, json.dumps(newjson))
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 memberoneeco = await con.fetchrow(
                     f"SELECT * FROM mceconomy WHERE memberid = {userid}"
                 )
@@ -905,7 +897,7 @@ async def addmoney(userid, money):
     if newbal < 0:
         raise commands.CommandError("You don't have enough money to do that.")
         return
-    async with newpool.acquire() as con:
+    async with pool.acquire() as con:
         await con.execute(
             f"UPDATE mceconomy VALUES SET balance = {newbal} WHERE memberid = {userid}"
         )
@@ -1021,16 +1013,16 @@ class MCShopSelect(discord.ui.Select):
             "Diamond Armor": 20585,
             "Netherite Armor": 70650,
         }
-        async with newpool.acquire() as con:
+        async with pool.acquire() as con:
             memberoneeco = await con.fetchrow(
                 f"SELECT * FROM mceconomy WHERE memberid = {self.author.id}"
             )
         if memberoneeco is None:
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 await con.execute(statement, self.author.id, 500, json.dumps(newjson))
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 memberoneeco = await con.fetchrow(
                     f"SELECT * FROM mceconomy WHERE memberid = {self.author.id}"
                 )
@@ -1080,7 +1072,7 @@ class MCShopSelect(discord.ui.Select):
                     inventory["swordchoice"] = shopitem.split(" ")[0]
                 except Exception as ex:
                     print(f"Exception in mcshop sword {ex}")
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 await con.execute(
                     f"UPDATE mceconomy VALUES SET inventory = '{json.dumps(inventory)}' WHERE memberid = {self.author.id}"
                 )
@@ -1144,13 +1136,70 @@ Dactivity = discord.Activity(
     name="@Aestron for commands.", type=discord.ActivityType.watching
 )
 
+async def runBot():
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    ch.setFormatter(CustomFormatter())
+    client.start_status = BotStartStatus.PROCESSING
+    client.launch_time = datetime.utcnow()
+    global botVersion, conn, pool, DATABASE_URL, guildids, token, togetherControl, browser
+    togetherControl = await DiscordTogether(token)
+    token = ""
+    print(f"Trying to connect to {DATABASE_URL}")
+    conn = await asyncpg.connect(DATABASE_URL)
+    pool = await asyncpg.create_pool(
+        DATABASE_URL, max_size=max(20, len(client.guilds)), min_size=1
+    )
+    print(f"The database sql has been set to {conn}")
+    client.session = aiohttp.ClientSession()
+    print(f"The session has been set to {client.session}")
+    client.github_session = aiohttp.ClientSession()
+    nodes = [wavelink.Node(uri="http://192.168.29.64:27051/", password="youshallnotpass")]
+    await wavelink.Pool.connect(nodes=nodes, client=client, cache_capacity=None)
+    if len(sys.argv) > 1 and sys.argv[1] == "restart":
+        if len(sys.argv) > 2:
+            channelid = int(sys.argv[2])
+            channelmsg = client.get_channel(channelid)
+        else:
+            channelmsg = client.get_channel(CHANNEL_DEV_ID)
+        await channelmsg.send("Successfully Restarted!")
+    valorantMatchSave.start()
+    valorantSeasonCheck.start()
+    gitcommitcheck.start()
 
-class MyBot(bridge.Bot):
+    for guild in client.guilds:
+        guildids.append(guild.id)
+    client.start_status = BotStartStatus.COMPLETED
+
+class MyBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     async def is_owner(self, user: discord.User):
         return checkstaff(user)
+
+    async def setup_hook(self):
+        self.loop.create_task(runBot())
+        await client.add_cog(AestronInfo(client))
+        await client.add_cog(Moderation(client))
+        await client.add_cog(Logging(client))
+        await client.add_cog(AutoMod(client))
+        await client.add_cog(Templates(client))
+        await client.add_cog(SupportTicket(client))
+        await client.add_cog(Captcha(client))
+        await client.add_cog(MinecraftFun(client))
+        await client.add_cog(Leveling(client))
+        await client.add_cog(Valorant(client))
+        await client.add_cog(Misc(client))
+        await client.add_cog(Call(client))
+        await client.add_cog(Fun(client))
+        await client.add_cog(Social(client))
+        await client.add_cog(Giveaways(client))
+        await client.add_cog(Support(client))
+        await client.add_cog(Music(client))
+        await client.add_cog(YoutubeTogether(client))
+        await client.add_cog(CustomCommands(client))
+        await client.load_extension("jishaku")
         
     async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None:
         player: wavelink.Player | None = payload.player
@@ -1193,9 +1242,13 @@ class MyBot(bridge.Bot):
         if original and original.recommended:
             embed.description += f"(Recommended)"
 
-        embed.set_footer(text=track.author.name, icon_url=track.author.display_avatar)
-
-        panel = Songpanel(player.home.guild, player.home, track.author)
+        embed.set_footer(text=track.author)
+        class fakecontext:
+            def __init__(self, guild, bot):
+                self.guild = guild
+                self.bot = bot
+        member = await discord.ext.commands.MemberConverter().convert(ctx=fakecontext(player.home.guild, client), argument=track.author)
+        panel = Songpanel(player.home.guild, player.home, member)
         panel.set_message(
                 await player.home.respond(embed=embed, view=panel, ephemeral=True)
             )
@@ -1205,7 +1258,6 @@ class BotStartStatus(enum.Enum):
     PROCESSING = 2
     COMPLETED = 3
 
-
 client = MyBot(
     command_prefix=get_prefix,
     case_insensitive=True,
@@ -1214,7 +1266,6 @@ client = MyBot(
     help_command=MyHelp(),
     strip_after_prefix=True,
 )
-
 
 class CustomFormatter(logging.Formatter):
     grey = "\x1b[38;20m"
@@ -1242,7 +1293,6 @@ class CustomFormatter(logging.Formatter):
 
 client._BotBase__cogs = commands.core._CaseInsensitiveDict()
 client.start_status = BotStartStatus.WAITING
-dashtoken = os.getenv("DASH_TOKEN")
 # ignore TOKEN FOR DASHBOARD webhooks.
 togetherControl = None
 API_KEY = os.getenv("GCOM_TOKEN")
@@ -1290,7 +1340,6 @@ afkrecent = {}
 # BOT OWNER IDS
 tempbotowners = []
 guildids = []
-customCog = None
 timer = 0.005
 devtimer = 2
 botVersion = "2.1: Added cmdusage command, use it to check a command's usage."
@@ -1337,11 +1386,6 @@ bot.guild_updatecooldown = commands.CooldownMapping.from_cooldown(
 bot.cooldowntwo = commands.CooldownMapping.from_cooldown(
     1.0, 30.0, commands.BucketType.member
 )
-channelerrorlogging = None
-channeldev = None
-channelgitlogging = None
-channelbuildlogging = None
-channelbuglogging = None
 debugPrint = False
 debugCode = False
 retryDebug = None
@@ -1400,7 +1444,7 @@ async def playmusic(ctx, songname):
         embedVar.set_author(
             name=ctx.author.name, icon_url=ctx.author.display_avatar
         )
-        await ctx.respond(embed=embedVar, ephemeral=True)
+        await ctx.send(embed=embedVar, ephemeral=True)
     else:
         track: wavelink.Playable = tracks[0]
         await player.queue.put_wait(track)
@@ -1412,7 +1456,7 @@ async def playmusic(ctx, songname):
         embedVar.set_author(
             name=ctx.author.name, icon_url=ctx.author.display_avatar
         )
-        await ctx.respond(embed=embedVar, ephemeral=True)
+        await ctx.send(embed=embedVar, ephemeral=True)
 
     if not player.playing:
         # Play now since we aren't playing anything...
@@ -1670,11 +1714,10 @@ class Songpanel(discord.ui.View):
                 "You have not invoked this song.", ephemeral=True
             )
             return
-        author = self.member
         channel = self.channel
         guild = self.guild
 
-        if not (channel.permissions_for(author).manage_channels or checkstaff(author)):
+        if not (channel.permissions_for(self.member).manage_channels or checkstaff(self.member)):
             await interaction.response.send_message(
                 f"I am already playing music in a channel , you must have `manage_channels` permissions to stop music.",
                 ephemeral=True,
@@ -1836,7 +1879,6 @@ class NoCooldownError(discord.DiscordException):
 
 
 async def exception_catching_callback(task):
-    global channelerrorlogging
     if task.exception():
         task.print_stack()
         error = task.exception()
@@ -1847,7 +1889,7 @@ async def exception_catching_callback(task):
         )
         traceback_text = get_traceback(error)
         embederror.add_field(name="Traceback: ", value=traceback_text)
-        await channelerrorlogging.send(embed=embederror)
+        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(embed=embederror)
 
 
 def get_traceback(error):
@@ -1862,7 +1904,7 @@ def get_traceback(error):
 async def on_application_command_error(ctx, error):
     # logger.warning(f"Error {error} in {ctx.command} app command.")
     # logger.warning(get_traceback(error))
-    global channelerrorlogging, verifyCommand, maintenancemodestatus
+    global verifyCommand, maintenancemodestatus
     prefix = ""
     errordata = error
     if isinstance(error, str):
@@ -1957,18 +1999,18 @@ async def on_application_command_error(ctx, error):
             inline=False,
         )
     try:
-        await channelerrorlogging.send(embed=embederror)
+        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(embed=embederror)
     except:
-        await channelerrorlogging.send(f"Command : {ctx.command}.")
-        await channelerrorlogging.send(f"🚫 Error occured ({type(error)}) : **{error}**")
-        await channelerrorlogging.send(f"Traceback: {traceback_text}")
-        await channelerrorlogging.send(
+        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"Command : {ctx.command}.")
+        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"🚫 Error occured ({type(error)}) : **{error}**")
+        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"Traceback: {traceback_text}")
+        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
             f"Member: {ctx.author.mention} ({ctx.author.name})"
         )
         if ctx.guild:
-            await channelerrorlogging.send(f"Guild : {ctx.guild}")
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"Guild : {ctx.guild}")
     try:
-        errorMsg = await ctx.respond(embed=embedone, ephemeral=True)
+        errorMsg = await ctx.send(embed=embedone, ephemeral=True)
     except:
         errorMsg = await ctx.send(embed=embedone)
 
@@ -1979,7 +2021,7 @@ async def on_command_error(
 ):
     # logger.warning(f"Error {error} in {ctx.command} command.")
     # logger.warning(get_traceback(error))
-    global channeldev, channelerrorlogging, verifyCommand, maintenancemodestatus, tempbotowners
+    global verifyCommand, maintenancemodestatus, tempbotowners
     isSlashCmd = False
     verifyDelete = True
     if isinstance(error, str):
@@ -2021,7 +2063,7 @@ async def on_command_error(
         if str(ctx.author.id) in tempbotowners:
             view = Confirm()
             embed = discord.Embed(title="Command sent", description=ctx.message.content)
-            statmsg = await channeldev.send(
+            statmsg = await client.get_channel(CHANNEL_DEV_ID).send(
                 f"(Missing perms) Temporary bot staff ({ctx.author.id}) : {ctx.author.mention} wrote *MESSAGE BELOW* ({ctx.command}) in {ctx.guild}.",
                 view=view,
                 embed=embed,
@@ -2065,7 +2107,7 @@ async def on_command_error(
         if str(ctx.author.id) in tempbotowners:
             view = Confirm()
             embed = discord.Embed(title="Command sent", description=ctx.message.content)
-            statmsg = await channeldev.send(
+            statmsg = await client.get_channel(CHANNEL_DEV_ID).send(
                 f"(Missing perms) Temporary bot staff ({ctx.author.id}) : {ctx.author.mention} wrote *MESSAGE BELOW* ({ctx.command}) in {ctx.guild}.",
                 view=view,
                 embed=embed,
@@ -2202,24 +2244,24 @@ async def on_command_error(
             pass
     if (not isinstance(error, commands.errors.CommandError)) or forcelog:
         try:
-            await channelerrorlogging.send(embed=embederror)
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(embed=embederror)
             if pastecode_failed:
-                await channelerrorlogging.send(
+                await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
                     "Traceback",
                     file=discord.File(
                         io.StringIO(str(traceback_text)), filename="output.text"
                     ),
                 )
         except:
-            await channelerrorlogging.send(f"Command : {ctx.command}.")
-            await channelerrorlogging.send(f"🚫 Error occured ({type(error)})")
-            await channelerrorlogging.send(f"**{error}**")
-            await channelerrorlogging.send(
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"Command : {ctx.command}.")
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"🚫 Error occured ({type(error)})")
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"**{error}**")
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
                 f"Member: {ctx.author.mention} ({ctx.author.name})"
             )
-            await channelerrorlogging.send(f"Message: ({messageid})")
-            await channelerrorlogging.send(f"Guild : {ctx.guild}")
-            await channelerrorlogging.send(f"Traceback: {traceback_text}")
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"Message: ({messageid})")
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"Guild : {ctx.guild}")
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"Traceback: {traceback_text}")
     try:
         if not isSlashCmd:
             if userlog:
@@ -2719,7 +2761,7 @@ async def valorantSeasonCheck():
         async with pool.acquire() as con:
             results = f"UPDATE riotseason SET act = $1 , episode = $2 WHERE act = $3 AND episode = $4"
             await con.execute(results, currentAct, currentEpisode, oldAct, oldEpisode)
-        await channeldev.send("Season update detected, resetting data!")
+        await client.get_channel(CHANNEL_DEV_ID).send("Season update detected, resetting data!")
         async with pool.acquire() as con:
             await con.execute(f"DELETE FROM riotmatches")
 
@@ -2808,21 +2850,21 @@ async def gitcommitcheck():
                 results = f"INSERT INTO githubcommits (userid, latestcommitsha) VALUES($1, $2) ON CONFLICT (userid) DO UPDATE SET latestcommitsha = EXCLUDED.latestcommitsha;"
                 async with pool.acquire() as con:
                     await con.execute(results, str(client.user.id), commitsha)
-                await channeldev.send(
+                await client.get_channel(CHANNEL_DEV_ID).send(
                     f"New commit detected! {commiturl}, restarting..."
                 )
                 files = ["main.py","requirements.txt","cookies.txt",".env","github.env","database.env"]
                 changed_files = compare_local_remote_git_repo(files)
                 if len(changed_files) == 0:
-                    await channeldev.send("No file changes detected.")
+                    await client.get_channel(CHANNEL_DEV_ID).send("No file changes detected.")
                 else:
-                    await channeldev.send(
+                    await client.get_channel(CHANNEL_DEV_ID).send(
                         f"Files changed: {', '.join(map(lambda x: x[0], changed_files))}"
                     )
                     for filedetails in changed_files:
                         with open(filedetails[0], "wb") as f:
                             f.write(base64.b64decode(filedetails[1]))
-                        await channeldev.send(
+                        await client.get_channel(CHANNEL_DEV_ID).send(
                             f"({filedetails[3]})File {filedetails[0]} updated to size {filedetails[2]} in latest commit."
                         )
                 sync_views = client._connection._view_store._synced_message_views
@@ -2836,323 +2878,16 @@ async def gitcommitcheck():
                             pass
 
                 subprocess.run(
-                    f"python main.py restart {channeldev.id}",
+                    f"python main.py restart {CHANNEL_DEV_ID}",
                     shell=True,
                 )
                 await asyncio.sleep(3)
                 os._exit(1)
 
-
-async def runBot():  # Bot START Aestron START
-    logger = logging.getLogger("Aestron")
-    # logger.setLevel(logging.DEBUG)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    ch.setFormatter(CustomFormatter())
-    # logger.addHandler(ch)
-    # logger.info("Starting Aestron...")
-    await client.wait_until_ready()
-    # logger.info("Aestron is ready!")
-    client.start_status = BotStartStatus.PROCESSING
-    # Testing commit
-    bot.launch_time = datetime.utcnow()
-    global channeldev, channelerrorlogging, channelbuglogging, botVersion, verifyCommand, customCog, conn, pool, DATABASE_URL, guildids, guildmusiccount, guildmusicname, guildmusicrecent, guildmusicauthor, channelbuildlogging, guildmusicloop, newconn, newpool, guildmusicskipped, guildmusictime, guildmusictotaltime, guildmusiccurrent, token, togetherControl, dashtoken, browser, guildmusiccurrentstate, guildmusicqueue, guildmusicids, guildmusiccp, channelgitlogging
-    togetherControl = await DiscordTogether(token)
-    token = ""
-    print(f"Trying to connect to {DATABASE_URL}")
-    conn = await asyncpg.connect(DATABASE_URL)
-    newconn = await asyncpg.connect(DATABASE_URL)
-    pool = await asyncpg.create_pool(
-        DATABASE_URL, max_size=max(20, len(client.guilds)), min_size=1
-    )
-    newpool = await asyncpg.create_pool(
-        DATABASE_URL, max_size=max(20, len(client.guilds)), min_size=1
-    )
-    # logger.info("The database has been set to %s.", conn)
-    print(f"The database sql has been set to {conn}")
-    print(f"The new database sql has been set to {newconn}")
-    client.session = aiohttp.ClientSession()
-    print(f"The session has been set to {client.session}")
-    client.github_session = aiohttp.ClientSession()
-    channelerrorlogging = client.get_channel(840193232885121094)
-    channelbuglogging = client.get_channel(855310400366444584)
-    channelbuildlogging = client.get_channel(884741122616877086)
-    channeldev = client.get_channel(843081057506426880)
-    channelgitlogging = client.get_channel(895884797099008050)
-    print(f"The logging channel has been set to {channelerrorlogging}.")
-    nodes = [wavelink.Node(uri="192.168.29.64", password="youshallnotpass")]
-    await wavelink.Pool.connect(nodes=nodes, client=client, cache_capacity=None)
-    # logger.info("The logging channel has been set to %s.", channelerrorlogging)
-    if len(sys.argv) > 1 and sys.argv[1] == "restart":
-        if len(sys.argv) > 2:
-            channelid = int(sys.argv[2])
-            channelmsg = client.get_channel(channelid)
-        else:
-            channelmsg = channeldev
-        await channelmsg.send("Successfully Restarted!")
-    client.load_extension("jishaku")
-    valorantMatchSave.start()
-    valorantSeasonCheck.start()
-    customCog = client.get_cog("CustomCommands")
-    print(f"The custom commands cog has been loaded up with {customCog}.")
-    async with pool.acquire() as con:
-        restricts = await con.fetch(f"SELECT * FROM restrictedUsers")
-    for res in restricts:
-        guildid = res["guildid"]
-        memberid = res["memberid"]
-        epochtime = res["epochtime"]
-        currentepochtime = int(time.time())
-        if epochtime <= currentepochtime:
-            asyncio.ensure_future(restricttimer(0, guildid, memberid))
-        else:
-            asyncio.ensure_future(
-                restricttimer((epochtime - currentepochtime), guildid, memberid)
-            )
-    async with pool.acquire() as con:
-        msgs = await con.fetch(f"SELECT * FROM verifymsg")
-    for msg in msgs:
-        guildid = msg["guildid"]
-        channelid = msg["channelid"]
-        msgid = msg["messageid"]
-        try:
-            guild = client.get_guild(guildid)
-            channel = guild.get_channel(channelid)
-            message = await channel.fetch_message(msgid)
-            await message.edit(view=Verification())
-        except Exception as e:
-            print(
-                f"{e} Failed to edit message {msgid} in channel {channelid} in guild {guildid}."
-            )
-            async with pool.acquire() as con:
-                await con.execute(
-                    f"DELETE FROM verifymsg WHERE guildid = {guildid} AND channelid = {channelid} AND messageid = {msgid}"
-                )
-    async with pool.acquire() as con:
-        pendingunutes = await con.fetch(f"SELECT * FROM pendingunmute")
-    for unmute in pendingunutes:
-        guildid = unmute["guildid"]
-        guild = client.get_guild(guildid)
-        if guild is None:
-            async with pool.acquire() as con:
-                await con.execute(
-                    f"DELETE FROM pendingunmute WHERE guildid = {guildid}"
-                )
-            continue
-        channelid = unmute["channelid"]
-        channel = guild.get_channel(channelid)
-        if channel is None:
-            channelcopy = client.get_channel(channelid)
-            if channelcopy is not None:
-                channel = channelcopy
-        if channel is None:
-            try:
-                txtchannel = guild.text_channels[0]
-                channel = txtchannel
-            except Exception as e:
-                print(
-                    f"{e} Failed to get channel for guild = {guildid} and channelid = {channelid}."
-                )
-                async with pool.acquire() as con:
-                    await con.execute(
-                        f"DELETE FROM pendingunmute WHERE guildid = {guildid} AND channelid = {channelid}"
-                    )
-                continue
-        memberid = unmute["memberid"]
-        member = guild.get_member(memberid)
-        if member is None:
-            async with pool.acquire() as con:
-                await con.execute(
-                    f"DELETE FROM pendingunmute WHERE guildid = {guildid} AND memberid = {memberid}"
-                )
-            continue
-        reason = unmute["reason"]
-        epochtime = unmute["epochtime"]
-        currentepochtime = int(time.time())
-        ctx = constructctx(guild, member, channel)
-        if epochtime <= currentepochtime:
-            asyncio.ensure_future(mutetimer(ctx, 0, member, reason=reason))
-        else:
-            asyncio.ensure_future(
-                mutetimer(ctx, (epochtime - currentepochtime), member, reason=reason)
-            )
-    async with pool.acquire() as con:
-        pendingunblacklists = await con.fetch(f"SELECT * FROM pendingunblacklist")
-    for unblacklist in pendingunblacklists:
-        guildid = unblacklist["guildid"]
-        guild = client.get_guild(guildid)
-        if guild is None:
-            async with pool.acquire() as con:
-                await con.execute(
-                    f"DELETE FROM pendingunblacklist WHERE guildid = {guildid}"
-                )
-            continue
-        channelid = unblacklist["channelid"]
-        channel = guild.get_channel(channelid)
-        if channel is None:
-            channelcopy = client.get_channel(channelid)
-            if channelcopy is not None:
-                channel = channelcopy
-        if channel is None:
-            try:
-                txtchannel = guild.text_channels[0]
-                channel = txtchannel
-            except Exception as e:
-                print(
-                    f"{e} Failed to get channel for guild = {guildid} and channelid = {channelid}."
-                )
-                async with pool.acquire() as con:
-                    await con.execute(
-                        f"DELETE FROM pendingunblacklist WHERE guildid = {guildid} AND channelid = {channelid}"
-                    )
-                continue
-        memberid = unblacklist["memberid"]
-        member = guild.get_member(memberid)
-        if member is None:
-            async with pool.acquire() as con:
-                await con.execute(
-                    f"DELETE FROM pendingunblacklist WHERE guildid = {guildid} AND memberid = {memberid}"
-                )
-            continue
-        reason = unblacklist["reason"]
-        epochtime = unblacklist["epochtime"]
-        currentepochtime = int(time.time())
-        ctx = constructctx(guild, member, channel)
-        if epochtime <= currentepochtime:
-            asyncio.ensure_future(blacklisttimer(ctx, 0, member, reason=reason))
-        else:
-            asyncio.ensure_future(
-                blacklisttimer(
-                    ctx, (epochtime - currentepochtime), member, reason=reason
-                )
-            )
-    for guild in client.guilds:
-        async with pool.acquire() as con:
-            customlist = await con.fetch(
-                f"SELECT * FROM customcommands WHERE guildid = {guild.id}"
-            )
-        if customlist is not None:
-            for custom in customlist:
-
-                @commands.cooldown(1, 30, BucketType.member)
-                @commands.command(
-                    name=custom[1],
-                    brief="This command outputs your custom provided output.",
-                    description="This command outputs your custom provided output.",
-                    usage="",
-                )
-                @commands.check_any(is_guild(guild, custom[1]))
-                async def cmd(self, ctx):
-                    try:
-                        async with pool.acquire() as con:
-                            customlist = await con.fetchrow(
-                                f"SELECT * FROM customcommands WHERE guildid = {ctx.guild.id} AND commandname = '{custom[1]}'"
-                            )
-                    except:
-                        customlist = None
-                    if customlist is not None:
-                        output = customlist[2]
-                        output = output.replace("{user}", str(ctx.author.mention))
-                        output = output.replace("{member}", str(ctx.author.mention))
-                        output = output.replace("{channel}", str(ctx.channel.mention))
-                        output = output.replace("{guild}", str(ctx.guild))
-                        embed = discord.Embed(
-                            title=f"{ctx.command.name} command", description=output
-                        )
-                        embed.set_footer(text=f"{ctx.guild}'s custom command")
-                        await ctx.send(embed=embed)
-                    else:
-                        output = "Welp looks like this command has been erased from our databases <:offline:886434154412113961>."
-                        embed = discord.Embed(
-                            title=f"{ctx.command.name} command", description=output
-                        )
-                        embed.set_footer(text=f"{ctx.guild}'s custom command (ERASED)")
-                        await ctx.send(embed=embed)
-
-                cmd.cog = customCog
-                # And add it to the cog and the bot
-                customCog.__cog_commands__ = customCog.__cog_commands__ + (cmd,)
-                try:
-                    client.add_command(cmd)
-                except Exception as ex:
-                    print(f" Unknown {ex} occured while adding {customlist[1]}.")
-                    async with pool.acquire() as con:
-                        await con.execute(
-                            f"DELETE FROM customcommands WHERE guildid = {guild.id} AND commandname = '{custom[1]}'"
-                        )
-
-    for guild in client.guilds:
-        guildids.append(guild.id)
-        guildmusiccp[guild.id] = False
-        guildmusicname[guild.id] = collections.deque([])
-        guildmusicqueue[guild.id] = collections.deque([])
-        guildmusicids[guild.id] = collections.deque([])
-        guildmusicskipped[guild.id] = False
-        guildmusiccount[guild.id] = 0
-        guildmusicrecent[guild.id] = {}
-        guildmusicloop[guild.id] = False
-        guildmusicauthor[guild.id] = collections.deque([])
-        guildmusictime[guild.id] = 0
-        guildmusictotaltime[guild.id] = 0
-        guildmusiccurrent[guild.id] = ""
-        guildmusiccurrentstate[guild.id] = "▶️"
-    verifyCommand = client.get_command("verify")
-    async with pool.acquire() as con:
-        guilds = await con.fetch(f"SELECT * FROM cautionraid")
-    for guild in guilds:
-        await removeguildcaution(guild["guildid"])
-    gitcommitcheck.start()
-    client.start_status = BotStartStatus.COMPLETED
-
-
-# using create_task and passing the coro to it
-client.loop.create_task(runBot())
-
-
 def convertSec(seconds):
     min, sec = divmod(seconds, 60)
     hour, min = divmod(min, 60)
     return "%dh %02dm %02ds" % (hour, min, sec)
-
-
-async def currentlyplayingslider(message, guild, playingmusic):
-    try:
-        guildmusiccp[guild.id] = (message.id, message.jump_url)
-    except:
-        pass
-    embed = message.embeds[0]
-    pbar = ""
-    cplayingmusic = guildmusiccurrent[guild.id]
-    try:
-        while cplayingmusic.id == playingmusic.id:
-            pbar = ""
-
-            tlpbar = round(guildmusictotaltime[guild.id] // 15)
-            pppbar = round(guildmusictime[guild.id] // tlpbar)
-            nocircle = True
-            for i in range(15):
-                if i == pppbar:
-                    pbar += "🔘"
-                    nocircle = False
-                else:
-                    pbar += "▬"
-            if nocircle:
-                pbar += "🔘"
-            pbar = (
-                    pbar
-                    + f" [`{timedelta(seconds=int(guildmusictime[guild.id]))}`/`{timedelta(seconds=guildmusictotaltime[guild.id])}`]"
-            )
-            embed.set_field_at(0, name=playingmusic, value=pbar)
-            try:
-                await message.edit(embed=embed)
-            except:
-                guildmusiccp[guild.id] = False
-                return
-            cplayingmusic = guildmusiccurrent[guild.id]
-            await asyncio.sleep(5)
-    except:
-        pass
-    guildmusiccp[guild.id] = False
-
 
 async def mutetimer(ctx, timecount, mutedmember, reason=None):
     await asyncio.sleep(timecount)
@@ -3214,7 +2949,7 @@ async def mutetimer(ctx, timecount, mutedmember, reason=None):
     embed = discord.Embed(title="Member unmuted", description=f"{mutedmember.mention}.")
     embed.add_field(name="Moderator", value=ctx.author.mention)
     embed.add_field(name="Reason", value=reason)
-    await ctx.respond(embed=embed, ephemeral=True)
+    await ctx.send(embed=embed, ephemeral=True)
 
 
 async def blacklisttimer(ctx, timecount, blacklistedmember, reason=None):
@@ -3279,7 +3014,7 @@ async def blacklisttimer(ctx, timecount, blacklistedmember, reason=None):
     )
     embed.add_field(name="Moderator", value=ctx.author.mention)
     embed.add_field(name="Reason", value=reason)
-    await ctx.respond(embed=embed, ephemeral=True)
+    await ctx.send(embed=embed, ephemeral=True)
 
 
 @client.command()
@@ -3406,7 +3141,7 @@ async def restart(ctx):
 class AestronInfo(commands.Cog):
     """Aestron bot information"""
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["tutorial", "usage"],
         brief="This command provides the bot command usage information.",
         description="This command provides the bot command usage information.",
@@ -3450,7 +3185,7 @@ class AestronInfo(commands.Cog):
                 embeds.append(embedVar)
                 files.append(discord.File(commandUsage, filename=f"{commandUsage}.gif"))
             pagview = PaginateFileEmbed(embeds, files)
-            msg = await ctx.respond(
+            msg = await ctx.send(
                 embed=embeds[0], file=files[0], view=pagview, ephemeral=True
             )
 
@@ -3460,7 +3195,7 @@ class AestronInfo(commands.Cog):
             )
             return
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["info"],
         brief="This command provides the bot information.",
         description="This command provides the bot information.",
@@ -3512,13 +3247,9 @@ class AestronInfo(commands.Cog):
             url="https://cdn.discordapp.com/avatars/805030662183845919/70fee8581891e9a810da60944dc486ba.webp?size=128"
         )
         try:
-            await ctx.respond(embed=embedVar, ephemeral=True)
+            await ctx.send(embed=embedVar, ephemeral=True)
         except:
             pass
-
-
-client.add_cog(AestronInfo(client))
-
 
 def ismuted(ctx, member):
     muterole = discord.utils.get(ctx.guild.roles, name="muted")
@@ -3534,7 +3265,120 @@ def ismuted(ctx, member):
 class Moderation(commands.Cog):
     """Moderation commands."""
 
-    @bridge.bridge_command(
+    async def cog_load(self):
+        async with pool.acquire() as con:
+            restricts = await con.fetch(f"SELECT * FROM restrictedUsers")
+            for res in restricts:
+                guildid = res["guildid"]
+                memberid = res["memberid"]
+                epochtime = res["epochtime"]
+                currentepochtime = int(time.time())
+                if epochtime <= currentepochtime:
+                    asyncio.ensure_future(restricttimer(0, guildid, memberid))
+                else:
+                    asyncio.ensure_future(
+                        restricttimer((epochtime - currentepochtime), guildid, memberid)
+                    )
+        async with pool.acquire() as con:
+            pendingunutes = await con.fetch(f"SELECT * FROM pendingunmute")
+        for unmute in pendingunutes:
+            guildid = unmute["guildid"]
+            guild = client.get_guild(guildid)
+            if guild is None:
+                async with pool.acquire() as con:
+                    await con.execute(
+                        f"DELETE FROM pendingunmute WHERE guildid = {guildid}"
+                    )
+                continue
+            channelid = unmute["channelid"]
+            channel = guild.get_channel(channelid)
+            if channel is None:
+                channelcopy = client.get_channel(channelid)
+                if channelcopy is not None:
+                    channel = channelcopy
+            if channel is None:
+                try:
+                    txtchannel = guild.text_channels[0]
+                    channel = txtchannel
+                except Exception as e:
+                    print(
+                        f"{e} Failed to get channel for guild = {guildid} and channelid = {channelid}."
+                    )
+                    async with pool.acquire() as con:
+                        await con.execute(
+                            f"DELETE FROM pendingunmute WHERE guildid = {guildid} AND channelid = {channelid}"
+                        )
+                    continue
+            memberid = unmute["memberid"]
+            member = guild.get_member(memberid)
+            if member is None:
+                async with pool.acquire() as con:
+                    await con.execute(
+                        f"DELETE FROM pendingunmute WHERE guildid = {guildid} AND memberid = {memberid}"
+                    )
+                continue
+            reason = unmute["reason"]
+            epochtime = unmute["epochtime"]
+            currentepochtime = int(time.time())
+            ctx = constructctx(guild, member, channel)
+            if epochtime <= currentepochtime:
+                asyncio.ensure_future(mutetimer(ctx, 0, member, reason=reason))
+            else:
+                asyncio.ensure_future(
+                    mutetimer(ctx, (epochtime - currentepochtime), member, reason=reason)
+                )
+        async with pool.acquire() as con:
+            pendingunblacklists = await con.fetch(f"SELECT * FROM pendingunblacklist")
+        for unblacklist in pendingunblacklists:
+            guildid = unblacklist["guildid"]
+            guild = client.get_guild(guildid)
+            if guild is None:
+                async with pool.acquire() as con:
+                    await con.execute(
+                        f"DELETE FROM pendingunblacklist WHERE guildid = {guildid}"
+                    )
+                continue
+            channelid = unblacklist["channelid"]
+            channel = guild.get_channel(channelid)
+            if channel is None:
+                channelcopy = client.get_channel(channelid)
+                if channelcopy is not None:
+                    channel = channelcopy
+            if channel is None:
+                try:
+                    txtchannel = guild.text_channels[0]
+                    channel = txtchannel
+                except Exception as e:
+                    print(
+                        f"{e} Failed to get channel for guild = {guildid} and channelid = {channelid}."
+                    )
+                    async with pool.acquire() as con:
+                        await con.execute(
+                            f"DELETE FROM pendingunblacklist WHERE guildid = {guildid} AND channelid = {channelid}"
+                        )
+                    continue
+            memberid = unblacklist["memberid"]
+            member = guild.get_member(memberid)
+            if member is None:
+                async with pool.acquire() as con:
+                    await con.execute(
+                        f"DELETE FROM pendingunblacklist WHERE guildid = {guildid} AND memberid = {memberid}"
+                    )
+                continue
+            reason = unblacklist["reason"]
+            epochtime = unblacklist["epochtime"]
+            currentepochtime = int(time.time())
+            ctx = constructctx(guild, member, channel)
+            if epochtime <= currentepochtime:
+                asyncio.ensure_future(blacklisttimer(ctx, 0, member, reason=reason))
+            else:
+                asyncio.ensure_future(
+                    blacklisttimer(
+                        ctx, (epochtime - currentepochtime), member, reason=reason
+                    )
+                )
+
+    @commands.hybrid_command(
         brief="This command locks the given channel until a duration.",
         description="This command locks the given channel until a duration(requires manage guild).",
         usage="#channel reason @role duration",
@@ -3629,7 +3473,7 @@ class Moderation(commands.Cog):
                 await channel.send(embed=embed)
             await ctx.channel.send(embed=embed)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command unlocks the given channel.",
         description="This command unlocks the given channel(requires manage guild).",
         usage="@role #channel reason",
@@ -3681,7 +3525,7 @@ class Moderation(commands.Cog):
         await ctx.channel.send(embed=embed)
 
     @commands.cooldown(1, 30, BucketType.channel)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command retrieves the previously deleted message in a channel.",
         description="This command retrieves the previously deleted message in a channel.",
         usage="",
@@ -3729,7 +3573,7 @@ class Moderation(commands.Cog):
             )
             embed.add_field(name="Author", value=username)
             embed.add_field(name="Content", value=f"{content} ** **")
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
             if not "1" in jsonembeds:
                 safeembed = True
                 linkchecktitle = str(embedDeleted.title) + " " + str(embedDeleted.url)
@@ -3747,15 +3591,15 @@ class Moderation(commands.Cog):
                     embed = discord.Embed(
                         title="** **", description="Recently deleted embeds :"
                     )
-                    await ctx.respond(embed=embed, ephemeral=True)
-                    await ctx.respond(embed=embedDeleted, ephemeral=True)
+                    await ctx.send(embed=embed, ephemeral=True)
+                    await ctx.send(embed=embedDeleted, ephemeral=True)
         else:
             embed = discord.Embed(
                 title="** **", description="There are no recently deleted messages."
             )
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command sets slowmode delay to a certain channel.",
         description="This command sets slowmode delay to a certain channel(requires manage messages).",
         usage="delay",
@@ -3771,14 +3615,14 @@ class Moderation(commands.Cog):
             return
         try:
             await ctx.channel.edit(slowmode_delay=delay)
-            await ctx.respond(
+            await ctx.send(
                 f"Successfully set slowmode of {ctx.channel.name} to {delay} seconds.",
                 ephemeral=True,
             )
         except:
             raise commands.BotMissingPermissions(["manage_channels"])
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command clears given number of messages from the same channel.",
         description="This command clears given number of messages from the same channel(requires manage messages).",
     )
@@ -3811,11 +3655,11 @@ class Moderation(commands.Cog):
         embed.add_field(name="Moderator", value=ctx.author.mention)
         embed.add_field(name="Reason", value=reason)
         try:
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
         except:
             await ctx.send(embed=embed)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command clears given number of messages from the same channel.",
         description="This command clears given number of messages from the same channel(requires manage guild).",
     )
@@ -3861,7 +3705,7 @@ class Moderation(commands.Cog):
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
             try:
-                await ctx.respond(embed=embed, ephemeral=True)
+                await ctx.send(embed=embed, ephemeral=True)
             except:
                 await ctx.send(embed=embed)
         else:
@@ -3894,11 +3738,11 @@ class Moderation(commands.Cog):
                 embed.add_field(name="Moderator", value=ctx.author.mention)
                 embed.add_field(name="Reason", value=reason)
                 try:
-                    await ctx.respond(embed=embed, ephemeral=True)
+                    await ctx.send(embed=embed, ephemeral=True)
                 except:
                     await ctx.send(embed=embed)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command prevents users from viewing any channels on the server.",
         description="This command prevents users from viewing any channels on the server(requires manage roles).",
         aliases=["quarantine", "securemute"],
@@ -4065,7 +3909,7 @@ class Moderation(commands.Cog):
             )
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
             try:
                 currentlyblacklisting.remove(member.id)
             except:
@@ -4104,7 +3948,7 @@ class Moderation(commands.Cog):
                     )
                 asyncio.ensure_future(blacklisttimer(ctx, convertedtime, member))
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command allows users to view any channel on the server.",
         description="This command allows users to view any channel on the server(requires manage roles).",
         aliases=["unquarantine", "secureunmute", "unb"],
@@ -4211,13 +4055,13 @@ class Moderation(commands.Cog):
             )
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
             try:
                 currentlyunblacklisting.remove(blacklistedmember.id)
             except:
                 pass
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command warns users for a given reason provided.",
         description="This command warns users for a given reason provided and can be used by bot staff.",
     )
@@ -4232,7 +4076,7 @@ class Moderation(commands.Cog):
                 statement, member.id, ctx.guild.id, reason, ctx.message.id
             )
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command warns users for a given reason provided.",
         description="This command warns users for a given reason provided(requires manage roles).",
     )
@@ -4288,9 +4132,9 @@ class Moderation(commands.Cog):
                 "** **",
                 f"{member.mention} was warned by {ctx.author.mention} for {reason}.",
             )
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["punishments"],
         brief="This command shows user warnings in the guild.",
         description="This command shows user warnings in the guild(requires manage roles).",
@@ -4331,9 +4175,9 @@ class Moderation(commands.Cog):
             if not loopexited:
                 embedlist.append(embed)
             pagview = PaginateEmbed(embedlist)
-            msg = await ctx.respond(view=pagview, embed=embedlist[0], ephemeral=True)
+            msg = await ctx.send(view=pagview, embed=embedlist[0], ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command (mutes)prevents user from sending messages in any channel.",
         description="This command (mutes)prevents user from sending messages in any channel(requires manage roles).",
     )
@@ -4524,7 +4368,7 @@ class Moderation(commands.Cog):
             )
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
             try:
                 currentlymuting.remove(member.id)
             except:
@@ -4563,7 +4407,7 @@ class Moderation(commands.Cog):
                     )
                 asyncio.ensure_future(mutetimer(ctx, convertedtime, member))
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["unm"],
         brief="This command (unmutes)allows user to send messages in any channel.",
         description="This command (unmutes)allows user to send messages in any channel(requires manage roles).",
@@ -4675,13 +4519,13 @@ class Moderation(commands.Cog):
             )
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
             try:
                 currentlyunmuting.remove(mutedmember.id)
             except:
                 pass
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command unbans user from the guild.",
         description="This command unbans user from the guild(requires ban members).",
     )
@@ -4733,7 +4577,7 @@ class Moderation(commands.Cog):
                 await member.send(message)
                 # print(f"Successfully dmed users!")
             except:
-                await ctx.respond(
+                await ctx.send(
                     f"{member.mention} couldn't be direct messaged about the server unban",
                     ephemeral=True,
                 )
@@ -4753,9 +4597,9 @@ class Moderation(commands.Cog):
             )
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command checks guild previous bans.",
         description="This command checks guild previous bans(requires ban members).",
         aliases=["bans", "guildbans", "prevbans", "banned", "serverbans"],
@@ -4776,13 +4620,13 @@ class Moderation(commands.Cog):
             count = count + 1
             if count >= 12:
                 count = 0
-                await ctx.respond(embed=embed, ephemeral=True)
+                await ctx.send(embed=embed, ephemeral=True)
                 embed = discord.Embed(title="** **")
                 loopexited = True
         if not loopexited:
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command bans user from the guild.",
         description="This command bans user from the guild(requires ban members).",
     )
@@ -4845,7 +4689,7 @@ class Moderation(commands.Cog):
                 await member.send(message)
                 # print(f"Successfully dmed users!")
             except:
-                await ctx.respond(
+                await ctx.send(
                     f"{member.mention} couldn't be direct messaged about the server ban ",
                     ephemeral=True,
                 )
@@ -4865,9 +4709,9 @@ class Moderation(commands.Cog):
             )
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command kicks user from the guild.",
         description="This command kicks user from the guild(requires kick members).",
     )
@@ -4920,7 +4764,7 @@ class Moderation(commands.Cog):
                 await member.send(message)
                 # print(f"Successfully dmed users!")
             except:
-                await ctx.respond(
+                await ctx.send(
                     f"{member.mention} couldn't be direct messaged about the server kick ",
                     ephemeral=True,
                 )
@@ -4940,16 +4784,17 @@ class Moderation(commands.Cog):
             )
             embed.add_field(name="Moderator", value=ctx.author.mention)
             embed.add_field(name="Reason", value=reason)
-            await ctx.respond(embed=embed, ephemeral=True)
-
-
-client.add_cog(Moderation(client))
-
+            await ctx.send(embed=embed, ephemeral=True)
 
 class Logging(commands.Cog):
     """Logs guild events such as channel/guild/role creation , deletion , edit ."""
 
-    @bridge.bridge_command(
+    async def cog_load(self):
+        async with pool.acquire() as con:
+            guilds = await con.fetch(f"SELECT * FROM cautionraid")
+        for guild in guilds:
+            await removeguildcaution(guild["guildid"])
+    @commands.hybrid_command(
         brief="This command removes the logging channel in a guild.",
         description="This command removes the logging channel in a guild(requires manage guild).",
         usage="",
@@ -4960,11 +4805,11 @@ class Logging(commands.Cog):
     async def removeloggingchannel(self, ctx):
         async with pool.acquire() as con:
             await con.execute(f"DELETE FROM logchannels WHERE guildid = {ctx.guild.id}")
-        await ctx.respond(
+        await ctx.send(
             "Successfully removed the logging channels in this guild.", ephemeral=True
         )
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command disables the anti-raid in a guild and sets the anti-raid log to the channel.",
         description="This command disables the anti-raid in a guild(requires manage guild).",
         usage="",
@@ -4979,20 +4824,20 @@ class Logging(commands.Cog):
             )
         isRaided = cautionlist is not None
         if isRaided:
-            await ctx.respond(
+            await ctx.send(
                 f"{ctx.author.mention} tried to disable anti-raid while a suspicious activity was detected , anti-raid was not disabled!",
                 ephemeral=True,
             )
             return
         view = ConfirmDecline()
-        msg = await ctx.respond(
+        msg = await ctx.send(
             f":no_entry_sign: Due to security reasons , this command will take `5 minutes` to successfully disable! (Click decline to cancel disabling anti raid)",
             view=view,
             ephemeral=True,
         )
         await view.wait()
         if view.value:
-            await ctx.respond(
+            await ctx.send(
                 f"anti-raid couldn't be disabled due to request by {view.authorcancel}.",
                 ephemeral=True,
             )
@@ -5004,7 +4849,7 @@ class Logging(commands.Cog):
         except:
             pass
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command enables the antiraid in a guild and sets the antiraid log to the channel.",
         description="This command enables the antiraid in a guild(requires manage guild).",
         usage="#channel",
@@ -5039,12 +4884,12 @@ class Logging(commands.Cog):
                 await con.execute(
                     f"UPDATE antiraid VALUES SET channelid = {channel.id} WHERE guildid = {ctx.guild.id}"
                 )
-        await ctx.respond(
+        await ctx.send(
             f"Successfully enabled anti-raid and set the anti-raid logging channel to {channel.mention}.",
             ephemeral=True,
         )
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command sets a logging channel in a guild.",
         description="This command sets a logging channel in a guild(requires manage guild).",
         usage="#channel",
@@ -5088,19 +4933,15 @@ class Logging(commands.Cog):
                 await con.execute(
                     f"UPDATE logchannels VALUES SET channelid = {channel.id} WHERE guildid = {ctx.guild.id}"
                 )
-        await ctx.respond(
+        await ctx.send(
             f"Successfully set logging channel of {ctx.guild} to {channel.mention}.",
             ephemeral=True,
         )
 
-
-client.add_cog(Logging(client))
-
-
 class AutoMod(commands.Cog):
     """Auto moderation settings for various purposes."""
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command stops checking spammed messages in a channel.",
         description="This command stops checking for spammed messages in a channel(requires manage guild).",
         usage="#channel",
@@ -5144,14 +4985,14 @@ class AutoMod(commands.Cog):
                 )
                 count = count + 1
             if count >= 12:
-                await ctx.respond(embed=embed, ephemeral=True)
+                await ctx.send(embed=embed, ephemeral=True)
                 count = 0
                 embed = discord.Embed(title=f"** **")
                 loopexited = True
         if not loopexited:
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command checks spam messages in a channel and mutes the member.",
         description="This command checks spam messages in a channel and mutes the member(requires manage guild).",
         usage="#channel",
@@ -5194,14 +5035,14 @@ class AutoMod(commands.Cog):
                 )
                 count = count + 1
             if count >= 12:
-                await ctx.respond(embed=embed, ephemeral=True)
+                await ctx.send(embed=embed, ephemeral=True)
                 count = 0
                 embed = discord.Embed(title=f"** **")
                 loopexited = True
         if not loopexited:
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command shows the current moderation settings in a channel.",
         description="This command shows the current moderation settings in a channel(requires manage guild).",
         usage="#channel",
@@ -5258,9 +5099,9 @@ class AutoMod(commands.Cog):
             value=f"Do {guildPrefix}allowprofane to disable profane text checks and {guildPrefix}disallowprofane to enable profane text checks.",
             inline=False,
         )
-        await ctx.respond(embed=embedVar, ephemeral=True)
+        await ctx.send(embed=embedVar, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command checks for profanity(hurtful text) in a channel.",
         description="This command checks for profanity(hurtful text) in a channel(requires manage guild).",
         usage="#channel",
@@ -5304,14 +5145,14 @@ class AutoMod(commands.Cog):
                 )
                 count = count + 1
             if count >= 12:
-                await ctx.respond(embed=embed, ephemeral=True)
+                await ctx.send(embed=embed, ephemeral=True)
                 count = 0
                 embed = discord.Embed(title=f"** **")
                 loopexited = True
         if not loopexited:
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command stops checking for profanity in a channel.",
         description="This command stops checking for profanity in a channel(requires manage guild).",
         usage="#channel",
@@ -5356,14 +5197,14 @@ class AutoMod(commands.Cog):
                 )
                 count = count + 1
             if count >= 12:
-                await ctx.respond(embed=embed, ephemeral=True)
+                await ctx.send(embed=embed, ephemeral=True)
                 count = 0
                 embed = discord.Embed(title=f"** **")
                 loopexited = True
         if not loopexited:
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command checks for links in a channel.",
         description="This command checks for links in a channel(requires manage guild).",
         usage="#channel",
@@ -5406,14 +5247,14 @@ class AutoMod(commands.Cog):
                 )
                 count = count + 1
             if count >= 12:
-                await ctx.respond(embed=embed, ephemeral=True)
+                await ctx.send(embed=embed, ephemeral=True)
                 count = 0
                 embed = discord.Embed(title=f"** **")
                 loopexited = True
         if not loopexited:
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command stops checking for links in a channel.",
         description="This command stops checking for links in a channel(requires manage guild).",
         usage="#channel",
@@ -5458,16 +5299,12 @@ class AutoMod(commands.Cog):
                 )
                 count = count + 1
             if count >= 12:
-                await ctx.respond(embed=embed, ephemeral=True)
+                await ctx.send(embed=embed, ephemeral=True)
                 count = 0
                 embed = discord.Embed(title=f"** **")
                 loopexited = True
         if not loopexited:
-            await ctx.respond(embed=embed, ephemeral=True)
-
-
-client.add_cog(AutoMod(client))
-
+            await ctx.send(embed=embed, ephemeral=True)
 
 def gencharstr(N, ch):
     res = ""
@@ -5494,7 +5331,7 @@ class Templates(commands.Cog):
     """Can restore all channel , roles and guild settings from a template and can save into one."""
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["genbackuptemplate", "backup"],
         brief="This command generates a backup template for the server.",
         description="This command generates a backup template for the server(requires manage guild).",
@@ -5541,18 +5378,18 @@ class Templates(commands.Cog):
                 name="Command author", value=f"{ctx.author.mention}", inline=False
             )
             e.set_image(url="attachment://dmEnable.png")
-            mentionMes = await ctx.respond(ctx.author.mention, ephemeral=True)
+            mentionMes = await ctx.send(ctx.author.mention, ephemeral=True)
             await asyncio.sleep(1)
             await mentionMes.delete()
-            await ctx.respond(file=f, embed=e, ephemeral=True)
+            await ctx.send(file=f, embed=e, ephemeral=True)
             return
-        await ctx.respond(
+        await ctx.send(
             f"Hey {ctx.author.mention} I have dmed you the secret backup template.",
             ephemeral=True,
         )
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command resets all channels from a discord template.",
         description="This command resets all channels from a discord template(requires manage guild).",
         usage="template-url",
@@ -5612,7 +5449,7 @@ class Templates(commands.Cog):
             title="Deleting old channels/roles",
             description="Status <a:loadingone:877403280391696444>",
         )
-        messagesent = await ctx.respond(embed=embedStatusDel, ephemeral=True)
+        messagesent = await ctx.send(embed=embedStatusDel, ephemeral=True)
         changesstrDel = ""
         for channel in ctx.guild.channels:
             if channel == ctx.channel:
@@ -5827,14 +5664,10 @@ class Templates(commands.Cog):
             for channelloop in guild.channels:
                 await channelloop.set_permissions(blacklistrole, view_channel=False)
 
-
-client.add_cog(Templates(client))
-
-
 class SupportTicket(commands.Cog):
     """Creates a support ticket for a member and can be customized ."""
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command creates a support ticket panel.",
         description="This command creates a support ticket panel(requires manage guild).",
         usage="channel supportrole reaction supportmessage",
@@ -5899,14 +5732,10 @@ class SupportTicket(commands.Cog):
             await con.execute(
                 statement, channel.id, messagesent.id, supportrole.id, emoji
             )
-        await ctx.respond(
+        await ctx.send(
             f"The channel ({channel.mention}) was successfully created as a ticket panel.",
             ephemeral=True,
         )
-
-
-client.add_cog(SupportTicket(client))
-
 
 async def lockticket(user, userone, supportchannel):
     overw = supportchannel.overwrites
@@ -6166,7 +5995,27 @@ targeted attacks using automated user accounts.""",
 class Captcha(commands.Cog):
     """Captcha verification commands"""
 
-    @bridge.bridge_command(
+    async def cog_load(self):
+        async with pool.acquire() as con:
+            msgs = await con.fetch(f"SELECT * FROM verifymsg")
+            for msg in msgs:
+                guildid = msg["guildid"]
+                channelid = msg["channelid"]
+                msgid = msg["messageid"]
+                try:
+                    guild = client.get_guild(guildid)
+                    channel = guild.get_channel(channelid)
+                    message = await channel.fetch_message(msgid)
+                    await message.edit(view=Verification())
+                except Exception as e:
+                    print(
+                        f"{e} Failed to edit message {msgid} in channel {channelid} in guild {guildid}."
+                    )
+                    async with pool.acquire() as con:
+                        await con.execute(
+                            f"DELETE FROM verifymsg WHERE guildid = {guildid} AND channelid = {channelid} AND messageid = {msgid}"
+                        )
+    @commands.hybrid_command(
         brief="This command adds the channels from the verification role.",
         description="This command adds the channels from the verification role(requires manage guild).",
         usage="#channelone #channeltwo ...",
@@ -6220,9 +6069,9 @@ class Captcha(commands.Cog):
             except:
                 isDone = "🚫 Error"
             embed.add_field(name=isDone, value=channel.mention)
-        await ctx.respond(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command removes the channels from the verification role.",
         description="This command removes the channels from the verification role(requires manage guild).",
         usage="#channelone #channeltwo ...",
@@ -6278,9 +6127,9 @@ class Captcha(commands.Cog):
                 isDone = "🚫 Error"
 
             embed.add_field(name=isDone, value=channel.mention)
-        await ctx.respond(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command adds the channels from the verification role.",
         description="This command adds the channels from the verification role(requires manage guild).",
         usage="#channelone #channeltwo ...",
@@ -6336,9 +6185,9 @@ class Captcha(commands.Cog):
             except:
                 isDone = "🚫 Error"
             embed.add_field(name=isDone, value=channel.mention)
-        await ctx.respond(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command removes the channels from the verification role.",
         description="This command removes the channels from the verification role(requires manage guild).",
         usage="#channelone #channeltwo ...",
@@ -6395,9 +6244,9 @@ class Captcha(commands.Cog):
                 isDone = "🚫 Error"
 
             embed.add_field(name=isDone, value=channel.mention)
-        await ctx.respond(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command shows the channels verification role can access.",
         description="This command shows the channels verification role can access(requires manage guild).",
         usage="",
@@ -6421,7 +6270,7 @@ class Captcha(commands.Cog):
         for channelloop in ctx.guild.channels:
             if count >= maxcount:
                 count = 0
-                await ctx.respond(embed=embed, ephemeral=True)
+                await ctx.send(embed=embed, ephemeral=True)
                 embed = discord.Embed(title="", description=f"** **")
             if channelloop.type == discord.ChannelType.category:
                 continue
@@ -6453,9 +6302,9 @@ class Captcha(commands.Cog):
             text="Want to add/remove a channel? Do the verifyreadadd/verifyreadremove and verifywriteadd/verifywriteremove command."
         )
         if count != 0:
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["unsetverificationchannel"],
         brief="This command removes a verification channel in the guild.",
         description="This command removes a verification channel in the guild(requires manage guild).",
@@ -6481,11 +6330,11 @@ class Captcha(commands.Cog):
         statement = """DELETE FROM verifymsg WHERE guildid = $1"""
         async with pool.acquire() as con:
             await con.execute(statement, ctx.guild.id)
-        await ctx.respond(
+        await ctx.send(
             "Successfully removed the verification channel.", ephemeral=True
         )
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["setverificationchannel"],
         brief="This command sets up a verification channel in the guild.",
         description="This command sets up a verification channel in the guild(requires manage guild).",
@@ -6631,7 +6480,7 @@ targeted attacks using automated user accounts.""",
             async with pool.acquire() as con:
                 await con.execute(statement, ctx.guild.id, verifychannel.id, msg.id)
         try:
-            messageone = await ctx.respond(
+            messageone = await ctx.send(
                 "Server verification setup was successful , It is recommended to run the verificationchannels command to view which channels the verified role can access. ",
                 ephemeral=True,
             )
@@ -6641,7 +6490,7 @@ targeted attacks using automated user accounts.""",
             pass
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command verifies you in the guild.",
         description="This command verifies you in the guild.",
         usage="",
@@ -6655,7 +6504,7 @@ targeted attacks using automated user accounts.""",
             pass
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole is None:
-            await ctx.respond(
+            await ctx.send(
                 "Run the **setupverification** command before this command for setting up the roles.",
                 ephemeral=True,
             )
@@ -6687,10 +6536,10 @@ targeted attacks using automated user accounts.""",
                 name="Command author", value=f"{ctx.author.mention}", inline=False
             )
             e.set_image(url="attachment://dmEnable.png")
-            mentionMes = await ctx.respond(ctx.author.mention, ephemeral=True)
+            mentionMes = await ctx.send(ctx.author.mention, ephemeral=True)
             await asyncio.sleep(1)
             await mentionMes.delete()
-            dmWarnings = await ctx.respond(file=f, embed=e, ephemeral=True)
+            dmWarnings = await ctx.send(file=f, embed=e, ephemeral=True)
             await asyncio.sleep(5)
             await dmWarnings.delete()
             return
@@ -6760,15 +6609,11 @@ targeted attacks using automated user accounts.""",
                 f"The captcha entered is invalid , regenerate a new captcha for verification."
             )
 
-
-client.add_cog(Captcha(client))
-
-
 class MinecraftFun(commands.Cog):
     """Minecraft game related fun commands"""
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["bal", "money", "account", "bank"],
         brief="This command is used to check your balance.",
         description="This command is used to check your balance.",
@@ -6778,7 +6623,7 @@ class MinecraftFun(commands.Cog):
     async def balance(self, ctx, member: discord.Member = None):
         if member is None:
             member = ctx.author
-        async with newpool.acquire() as con:
+        async with pool.acquire() as con:
             memberoneeco = await con.fetchrow(
                 f"SELECT * FROM mceconomy WHERE memberid = {member.id}"
             )
@@ -6787,16 +6632,16 @@ class MinecraftFun(commands.Cog):
         else:
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 await con.execute(statement, member.id, 1500, json.dumps(newjson))
             oldbalance = 1500
         embed = discord.Embed(
             title=f"{member.name}'s balance", description=f"{oldbalance} currency"
         )
-        await ctx.respond(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True)
 
     @commands.cooldown(1, 604000, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["weekly"],
         brief="This command is used to claim weekly rewards!.",
         description="This command is used to claim weekly rewards!",
@@ -6804,21 +6649,21 @@ class MinecraftFun(commands.Cog):
     )
     @commands.guild_only()
     async def voterewardweekly(self, ctx):
-        async with newpool.acquire() as con:
+        async with pool.acquire() as con:
             memberoneeco = await con.fetchrow(
                 f"SELECT * FROM mceconomy WHERE memberid = {ctx.author.id}"
             )
         if memberoneeco is None:
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 await con.execute(statement, ctx.author.id, 1500, json.dumps(newjson))
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 memberoneeco = await con.fetchrow(
                     f"SELECT * FROM mceconomy WHERE memberid = {ctx.author.id}"
                 )
         if await uservoted(ctx.author) or checkstaff(ctx.author):
-            await ctx.respond(
+            await ctx.send(
                 "Nice , you have claimed your weekly of 1500 for this week!",
                 ephemeral=True,
             )
@@ -6828,7 +6673,7 @@ class MinecraftFun(commands.Cog):
             await on_command_error(ctx, "You have not voted for this bot on top.gg!")
 
     @commands.cooldown(1, 43200, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["daily"],
         brief="This command is used to claim daily rewards!.",
         description="This command is used to claim daily rewards!",
@@ -6836,21 +6681,21 @@ class MinecraftFun(commands.Cog):
     )
     @commands.guild_only()
     async def votereward(self, ctx):
-        async with newpool.acquire() as con:
+        async with pool.acquire() as con:
             memberoneeco = await con.fetchrow(
                 f"SELECT * FROM mceconomy WHERE memberid = {ctx.author.id}"
             )
         if memberoneeco is None:
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 await con.execute(statement, ctx.author.id, 1500, json.dumps(newjson))
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 memberoneeco = await con.fetchrow(
                     f"SELECT * FROM mceconomy WHERE memberid = {ctx.author.id}"
                 )
         if uservoted(ctx.author) or checkstaff(ctx.author):
-            await ctx.respond(
+            await ctx.send(
                 "Nice , you have claimed your daily of 150 for today!", ephemeral=True
             )
             await addmoney(ctx.author.id, 150)
@@ -6862,7 +6707,7 @@ class MinecraftFun(commands.Cog):
             )
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["give", "pay"],
         brief="This command is used to give currency.",
         description="This command is used to give currency.",
@@ -6880,13 +6725,13 @@ class MinecraftFun(commands.Cog):
             return
         await addmoney(ctx.author.id, (-1 * price))
         await addmoney(member.id, price)
-        await ctx.respond(
+        await ctx.send(
             f"You have successfully paid {member.name}#{member.discriminator} , {price} currency.",
             ephemeral=True,
         )
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["inv", "backpack", "bag", "items"],
         brief="This command is used to see your inventory.",
         description="This command is used to see your inventory.",
@@ -6899,16 +6744,16 @@ class MinecraftFun(commands.Cog):
         embed = discord.Embed(
             title=f"{member.name}'s Minecraft inventory", description="** **"
         )
-        async with newpool.acquire() as con:
+        async with pool.acquire() as con:
             memberoneeco = await con.fetchrow(
                 f"SELECT * FROM mceconomy WHERE memberid = {member.id}"
             )
         if memberoneeco is None:
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 await con.execute(statement, member.id, 1500, json.dumps(newjson))
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 memberoneeco = await con.fetchrow(
                     f"SELECT * FROM mceconomy WHERE memberid = {member.id}"
                 )
@@ -6935,33 +6780,33 @@ class MinecraftFun(commands.Cog):
         swordemoji = swordchoiceemoji[swordname]
         embed.add_field(name="Armor", value=f"{armoremoji}{armorname} Armor")
         embed.add_field(name="Sword", value=f"{swordemoji}{swordname} Sword")
-        await ctx.respond(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command is used to buy minecraft stuff.",
         description="This command is used to buy minecraft stuff.",
         usage="",
     )
     @commands.guild_only()
     async def shop(self, ctx):
-        async with newpool.acquire() as con:
+        async with pool.acquire() as con:
             memberoneeco = await con.fetchrow(
                 f"SELECT * FROM mceconomy WHERE memberid = {ctx.author.id}"
             )
         if memberoneeco is None:
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 await con.execute(statement, ctx.author.id, 1500, json.dumps(newjson))
         embed = discord.Embed(
             title="Minecraft shop",
             description="Click on dropdown to view items and buy them!",
         )
-        await ctx.respond(embed=embed, view=MCShop(ctx.author), ephemeral=True)
+        await ctx.send(embed=embed, view=MCShop(ctx.author), ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command is used to fight other users in minecraft style.",
         description="This command is used to fight other users in a minecraft style.",
         usage="@member #voicechannel",
@@ -6970,13 +6815,13 @@ class MinecraftFun(commands.Cog):
     async def pvp(self, ctx, member: discord.Member, vhc: discord.VoiceChannel = None):
         global leaderBoard
         if member == ctx.author:
-            await ctx.respond(
+            await ctx.send(
                 "Trying to battle yourself will only have major consequences !",
                 ephemeral=True,
             )
             return
         if member.bot:
-            await ctx.respond(
+            await ctx.send(
                 "You cannot battle bots,we cannot be defeated!", ephemeral=True
             )
             return
@@ -6988,30 +6833,30 @@ class MinecraftFun(commands.Cog):
         elif ctx.voice_client.is_playing():
             ctx.voice_client.stop()
         vc = ctx.voice_client
-        async with newpool.acquire() as con:
+        async with pool.acquire() as con:
             memberoneeco = await con.fetchrow(
                 f"SELECT * FROM mceconomy WHERE memberid = {ctx.author.id}"
             )
         if memberoneeco is None:
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 await con.execute(statement, ctx.author.id, 1500, json.dumps(newjson))
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 memberoneeco = await con.fetchrow(
                     f"SELECT * FROM mceconomy WHERE memberid = {ctx.author.id}"
                 )
         memberoneinv = json.loads(memberoneeco["inventory"])
-        async with newpool.acquire() as con:
+        async with pool.acquire() as con:
             membertwoeco = await con.fetchrow(
                 f"SELECT * FROM mceconomy WHERE memberid = {member.id}"
             )
         if membertwoeco is None:
             statement = """INSERT INTO mceconomy (memberid,balance,inventory) VALUES($1,$2,$3);"""
             newjson = {"orechoice": "Leather", "swordchoice": "Wooden"}
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 await con.execute(statement, member.id, 1500, json.dumps(newjson))
-            async with newpool.acquire() as con:
+            async with pool.acquire() as con:
                 membertwoeco = await con.fetchrow(
                     f"SELECT * FROM mceconomy WHERE memberid = {member.id}"
                 )
@@ -7059,7 +6904,7 @@ class MinecraftFun(commands.Cog):
                 url="https://cdn.discordapp.com/avatars/841268437824045096/2197577ab3bcee324b2e58bd3a1e3248.png?size=1024"
             )
             view = Confirmpvp(member=membertwo.id)
-            statmsg = await ctx.respond(embed=embed, view=view, ephemeral=True)
+            statmsg = await ctx.send(embed=embed, view=view, ephemeral=True)
             await view.wait()
             if view.value is None:
                 try:
@@ -7131,7 +6976,7 @@ class MinecraftFun(commands.Cog):
             vc.play(discord.FFmpegPCMAudio("Firework_twinkle_far.ogg"))
         except:
             pass
-        await ctx.respond(
+        await ctx.send(
             content=f"{memberone.mention}'s turn to fight!",
             embed=embed,
             view=Minecraftpvp(
@@ -7151,7 +6996,7 @@ class MinecraftFun(commands.Cog):
         )
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command is used to check the leaderboard of the pvp and soundpvp command.",
         description="This command is used to check the leaderboard of the pvp and soundpvp command.",
         usage="",
@@ -7193,10 +7038,10 @@ class MinecraftFun(commands.Cog):
                 value=f"<@{name}>",
                 inline=False,
             )
-        await ctx.respond(embed=embedOne, ephemeral=True)
+        await ctx.send(embed=embedOne, ephemeral=True)
 
     @commands.cooldown(1, 120, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command is used to check the server status of a minecraft server ip.",
         description="This command is used to check the server status of a minecraft server ip.",
         usage="server-ip",
@@ -7209,7 +7054,7 @@ class MinecraftFun(commands.Cog):
         except:
             embedOne = discord.Embed(title=ip, description="** **", color=Color.red())
             embedOne.add_field(name="Server Status ", value=" Offline ", inline=True)
-            await ctx.respond(embed=embedOne, ephemeral=True)
+            await ctx.send(embed=embedOne, ephemeral=True)
             return
         limit = 50
         try:
@@ -7234,11 +7079,7 @@ class MinecraftFun(commands.Cog):
         embedOne.add_field(
             name="Players Online ", value=status.players.online, inline=True
         )
-        ipmessagesent = await ctx.respond(embed=embedOne, ephemeral=True)
-
-
-client.add_cog(MinecraftFun(client))
-
+        ipmessagesent = await ctx.send(embed=embedOne, ephemeral=True)
 
 def listToString(s):
     # initialize an empty string
@@ -7756,7 +7597,7 @@ class Leveling(commands.Cog):
     """Levelling chat commands."""
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["messageconfig", "levelset", "messageperlevel"],
         brief="This command can be used to set the messages required per level gained.",
         description="This command can be used to set the messages required per level gained(requires manage guild).",
@@ -7797,13 +7638,13 @@ class Leveling(commands.Cog):
                     await con.execute(
                         f"UPDATE levelconfig VALUES SET messagecount = {messagecount} WHERE channelid = {ch.id}"
                     )
-        await ctx.respond(
+        await ctx.send(
             f"Successfully set {messagecount} per level for the provided channels.",
             ephemeral=True,
         )
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["lb", "leaderboard"],
         brief="This command can be used to get the leaderboard in a guild.",
         description="This command can be used to get the leaderboard in a guild.",
@@ -7831,7 +7672,7 @@ class Leveling(commands.Cog):
                 warninglist = await con.fetchrow(
                     f"SELECT * FROM levelsettings WHERE channelid = {ctx.channel.id}"
                 )
-            await ctx.respond(
+            await ctx.send(
                 f"Alert: leveling was automatically enabled in this channel, do {prefix}leveltoggle to turn off leveling!",
                 ephemeral=True,
             )
@@ -7933,10 +7774,10 @@ class Leveling(commands.Cog):
         file = discord.File("./levelleaderboardresult.png")
         embed = discord.Embed()
         embed.set_image(url="attachment://levelleaderboardresult.png")
-        await ctx.respond(file=file, embed=embed, ephemeral=True)
+        await ctx.send(file=file, embed=embed, ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["rank", "levels"],
         brief="This command can be used to get the current level in a guild.",
         description="This command can be used to get the current level in a guild.",
@@ -7965,7 +7806,7 @@ class Leveling(commands.Cog):
                 warninglist = await con.fetchrow(
                     f"SELECT * FROM levelsettings WHERE channelid = {ctx.channel.id}"
                 )
-            await ctx.respond(
+            await ctx.send(
                 f"Alert: leveling was automatically enabled in this channel, do {prefix}leveltoggle to turn off leveling!",
                 ephemeral=True,
             )
@@ -8036,12 +7877,12 @@ class Leveling(commands.Cog):
         file = discord.File("./levelresult.png")
         embed = discord.Embed()
         embed.set_image(url="attachment://levelresult.png")
-        await ctx.respond(file=file, embed=embed, ephemeral=True)
+        await ctx.send(file=file, embed=embed, ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_guild=True))
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["leveltoggle", "togglelevel"],
         brief="This command can be used to enable/disable your leveling system.",
         description="This command can be used to enable/disable your leveling system(requires manage guild).",
@@ -8078,11 +7919,7 @@ class Leveling(commands.Cog):
                     await con.execute(
                         f"UPDATE levelsettings VALUES SET setting = {newSet} WHERE channelid = {channel.id}"
                     )
-        await ctx.respond(embed=embed, ephemeral=True)
-
-
-client.add_cog(Leveling(client))
-
+        await ctx.send(embed=embed, ephemeral=True)
 
 class Agent:
     def __init__(self, name):
@@ -9042,7 +8879,7 @@ class Valorant(commands.Cog):
     """Valorant stat commands"""
 
     @commands.cooldown(1, 45, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["valunlink", "unlink"],
         brief="This command unlinks and removes your valorant username.",
         description="This command unlinks and removes your valorant username.",
@@ -9053,12 +8890,12 @@ class Valorant(commands.Cog):
             await con.execute(
                 f"DELETE FROM riotaccount WHERE discorduserid = {ctx.author.id}"
             )
-        await ctx.respond(
+        await ctx.send(
             f"Your account was successfully unlinked from discord.", ephemeral=True
         )
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["vallink", "link"],
         brief="This command links and stores your valorant username.",
         description="This command links and stores your valorant username.",
@@ -9070,10 +8907,10 @@ class Valorant(commands.Cog):
             title="Link Valorant",
             description="To link your discord account with your valorant account, click on the button below.",
         )
-        await ctx.respond(embed=embedOne, view=ValorantLink(ctx), ephemeral=True)
+        await ctx.send(embed=embedOne, view=ValorantLink(ctx), ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["valstats"],
         brief="This command shows the stats of your linked account.",
         description="This command shows the stats of your linked account.",
@@ -9117,7 +8954,7 @@ class Valorant(commands.Cog):
                 f"SELECT matchids FROM riotmatches where discorduserid = {ctx.author.id}"
             )
         if matchidslist is None:
-            await ctx.respond(
+            await ctx.send(
                 f"Your stats could not be fetched as they haven't been loaded yet!",
                 ephemeral=True,
             )
@@ -9138,7 +8975,7 @@ class Valorant(commands.Cog):
         try:
             respjson = json.loads(respjson)
         except Exception as ex:
-            await ctx.respond(
+            await ctx.send(
                 f"Your stats could not be fetched due to an error, try re-linking your account!",
                 ephemeral=True,
             )
@@ -9173,21 +9010,17 @@ class Valorant(commands.Cog):
             )
         except:
             pass
-        await ctx.respond(
+        await ctx.send(
             embed=embed,
             view=ValorantControls(matchesinfo, currentpuuid, ctx),
             ephemeral=True,
         )
 
-
-client.add_cog(Valorant(client))
-
-
 class Misc(commands.Cog):
     """Misc commands."""
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["remind", "reminder", "alarm"],
         brief="This command can be used to create a reminder.",
         description="This command can be used to create a reminder.",
@@ -9224,13 +9057,13 @@ class Misc(commands.Cog):
             await ctx.message.add_reaction("⏰")
         except:
             pass
-        await ctx.respond(
+        await ctx.send(
             f"{ctx.author.mention} Your reminder for {await discord.utils.sleep_until(when=new_datetime, result=reason)} was completed!",
             ephemeral=True,
         )
 
     @commands.cooldown(1, 6, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["setafk"],
         brief=" This command can be used to mark yourself as afk for a specified reason.",
         description=" This command can be used to mark yourself as afk for a specified reason.",
@@ -9242,7 +9075,7 @@ class Misc(commands.Cog):
         if checkProfane(reasonafk):
             reason = "||Hidden for containing profane text||"
         afkrecent[ctx.author.id] = reasonafk
-        await ctx.respond(
+        await ctx.send(
             f"I have set you afk for {reasonafk} , send a message again to be marked as non AFK.",
             ephemeral=True,
         )
@@ -9265,7 +9098,7 @@ class Misc(commands.Cog):
             await ctx.send(embed=embed)
 
     @commands.cooldown(1, 20, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["takescreenshot", "scrn", "screenshot"],
         brief="This command can be used to take a screenshot of a website url.",
         description="This command can be used to take a screenshot of a website url.",
@@ -9273,7 +9106,7 @@ class Misc(commands.Cog):
     )
     async def takescrn(self, ctx, url: str):
         scrn = await take_screenshot(ctx, url=url)
-        await ctx.respond(file=scrn, ephemeral=True)
+        await ctx.send(file=scrn, ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(
@@ -9453,7 +9286,7 @@ class Misc(commands.Cog):
         msg = await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview)
 
     @commands.cooldown(1, 60, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["search", "google"],
         brief="This command can be used to search on google.",
         description="This command can be used to search on google.",
@@ -9471,13 +9304,13 @@ class Misc(commands.Cog):
         for j in searchresults:
             scrn = await take_screenshot(ctx, j)
             embedVar.title = f"Search Results({j})"
-            await ctx.respond(embed=embedVar, file=scrn, ephemeral=True)
+            await ctx.send(embed=embedVar, file=scrn, ephemeral=True)
             success = True
         if not success:
             raise commands.CommandError(f"No results were found for {query}.")
 
     @commands.cooldown(1, 15, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to get current weather of a city.",
         description="This command can be used to get current weather of a city.",
         usage="city-name",
@@ -9529,12 +9362,12 @@ class Misc(commands.Cog):
             await on_command_error(ctx, "The city provided was not found.")
             return
         try:
-            await ctx.respond(embed=embedVar, ephemeral=True)
+            await ctx.send(embed=embedVar, ephemeral=True)
         except:
             pass
 
     @commands.cooldown(1, 60, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to get current user response time(ping).",
         description="This command can be used to get current user response time(ping) in milliseconds.",
         usage="",
@@ -9542,7 +9375,7 @@ class Misc(commands.Cog):
     async def ping(self, ctx):
         # f"Pong: **`{normalPing}ms`** | Websocket: **`{webPing}ms`**"
         start = time.perf_counter()
-        message = await ctx.respond("Pinging...", ephemeral=True)
+        message = await ctx.send("Pinging...", ephemeral=True)
         end = time.perf_counter()
         duration = (end - start) * 1000
         duration = duration / 2
@@ -9578,11 +9411,11 @@ class Misc(commands.Cog):
                 color=0x990000,
             )
         try:
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
         except:
             pass
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["changeprefix"],
         brief="This command can be used to set bot prefix in a guild by members.",
         description="This command can be used to set bot prefix in a guild by members(requires manage guild).",
@@ -9596,7 +9429,7 @@ class Misc(commands.Cog):
             if prefix == "None" or len(prefix) > 10:
                 await on_command_error(ctx, "You cannot set the prefix to that value.")
                 return
-            msg = await ctx.respond(
+            msg = await ctx.send(
                 f"Are you sure you want to change the prefix to `{prefix}`",
                 ephemeral=True,
             )
@@ -9625,32 +9458,24 @@ class Misc(commands.Cog):
                 )
 
             try:
-                await ctx.respond(
+                await ctx.send(
                     f"My prefix has changed to {prefix} in {ctx.guild}.", ephemeral=True
                 )
             except:
                 pass
         else:
             try:
-                await ctx.respond(
+                await ctx.send(
                     "My prefix cannot be changed in a dm channel , my default prefix is `a!` ",
                     ephemeral=True,
                 )
             except:
                 pass
 
-
-client.add_cog(Misc(client))
-
-
 @commands.cooldown(1, 45, BucketType.member)
-@client.slash_command(
-    brief="This command can be used to translate text into another language.",
-    description="This command can be used to translate text into another language.",
-    usage="language text",
-    aliases=["translate", "lang", "convertlang"],
-)
-async def translatetext(ctx, text: str, language: str = "en"):
+@client.tree.command(description="This command can be used to translate text into another language.")
+@app_commands.describe(text="Text to translate to language.", language="Destination language.")
+async def translatetext(interaction: discord.Interaction, text: str, language: str = "en"):
     origmessage = text
     origlanguage = detect(text)
     translator = Translator(to_lang=language, from_lang=origlanguage)
@@ -9658,14 +9483,13 @@ async def translatetext(ctx, text: str, language: str = "en"):
     embedOne = discord.Embed(
         title="Language : " + language, description=translatedmessage
     )
-    await ctx.respond(embed=embedOne, ephemeral=True)
-
+    await interaction.response.send_message(embed=embedOne, ephemeral=True)
 
 class Call(commands.Cog):
     """Call commands."""
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=[
             "callsettings",
             "chatsettings",
@@ -9687,14 +9511,14 @@ class Call(commands.Cog):
             )
             async with pool.acquire() as con:
                 await con.execute(statement, ctx.author.id, False)
-            await ctx.respond(
+            await ctx.send(
                 f"{ctx.author.mention} Your call settings was successfully set to {checkEmoji(False)}.",
                 ephemeral=True,
             )
         else:
             currentSet = warninglist[1]
             newSet = not currentSet
-            await ctx.respond(
+            await ctx.send(
                 f"{ctx.author.mention} Your call settings was successfully set to {checkEmoji(newSet)}.",
                 ephemeral=True,
             )
@@ -9705,7 +9529,7 @@ class Call(commands.Cog):
                 )
 
     @commands.cooldown(1, 60, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief=" This command can be used to talk to people.",
         description=" This command can be used to talk to people.",
         usage="@member reason",
@@ -9739,23 +9563,23 @@ class Call(commands.Cog):
                     name="Command author", value=f"{ctx.author.mention}", inline=False
                 )
                 e.set_image(url="attachment://dmEnable.png")
-                mentionMes = await ctx.respond(ctx.author.mention, ephemeral=True)
+                mentionMes = await ctx.send(ctx.author.mention, ephemeral=True)
                 await asyncio.sleep(1)
                 await mentionMes.delete()
-                await ctx.respond(
+                await ctx.send(
                     f"{ctx.author.mention} Your dms are disabled , you need to enable dms for this command.",
                     ephemeral=True,
                 )
-                dmWarnings = await ctx.respond(file=f, embed=e, ephemeral=True)
+                dmWarnings = await ctx.send(file=f, embed=e, ephemeral=True)
                 await asyncio.sleep(5)
                 await dmWarnings.delete()
             else:
-                await ctx.respond(
+                await ctx.send(
                     f"{ctx.author.mention} Your dms are disabled , you need to enable dms for this command.",
                     ephemeral=True,
                 )
             return
-        await ctx.respond(
+        await ctx.send(
             f"{ctx.author.mention} go to your dm ({messageonesent.jump_url}) for the call.",
             ephemeral=True,
         )
@@ -9964,15 +9788,11 @@ class Call(commands.Cog):
                 f"Your call to {member.mention} was declined because of no response."
             )
 
-
-client.add_cog(Call(client))
-
-
 class Fun(commands.Cog):
     """General fun commands"""
 
     @commands.cooldown(1, 6, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["talk", "cb", "chatbot"],
         brief=" This command can be used to talk to chatbot.",
         description=" This command can be used to talk to chatbot.",
@@ -9981,7 +9801,7 @@ class Fun(commands.Cog):
         chatextract = ChatExtractor()
         response = await chatextract.aget_response(message, ctx.author)
         embed = discord.Embed(title="Chatbot", description=response)
-        await ctx.respond(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True)
 
     @commands.cooldown(1, 3600, BucketType.member)
     @commands.guild_only()
@@ -10033,7 +9853,7 @@ class Fun(commands.Cog):
             ctx.voice_client.stop()
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to get some (python or java) facts.",
         description="This command can be used to get some (python or java) facts.",
         usage="",
@@ -10041,12 +9861,12 @@ class Fun(commands.Cog):
     async def fact(self, ctx):
         fact = random.choice(randomlist)
         if fact in randomjava:
-            await ctx.respond(f"``` Random Java Fact : {fact}```", ephemeral=True)
+            await ctx.send(f"``` Random Java Fact : {fact}```", ephemeral=True)
         elif fact in randompython:
-            await ctx.respond(f"``` Random Python Fact : {fact}```", ephemeral=True)
+            await ctx.send(f"``` Random Python Fact : {fact}```", ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to get information about a emoji.",
         description="This command can be used to get information about a emoji.",
         usage="emoji",
@@ -10096,10 +9916,10 @@ class Fun(commands.Cog):
 
             emojimsg = "Mentioned emoji :"
         embed.add_field(name=emojimsg, value=emojimention)
-        await ctx.respond(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["server"],
         brief="This command can be used to get guild information.",
         description="This command can be used to get guild information.",
@@ -10196,12 +10016,12 @@ class Fun(commands.Cog):
         if banner is not None:
             embed.set_thumbnail(url=banner.url)
         try:
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
         except:
             pass
 
     @commands.cooldown(1, 60, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["user", "userinfo", "memberinfo", "member"],
         brief="This command can be used to get user information.",
         description="This command can be used to get user information.",
@@ -10316,19 +10136,15 @@ class Fun(commands.Cog):
         if banner is not None:
             embedOne.set_thumbnail(url=banner.url)
         try:
-            await ctx.respond(embed=embedOne, ephemeral=True)
+            await ctx.send(embed=embedOne, ephemeral=True)
         except:
             pass
-
-
-client.add_cog(Fun(client))
-
 
 class Social(commands.Cog):
     """Social commands."""
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to get the user liking percentage for fun.",
         description="This command can be used to get the user liking percentage for fun.",
         usage="@member",
@@ -10368,10 +10184,10 @@ class Social(commands.Cog):
         file = discord.File("./testingresult.jpg")
         embed = discord.Embed()
         embed.set_image(url="attachment://testingresult.jpg")
-        await ctx.respond(file=file, embed=embed, ephemeral=True)
+        await ctx.send(file=file, embed=embed, ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to welcome users with a custom welcome image.",
         description="This command can be used to welcome users with a custom welcome image.",
         usage="@member",
@@ -10402,10 +10218,10 @@ class Social(commands.Cog):
         file = discord.File("./backgroundone.jpg")
         embed = discord.Embed()
         embed.set_image(url="attachment://backgroundone.jpg")
-        await ctx.respond(file=file, embed=embed, ephemeral=True)
+        await ctx.send(file=file, embed=embed, ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to show users in a custom wanted poster.",
         description="This command can be used to show users in a custom wanted poster.",
         usage="@member",
@@ -10426,19 +10242,15 @@ class Social(commands.Cog):
         embed = discord.Embed()
         embed.set_image(url="attachment://backgroundone.png")
         try:
-            await ctx.respond(file=file, embed=embed, ephemeral=True)
+            await ctx.send(file=file, embed=embed, ephemeral=True)
         except:
             pass
-
-
-client.add_cog(Social(client))
-
 
 def constructslashephemeralctx(ctx):
     async def fakerespond(*args, **kwargs):
         return await ctx.send(*args, **kwargs, ephemeral=True)
 
-    ctx.respond = fakerespond
+    ctx.send = fakerespond
     return ctx
 
 
@@ -10516,7 +10328,7 @@ class Giveaways(commands.Cog):
     """Giveaways commands"""
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["makepoll"],
         brief="This command can be used to setup a poll.",
         description="This command can be used to setup a poll.",
@@ -10557,7 +10369,7 @@ class Giveaways(commands.Cog):
             name="Percentage of votes <a:verified:875327156572532736>/<a:denied:877399177208954912>",
             value="0/0 %",
         )
-        msgsent = await ctx.respond(embed=embed)
+        msgsent = await ctx.send(embed=embed)
         await msgsent.add_reaction("<a:verified:875327156572532736>")
         await msgsent.add_reaction("<a:denied:877399177208954912>")
         results = f"INSERT INTO polls (messageid) VALUES($1);"
@@ -10574,7 +10386,7 @@ class Giveaways(commands.Cog):
         async with pool.acquire() as con:
             await con.execute(f"DELETE FROM polls WHERE messageid = {msgsent.id}")
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to do a instant giveaway for the provided members.",
         description="This command can be used to do a instant giveaway for the provided members(requires manage guild).",
         usage="@member,@othermember",
@@ -10595,11 +10407,11 @@ class Giveaways(commands.Cog):
             raise commands.BadArgument("Nothing")
         length = len(members)
         randomnumber = random.randrange(0, (length - 1))
-        await ctx.respond(
+        await ctx.send(
             f"{members[randomnumber].mention} has won the giveaway hosted by {ctx.author.mention}."
         )
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to do a giveaway with a prize for a time interval.",
         description="This command can be used to do a giveaway with a prize for a time interval(requires manage guild).",
         usage="",
@@ -10614,7 +10426,7 @@ class Giveaways(commands.Cog):
         )
         await ctx.interaction.response.defer()
         count = 1
-        await ctx.respond(
+        await ctx.send(
             "Let's start with this giveaway! Answer these questions within 15 seconds!",
             ephemeral=True,
         )
@@ -10632,7 +10444,7 @@ class Giveaways(commands.Cog):
             count = count + 1
             return m.author == ctx.author and m.channel == ctx.channel
 
-        await ctx.respond(
+        await ctx.send(
             "How many members will be winners of this giveaway ?", ephemeral=True
         )
         count = count + 1
@@ -10642,7 +10454,7 @@ class Giveaways(commands.Cog):
             try:
                 await ctx.channel.purge(limit=count)
             except:
-                await ctx.respond(
+                await ctx.send(
                     "I do not have `manage messages` permissions to delete messages.",
                     ephemeral=True,
                 )
@@ -10652,7 +10464,7 @@ class Giveaways(commands.Cog):
             try:
                 await ctx.channel.purge(limit=count)
             except:
-                await ctx.respond(
+                await ctx.send(
                     "I do not have `manage messages` permissions to delete messages.",
                     ephemeral=True,
                 )
@@ -10662,7 +10474,7 @@ class Giveaways(commands.Cog):
             try:
                 await ctx.channel.purge(limit=count)
             except:
-                await ctx.respond(
+                await ctx.send(
                     "I do not have `manage messages` permissions to delete messages.",
                     ephemeral=True,
                 )
@@ -10673,7 +10485,7 @@ class Giveaways(commands.Cog):
             return
 
         for i in questions:
-            await ctx.respond(i, ephemeral=True)
+            await ctx.send(i, ephemeral=True)
             count = count + 1
             try:
                 msg = await client.wait_for("message", timeout=15.0, check=check)
@@ -10681,7 +10493,7 @@ class Giveaways(commands.Cog):
                 try:
                     await ctx.channel.purge(limit=count)
                 except:
-                    await ctx.respond(
+                    await ctx.send(
                         "I do not have `manage messages` permissions to delete messages.",
                         ephemeral=True,
                     )
@@ -10698,7 +10510,7 @@ class Giveaways(commands.Cog):
             try:
                 await ctx.channel.purge(limit=count)
             except:
-                await ctx.respond(
+                await ctx.send(
                     "I do not have `manage messages` permissions to delete messages.",
                     ephemeral=True,
                 )
@@ -10732,7 +10544,7 @@ class Giveaways(commands.Cog):
             try:
                 await ctx.channel.purge(limit=count)
             except:
-                await ctx.respond(
+                await ctx.send(
                     "I do not have `manage messages` permissions to delete messages.",
                     ephemeral=True,
                 )
@@ -10746,7 +10558,7 @@ class Giveaways(commands.Cog):
             try:
                 await ctx.channel.purge(limit=count)
             except:
-                await ctx.respond(
+                await ctx.send(
                     "I do not have `manage messages` permissions to delete messages.",
                     ephemeral=True,
                 )
@@ -10759,7 +10571,7 @@ class Giveaways(commands.Cog):
             try:
                 await ctx.channel.purge(limit=count)
             except:
-                await ctx.respond(
+                await ctx.send(
                     "I do not have `manage messages` permissions to delete messages.",
                     ephemeral=True,
                 )
@@ -10778,7 +10590,7 @@ class Giveaways(commands.Cog):
         try:
             await ctx.channel.purge(limit=count)
         except:
-            await ctx.respond(
+            await ctx.send(
                 "I do not have `manage messages` permissions to delete messages.",
                 ephemeral=True,
             )
@@ -10829,7 +10641,7 @@ class Giveaways(commands.Cog):
                         f"Congratulations! {winner.mention} won the giveaway of **{prize}** ({msgurl})"
                     )
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to select a giveaway winner.",
         description="This command can be used to select a giveaway winner(requires manage guild).",
         usage="#channel winner giveawayid prize",
@@ -10867,7 +10679,7 @@ class Giveaways(commands.Cog):
             f"Congratulations {winner.mention} won the giveaway of **{prize}** ({msgurl})"
         )
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to re-select a new giveaway winner.",
         description="This command can be used to select a new giveaway winner(requires manage guild).",
         usage="#channel giveawayid prize",
@@ -10906,10 +10718,6 @@ class Giveaways(commands.Cog):
             f"Congratulations {winner.mention} won the (reroll) giveaway of **{prize}** ({msgurl})"
         )
 
-
-client.add_cog(Giveaways(client))
-
-
 class Support(commands.Cog):
     """Support related commands"""
 
@@ -10932,7 +10740,7 @@ class Support(commands.Cog):
         await message.add_reaction(emoji)
         await ctx.send(f"Successfully added the reaction {emoji} to the message.")
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used for disabling all commands by admin per guild.",
         description="This command can be used for disabling all commands by admin per guild.",
         usage="command",
@@ -10962,9 +10770,9 @@ class Support(commands.Cog):
                         await con.execute(statement, ctx.guild.id, command.name)
                 except:
                     pass
-        await ctx.respond(f"Successfully disabled the commands!", ephemeral=True)
+        await ctx.send(f"Successfully disabled the commands!", ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used for enabling all commands by admin per guild.",
         description="This command can be used for enabling all commands by admin per guild.",
         usage="command",
@@ -10995,9 +10803,9 @@ class Support(commands.Cog):
                         )
                 except:
                     pass
-        await ctx.respond(f"Successfully enabled the commands!", ephemeral=True)
+        await ctx.send(f"Successfully enabled the commands!", ephemeral=True)
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used for disabling a command by admin per guild.",
         description="This command can be used for disabling a command by admin per guild.",
         usage="command",
@@ -11035,11 +10843,11 @@ class Support(commands.Cog):
                 await con.execute(statement, ctx.guild.id, command)
         except:
             pass
-        await ctx.respond(
+        await ctx.send(
             f"Successfully disabled the command {command}.", ephemeral=True
         )
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used for enabling a command by admin per guild.",
         description="This command can be used for enabling a command by admin per guild.",
         usage="command",
@@ -11076,7 +10884,7 @@ class Support(commands.Cog):
                 )
         except:
             pass
-        await ctx.respond(
+        await ctx.send(
             f"Successfully enabled the command {command}.", ephemeral=True
         )
 
@@ -11290,9 +11098,8 @@ class Support(commands.Cog):
     @commands.guild_only()
     @is_bot_staff()
     async def solvebug(self, ctx, bugid: int, *, solution: str):
-        global channelbuglogging
         await ctx.interaction.response.defer()
-        theBugMessage = await channelbuglogging.fetch_message(int(bugid))
+        theBugMessage = await client.get_channel(CHANNEL_BUG_LOGGING_ID).fetch_message(int(bugid))
 
         embedtwo = discord.Embed(
             title=f"Bug patched",
@@ -11314,7 +11121,7 @@ class Support(commands.Cog):
         embedtwo.add_field(
             name="Command ", value=theBugMessage.embeds[0].fields[4].value, inline=False
         )
-        await channelbuglogging.send(embed=embedtwo)
+        await client.get_channel(CHANNEL_BUG_LOGGING_ID).send(embed=embedtwo)
         user = await client.fetch_user(int(theBugMessage.embeds[0].fields[2].value))
         try:
             await user.send(
@@ -11342,9 +11149,8 @@ class Support(commands.Cog):
     @commands.guild_only()
     @is_bot_staff()
     async def seenbug(self, ctx, bugid: int):
-        global channelbuglogging
         await ctx.interaction.response.defer()
-        theBugMessage = await channelbuglogging.fetch_message(int(bugid))
+        theBugMessage = await client.get_channel(CHANNEL_BUG_LOGGING_ID).fetch_message(int(bugid))
         listEmbeds = theBugMessage.embeds
         for embedOne in listEmbeds:
             embedOne.set_field_at(
@@ -11363,7 +11169,7 @@ class Support(commands.Cog):
         except:
             pass
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to report a bug in the support server.",
         description="This command can be used to report a bug in the support server.",
         usage="command bug-description",
@@ -11371,7 +11177,6 @@ class Support(commands.Cog):
     @commands.guild_only()
     @commands.cooldown(1, 900, BucketType.member)
     async def reportbug(self, ctx, commandname: str, *, report: str):
-        global channelbuglogging
         cmdnames = []
         for c in client.commands:
             cmdnames.append(c.name)
@@ -11399,7 +11204,7 @@ class Support(commands.Cog):
             inline=False,
         )
         embedtwo.add_field(name="Command ", value=commandname)
-        messageSent = await channelbuglogging.send(embed=embedtwo)
+        messageSent = await client.get_channel(CHANNEL_BUG_LOGGING_ID).send(embed=embedtwo)
         await asyncio.sleep(1)
         embedtwo = discord.Embed(title=f"Bug report", color=Color.red())
         embedtwo.add_field(name="Report id ", value=str(messageSent.id), inline=False)
@@ -11419,14 +11224,14 @@ class Support(commands.Cog):
             # i = i.replace(".", ".\n\n")
             embedtwo = discord.Embed(color=Color.blue())
             embedtwo.add_field(name=disMessage, value=i + "** **", inline=False)
-            await channelbuglogging.send(embed=embedtwo)
+            await client.get_channel(CHANNEL_BUG_LOGGING_ID).send(embed=embedtwo)
             disMessage = "** **"
 
         userdetails = f" This report was reported in discord by {ctx.author.name}({ctx.author.id})."
         report = f"Bug report ({report})"
         report = report + userdetails
         # make_github_issue(f"{commandname} issue",report,labels)
-        await ctx.respond(
+        await ctx.send(
             f"{ctx.author.mention} Your bug report was successfully reported to the support server with id {messageSent.id}!",
             ephemeral=True,
         )
@@ -11646,7 +11451,7 @@ class Support(commands.Cog):
             pass
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to get support-server invite.",
         description="This command can be used to get support-server invite.",
         usage="",
@@ -11667,11 +11472,11 @@ class Support(commands.Cog):
             name="https://discord.gg/TZDYSHSZgg", value="** **", inline=False
         )
         try:
-            await ctx.respond(embed=embedOne, ephemeral=True)
+            await ctx.send(embed=embedOne, ephemeral=True)
         except:
             pass
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to get uptime of this bot.",
         description="This command can be used to get uptime of this bot.",
         usage="",
@@ -11682,13 +11487,13 @@ class Support(commands.Cog):
         hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
         days, hours = divmod(hours, 24)
-        await ctx.respond(
+        await ctx.send(
             f"I have been online for {days}d, {hours}h, {minutes}m, {seconds}s",
             ephemeral=True,
         )
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to invite this bot.",
         description="This command can be used to invite this bot.",
         usage="",
@@ -11704,14 +11509,14 @@ class Support(commands.Cog):
             description=f'Invite {client.user.name} by this [url]({link} " Aestron.").',
         )
         try:
-            await ctx.respond(embed=embed, ephemeral=True)
+            await ctx.send(embed=embed, ephemeral=True)
         except:
-            await ctx.respond(
+            await ctx.send(
                 f"Invite {client.user.name} by this {link}.", ephemeral=True
             )
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to vote for this bot.",
         description="This command can be used to vote for this bot.",
         usage="",
@@ -11727,10 +11532,10 @@ class Support(commands.Cog):
             inline=False,
         )
         try:
-            await ctx.respond(embed=embedOne, ephemeral=True)
+            await ctx.send(embed=embedOne, ephemeral=True)
         except:
-            await ctx.respond("**Voting websites :**", ephemeral=True)
-            await ctx.respond(
+            await ctx.send("**Voting websites :**", ephemeral=True)
+            await ctx.send(
                 "https://top.gg/bot/1061480715172200498/vote", ephemeral=True
             )
 
@@ -11766,69 +11571,9 @@ class Support(commands.Cog):
     @is_bot_staff()
     async def invisible(self, ctx):
         await client.change_presence(status=discord.Status.invisible)
-        # print(f"Status was changed to invisible in {ctx.guild}")
-
-    @commands.command(
-        aliases=["patchedbuilds", "botbuilds"],
-        brief="This command shows all bot builds.",
-        description="This command shows all bot builds and can be used by bot staff. ",
-    )
-    @commands.guild_only()
-    @is_bot_staff()
-    async def builds(self, ctx):
-        async with pool.acquire() as con:
-            buildlist = await con.fetch(f"SELECT * FROM botbuilds")
-        count = 1
-        for build in buildlist:
-            embed = discord.Embed(
-                title=f"Build #{count}", description=build[1], timestamp=build[0]
-            )
-            embed.add_field(name=build[2], value="** **")
-            await ctx.send(embed=embed)
-            count = count + 1
 
     @commands.cooldown(1, 30, BucketType.member)
-    @commands.command(
-        brief="This command can be used to patch a build.",
-        description="This command can be used patch a build and can be used by bot staff.",
-        usage="buildname buildchanges",
-        aliases=["patch"],
-    )
-    @is_bot_staff()
-    async def patchbuild(
-            self, ctx, buildname: str, *, buildchanges: str, showchanges=True
-    ):
-        global channelbuildlogging
-        if showchanges:
-            embed = discord.Embed(
-                title=buildname,
-                description="NOTE : builds usually get patched within 10-30 minutes , beware of bot restarts!",
-                timestamp=datetime.today(),
-            )
-            embed.add_field(name="Build information", value=buildchanges)
-            msgsent = await ctx.send("Give confirmation to confirm 👍 this build ! ")
-            await msgsent.add_reaction("👍")
-
-            def check(reaction, user):
-                return user == ctx.author and str(reaction.emoji) == "👍"
-
-            try:
-                reaction, user = await client.wait_for(
-                    "reaction_add", timeout=60.0, check=check
-                )
-            except asyncio.TimeoutError:
-                await ctx.send(f"👎 Alright the build named {buildname} was cancelled .")
-            else:
-                await ctx.send("👍 Nice ,the build has been patched !")
-                results = f"INSERT INTO botbuilds (buildtime,buildname,buildchanges) VALUES($1, $2, $3);"
-                async with pool.acquire() as con:
-                    await con.execute(
-                        results, datetime.today(), buildname, buildchanges
-                    )
-                await channelbuildlogging.send(embed=embed)
-
-    @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         brief="This command can be used to save text in a pastebin url.",
         description="This command can be used to save text in a pastebin url.",
         usage="*Text to post*",
@@ -11846,10 +11591,10 @@ class Support(commands.Cog):
             description=(f"Your text is saved in {pastecode.url}"),
             color=Color.green(),
         )
-        await ctx.respond(embed=embedtwo, ephemeral=True)
+        await ctx.send(embed=embedtwo, ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["execlang", "execlanguage"],
         brief="This command can be used to execute code in total of 6 languges!",
         description="This command can be used to execute code in total of 6 languges!",
@@ -11861,7 +11606,7 @@ class Support(commands.Cog):
         )
         codeblock = getcodeblock(code)
         code = codeblock[1]
-        await ctx.respond(
+        await ctx.send(
             embed=embed,
             view=CodingLanguageView(code, ctx.author, ctx.channel),
             ephemeral=True,
@@ -12051,18 +11796,41 @@ class Support(commands.Cog):
         )
         await client.change_presence(activity=activity)
         # print(f"Status was changed to visible in {ctx.guild}")
+        
+async def currentlyplayingslider(message, guild, player):
+    embed = message.embeds[0]
+    pbar = ""
+    cplayingmusic = player.current
+    try:
+        while cplayingmusic.identifier == player.current.identifier:
+            pbar = ""
+            tlpbar = round(((player.current.length//1000)+1) // 15)
+            pppbar = round((player.position//1000) // tlpbar)
 
-
-client.add_cog(Support(client))
-
-
+            for i in range(15):
+                if i == pppbar:
+                    pbar += "🔘"
+                else:
+                    pbar += "▬"
+            pbar = (
+                    pbar
+                    + f" [`{timedelta(seconds=((player.current.length//1000)+1))}`/`{timedelta(seconds=(player.position//1000))}`]"
+            )
+            embed.add_field(name=cplayingmusic.title, value=pbar)
+            try:
+                await message.edit(embed=embed)
+            except:
+                return
+            await asyncio.sleep(5)
+    except:
+        pass
 class Music(commands.Cog):
     """YouTube music commands"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["next"],
         brief="This command can be used to skip the currently playing song.",
         description="This command can be used to skip the currently playing song(track player/requires manage channels).",
@@ -12071,107 +11839,34 @@ class Music(commands.Cog):
     @commands.guild_only()
     @commands.cooldown(1, 10, BucketType.member)
     async def skip(self, ctx):
-        exOcc = await ensure_voice(ctx.guild, ctx.author)
-        if exOcc:
-            return
-        global guildmusicloop
-        playingmusic = None
-        try:
-            playingmusic = guildmusicname[ctx.guild.id][0]
-        except:
+        """Skip the current song."""
+        player: wavelink.Player = cast(wavelink.Player, ctx.voice_client)
+        if not player:
             await on_command_error(ctx, "I could not find any playing song.")
             return
-        author = ctx.author
+        class fakecontext:
+            def __init__(self, guild, bot):
+                self.guild = guild
+                self.bot = bot
+        member = await discord.ext.commands.MemberConverter().convert(ctx=fakecontext(player.home.guild, client), argument=player.current.author)
         if (
-                guildmusicauthor[ctx.guild.id][0] != author.id
-                and not ctx.channel.permissions_for(author).manage_channels
-                and not checkstaff(author)
-        ):
-            await on_command_error(
-                ctx,
-                f"You cannot skip the song played by <@{guildmusicauthor[ctx.guild.id][0]}>",
-            )
-            return
-        try:
-            await ctx.respond(
-                f"The song {playingmusic} was skipped by {author.mention} .",
-                ephemeral=True,
-            )
-            guildmusicloop[ctx.guild.id] = False
-            guildmusicskipped[ctx.guild.id] = True
-            await ctx.guild.voice_client.stop()
-        except:
-            pass
-
-    @bridge.bridge_command(
-        aliases=["vc", "connect"],
-        brief="This command can be used to summon the bot in your voice channel.",
-        description="This command can be used to summon the bot in your voice channel.",
-        usage="",
-    )
-    @commands.guild_only()
-    @commands.cooldown(1, 10, BucketType.member)
-    async def join(self, ctx, *, channel: discord.VoiceChannel = None):
-        """Joins a voice channel"""
-        if channel is None:
-            try:
-                channel = ctx.author.voice.channel
-            except:
-                ctx.command.reset_cooldown(ctx)
-                raise commands.CommandError("You are not connected to a voice channel.")
+                    member.id != ctx.author.id
+                    and not ctx.channel.permissions_for(ctx.author).manage_channels
+                    and not checkstaff(ctx.author)
+            ):
+                await on_command_error(
+                    ctx,
+                    f"You cannot skip the song played by {member.mention}.",
+                )
                 return
-        if channel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
-            return
-        try:
-            await ctx.respond(
-                f"I have successfully connected to {channel.mention}", ephemeral=True
-            )
-        except:
-            pass
-        if ctx.voice_client is not None:
-            return await ctx.voice_client.move_to(channel)
-
-        await channel.connect()
-
-    @commands.cooldown(1, 45, BucketType.member)
-    @bridge.bridge_command(
-        aliases=["lyrics"],
-        brief="This command can be used to get subtitles/lyrics of a song.",
-        description="This command can be used to get subtitles/lyrics of a song.",
-        usage="songname",
-    )
-    @commands.guild_only()
-    async def subtitles(self, ctx, *, songname: str = None):
-        global guildmusicname
-        if songname is None:
-            try:
-                songname = guildmusicname[ctx.guild.id][0].title
-            except:
-                await on_command_error(ctx, "I could not find any playing song.")
-                return
-        try:
-            output = extract_lyrics.get_lyrics(songname)
-        except:
-            await on_command_error(ctx, "No lyrics found for the current song.")
-            return
-        if output.get("error"):
-            await on_command_error(ctx, "No lyrics found for the current song.")
-            return
-        try:
-            embedtitle = output["title"]
-        except:
-            embedtitle = songname
-        embedlyrics = output["lyrics"]
-        embed = discord.Embed(title=embedtitle, description=embedlyrics)
-        try:
-            embed.set_thumbnail(url=output["image"])
-        except:
-            pass
-        await ctx.respond(embed=embed, ephemeral=True)
+        await ctx.send(
+                        f"{player.current} was skipped by {ctx.author.mention} .",
+                        ephemeral=True
+                    )
+        await player.skip(force=True)
 
     @commands.cooldown(1, 15, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["np", "nowplaying"],
         brief="This command can be used to check the currently playing song.",
         description="This command can be used to check the currently playing song.",
@@ -12179,38 +11874,25 @@ class Music(commands.Cog):
     )
     @commands.guild_only()
     async def currentlyplaying(self, ctx):
-        global guildmusictotaltime, guildmusictime, guildmusiccurrent, guildmusiccp
-        if guildmusiccp[ctx.guild.id]:
-            embedVar = discord.Embed(
-                title=f"Currently playing message",
-                description=f"[Jump to message]({guildmusiccp[ctx.guild.id][1]})",
-            )
-            await ctx.respond(embed=embedVar, ephemeral=True)
-            return
-        playingmusic = None
-        try:
-            playingmusic = guildmusiccurrent[ctx.guild.id]
-            if playingmusic == "":
-                raise Exception("NONE")
-        except:
+        player: wavelink.Player = cast(wavelink.Player, ctx.voice_client)
+        if not player:
             await on_command_error(ctx, "I could not find any playing song.")
             return
-
-        playingmusic = playingmusic.title
-        try:
-            playreq = guildmusiccurrent[ctx.guild.id].requester.mention
-        except:
-            playreq = "No author"
-        epochtime = f"<t:{guildmusiccurrent[ctx.guild.id].epochtime}:R>"
+        class fakecontext:
+            def __init__(self, guild, bot):
+                self.guild = guild
+                self.bot = bot
+        member = await discord.ext.commands.MemberConverter().convert(ctx=fakecontext(player.home.guild, client), argument=player.current.author)
+        playingmusic = player.current.title
         embedVar = discord.Embed(
-            title=f"{guildmusiccurrentstate[ctx.guild.id]}  Now playing 🎶",
-            description=f"Played by {playreq} at {epochtime}",
+            title=f"Now playing 🎶",
+            description=f"Played by {member}",
             color=0x00FF00,
         )
         pbar = ""
 
-        tlpbar = round(guildmusictotaltime[ctx.guild.id] // 15)
-        pppbar = round(guildmusictime[ctx.guild.id] // tlpbar)
+        tlpbar = round(((player.current.length//1000)+1) // 15)
+        pppbar = round((player.position//1000) // tlpbar)
 
         for i in range(15):
             if i == pppbar:
@@ -12219,16 +11901,16 @@ class Music(commands.Cog):
                 pbar += "▬"
         pbar = (
                 pbar
-                + f" [`{timedelta(seconds=guildmusictime[ctx.guild.id])}`/`{timedelta(seconds=guildmusictotaltime[ctx.guild.id])}`]"
+                + f" [`{timedelta(seconds=((player.current.length//1000)+1))}`/`{timedelta(seconds=(player.position//1000))}`]"
         )
         embedVar.add_field(name=playingmusic, value=pbar)
-        message = await ctx.respond(embed=embedVar, ephemeral=True)
+        message = await ctx.send(embed=embedVar, ephemeral=True)
         await currentlyplayingslider(
-            message, ctx.guild, guildmusiccurrent[ctx.guild.id]
+            message, ctx.guild, player
         )
 
     @commands.cooldown(1, 45, BucketType.member)
-    @bridge.bridge_command(
+    @commands.hybrid_command(
         aliases=["p"],
         brief="This command can be used to play a song in a voice channel.",
         description="This command can be used to play a song in a voice channel.",
@@ -12239,63 +11921,6 @@ class Music(commands.Cog):
         """Streams from an url (same as yt, but doesn't predownload)"""
         await playmusic(ctx, songname)
 
-    @commands.cooldown(1, 30, BucketType.member)
-    @bridge.bridge_command(
-        aliases=["exit", "s", "leave", "disconnect", "dc"],
-        brief="This command can be used to stop the playing song.",
-        description="This command can be used to stop the playing song(track player/requires manage channels).",
-        usage="",
-    )
-    @commands.guild_only()
-    async def stop(self, ctx):
-        """Stops and disconnects the bot from voice"""
-        author = ctx.author
-        if (
-                len(guildmusicauthor[ctx.guild.id]) > 0
-                and guildmusicauthor[ctx.guild.id][0] != author.id
-                and not ctx.channel.permissions_for(author).manage_channels
-                and not checkstaff(author)
-        ):
-            await on_command_error(
-                ctx,
-                f"I am already playing music in a channel , you must have `manage_channels` permissions to do so.",
-            )
-            return
-        try:
-            await ctx.voice_client.disconnect()
-            guildmusiccount[ctx.guild.id] = 0
-            guildmusicids[ctx.guild.id].clear()
-            guildmusicname[ctx.guild.id].clear()
-            guildmusicqueue[ctx.guild.id].clear()
-            try:
-                await ctx.respond(
-                    f"The audio has been stopped by {author.mention}", ephemeral=True
-                )
-            except:
-                pass
-            guildmusicskipped[ctx.guild.id] = True
-        except:
-            await on_command_error(ctx, "I am not connected to any voice channel.")
-
-    @stop.before_invoke
-    @play.before_invoke
-    async def ensure_voice(self, ctx):
-        if ctx.voice_client is None:
-            if ctx.author.voice:
-                try:
-                    await ctx.author.voice.channel.connect(cls=wavelink.Player)
-                except:
-                    raise commands.CommandError(
-                        f"I don't have permissions to join {ctx.author.voice.channel.mention}"
-                    )
-                    return
-            else:
-                ctx.command.reset_cooldown(ctx)
-                raise commands.CommandError("You are not connected to a voice channel.")
-                return
-
-
-client.add_cog(Music(client))
 class YoutubeTogether(commands.Cog):
     """This YouTube command can play a video"""
 
@@ -12340,10 +11965,6 @@ class YoutubeTogether(commands.Cog):
                 return
         elif ctx.voice_client.is_playing():
             ctx.voice_client.stop()
-
-
-client.add_cog(YoutubeTogether(client))
-
 
 def getIntPortion(string):
     intportion = ""
@@ -12647,10 +12268,7 @@ async def aexec(code, ctx):
     return await locals()["__ex"](ctx)
 
 
-@client.message_command(
-    brief="This command can be used to get user profile.",
-    description="This command can be used to get user profile.",
-)  # creates a global message command. use guild_ids=[] to create guild-specific commands
+@client.tree.context_menu()  # creates a global message command. use guild_ids=[] to create guild-specific commands
 async def profile(ctx, message: discord.Message):
     member = message.author
     asset = member.display_avatar
@@ -12755,31 +12373,19 @@ async def profile(ctx, message: discord.Message):
         embedOne.set_author(name=member.name, icon_url=member.display_avatar)
     if banner is not None:
         embedOne.set_thumbnail(url=banner.url)
-    try:
-        await ctx.respond(embed=embedOne, ephemeral=True)
-    except:
-        pass
+    await ctx.send(embed=embedOne, ephemeral=True)
 
 
-@client.message_command(
-    brief="This command can be used to communicate with chatbot.",
-    description="This command can be used to communicate with chatbot.",
-)  # creates a global message command. use guild_ids=[] to create guild-specific commands
+@client.tree.context_menu()  # creates a global message command. use guild_ids=[] to create guild-specific commands
 async def chatbot(ctx, message: discord.Message):
     text = message.content
     chatextract = ChatExtractor()
     response = await chatextract.aget_response(text, message.author)
     embed = discord.Embed(title="Chatbot", description=response)
-    try:
-        await ctx.respond(embed=embed, ephemeral=True)
-    except:
-        pass
+    await ctx.send(embed=embed, ephemeral=True)
 
 
-@client.message_command(
-    brief="This command can be used to check message stats.",
-    description="This command can be used to check message stats.",
-)  # creates a global message command. use guild_ids=[] to create guild-specific commands
+@client.tree.context_menu()  # creates a global message command. use guild_ids=[] to create guild-specific commands
 async def messagestats(ctx, message: discord.Message):
     text = message.content
     analyze_request = {
@@ -12819,13 +12425,10 @@ async def messagestats(ctx, message: discord.Message):
             name="** **",
             value=f"Probability of {emojis[attribute]}{attribute} is {score_value * 100}% .",
         )
-    await ctx.respond(embed=embed, ephemeral=True)
+    await ctx.send(embed=embed, ephemeral=True)
 
 
-@client.message_command(
-    brief="This command can be used to translate the message.",
-    description="This command can be used to translate the message.",
-)  # creates a global message command. use guild_ids=[] to create guild-specific commands.
+@client.tree.context_menu()  # creates a global message command. use guild_ids=[] to create guild-specific commands.
 async def translate(
         ctx, message: discord.Message
 ):  # message commands return the message
@@ -12834,7 +12437,7 @@ async def translate(
     origlanguage = detect(text)
     translator = Translator(to_lang="en", from_lang=origlanguage)
     translatedmessage = translator.translate(origmessage)
-    await ctx.respond(translatedmessage, ephemeral=True)
+    await ctx.send(translatedmessage, ephemeral=True)
 
 
 class ValorantRoundStats(discord.ui.View):
@@ -13190,7 +12793,7 @@ class ValorantControls(discord.ui.View):
     ):
         await interaction.response.defer()
         valoview = ValorantStats(self.matches, self.currentplayerid)
-        msg = await self.ctx.respond(
+        msg = await self.ctx.send(
             embed=valoview.embeds[0], view=valoview, ephemeral=True
         )
         valoview.set_initial_message(msg)
@@ -13210,7 +12813,7 @@ class ValorantControls(discord.ui.View):
         3️⃣ Common round losing reasons
         """,
         )
-        await self.ctx.respond(
+        await self.ctx.send(
             embed=embed,
             view=ValorantDetailedStats(self.matches, self.currentplayerid),
             ephemeral=True,
@@ -13721,6 +13324,62 @@ def is_guild(provguild, provname):
 class CustomCommands(commands.Cog):
     """Guild custom commands"""
 
+    async def cog_load(self):
+        for guild in client.guilds:
+            async with pool.acquire() as con:
+                customlist = await con.fetch(
+                    f"SELECT * FROM customcommands WHERE guildid = {guild.id}"
+                )
+            if customlist is not None:
+                for custom in customlist:
+
+                    @commands.cooldown(1, 30, BucketType.member)
+                    @commands.command(
+                        name=custom[1],
+                        brief="This command outputs your custom provided output.",
+                        description="This command outputs your custom provided output.",
+                        usage="",
+                    )
+                    @commands.check_any(is_guild(guild, custom[1]))
+                    async def cmd(self, ctx):
+                        try:
+                            async with pool.acquire() as con:
+                                customlist = await con.fetchrow(
+                                    f"SELECT * FROM customcommands WHERE guildid = {ctx.guild.id} AND commandname = '{custom[1]}'"
+                                )
+                        except:
+                            customlist = None
+                        if customlist is not None:
+                            output = customlist[2]
+                            output = output.replace("{user}", str(ctx.author.mention))
+                            output = output.replace("{member}", str(ctx.author.mention))
+                            output = output.replace("{channel}", str(ctx.channel.mention))
+                            output = output.replace("{guild}", str(ctx.guild))
+                            embed = discord.Embed(
+                                title=f"{ctx.command.name} command", description=output
+                            )
+                            embed.set_footer(text=f"{ctx.guild}'s custom command")
+                            await ctx.send(embed=embed)
+                        else:
+                            output = "Welp looks like this command has been erased from our databases <:offline:886434154412113961>."
+                            embed = discord.Embed(
+                                title=f"{ctx.command.name} command", description=output
+                            )
+                            embed.set_footer(text=f"{ctx.guild}'s custom command (ERASED)")
+                            await ctx.send(embed=embed)
+
+                    cmd.cog = self
+                    # And add it to the cog and the bot
+                    self.__cog_commands__ = self.__cog_commands__ + (cmd,)
+                    try:
+                        client.add_command(cmd)
+                    except Exception as ex:
+                        print(f" Unknown {ex} occured while adding {customlist[1]}.")
+                        async with pool.acquire() as con:
+                            await con.execute(
+                                f"DELETE FROM customcommands WHERE guildid = {guild.id} AND commandname = '{custom[1]}'"
+                            )
+
     @commands.cooldown(1, 120, BucketType.member)
     @commands.command(
         brief="This command can be used to check the custom commands in this guild.",
@@ -13846,10 +13505,6 @@ class CustomCommands(commands.Cog):
                 f"DELETE FROM customcommands WHERE guildid = {ctx.guild.id} AND commandname = '{cmdname}'"
             )
         await ctx.send(f"Successfully removed a command called {cmdname}")
-
-
-client.add_cog(CustomCommands(client))
-
 
 @client.event
 async def on_raw_reaction_add(payload):
@@ -13981,7 +13636,7 @@ async def on_guild_remove(guild):
 
 @client.event
 async def on_guild_join(guild):
-    global guildids, guildmusiccount, guildmusicname, guildmusicrecent, guildmusicauthor, guildmusicloop, guildmusicqueue, guildmusicids, guildmusiccp
+    global guildids
     try:
         chars = ""
         async with pool.acquire() as con:
@@ -13998,19 +13653,6 @@ async def on_guild_join(guild):
         if not guild.id in guildids:
             guildids.append(guild.id)
         guildids.append(guild.id)
-        guildmusicname[guild.id] = collections.deque([])
-        guildmusiccp[guild.id] = False
-        guildmusicqueue[guild.id] = collections.deque([])
-        guildmusicids[guild.id] = collections.deque([])
-        guildmusicskipped[guild.id] = False
-        guildmusiccount[guild.id] = 0
-        guildmusicrecent[guild.id] = {}
-        guildmusicloop[guild.id] = False
-        guildmusicauthor[guild.id] = collections.deque([])
-        guildmusictime[guild.id] = 0
-        guildmusictotaltime[guild.id] = 0
-        guildmusiccurrent[guild.id] = ""
-        guildmusiccurrentstate[guild.id] = "▶️"
         prefix = chars
         embedOne = discord.Embed(
             title="Walkthrough Guide ",
@@ -14063,11 +13705,6 @@ async def on_raw_message_delete(payload):
         if not payload.guild_id:
             return
         channelid = payload.channel_id
-        if (
-                guildmusiccp[payload.guild_id]
-                and payload.message_id == guildmusiccp[payload.guild_id][0]
-        ):
-            guildmusiccp[payload.guild_id] = False
         if payload.cached_message is not None:
             authorname = (
                     str(payload.cached_message.author.name)
@@ -14439,7 +14076,7 @@ async def restrict(guild, channel, member):
 
 @client.event
 async def on_message(message):
-    global maintenancemodestatus, maintenancemodereason, verifyCommand, debugCode, yourCode, retryDebug, disabledChannels, dashtoken, channelgitlogging
+    global maintenancemodestatus, maintenancemodereason, verifyCommand, debugCode, yourCode, retryDebug, disabledChannels
     try:
         if pool is None:
             while client.start_status != BotStartStatus.COMPLETED:
@@ -14495,7 +14132,7 @@ async def on_message(message):
                 reqid = str(message.content)
                 game = discord.Game(reqid)
                 await client.change_presence(status=discord.Status.idle, activity=game)
-                messages = await channelgitlogging.history(limit=1).flatten()
+                messages = await client.get_channel(CHANNEL_GIT_LOGGING_ID).history(limit=1).flatten()
                 bottommessage = messages[0]
                 embed = bottommessage.embeds[0]
                 if reqid.split()[1] in embed.description:
@@ -15194,7 +14831,7 @@ async def on_guild_channel_delete(channel):
 
 @client.event
 async def on_guild_channel_update(before, after):
-    global channeldev, beforechannelupdate, afterchannelupdate
+    global beforechannelupdate, afterchannelupdate
     logguild = before.guild
     if logguild.id == 811864132470571038:
         beforechannelupdate.append(before)
@@ -15389,9 +15026,9 @@ async def on_guild_channel_update(before, after):
                 # if (myPerms.use_external_emojis ):
                 # message=("Can user send emojis created in other guilds **:**")
                 permOne.append((roleBef.use_external_emojis))
-                # if (myPerms.use_slash_commands ):
+                # if (myPerms.use_slash_command ):
                 # message=("Can user use slash commands in a channel **:**")
-                permOne.append((roleBef.use_slash_commands))
+                permOne.append((roleBef.use_slash_command))
                 # if (myPerms.use_voice_activation ):
                 # message=("Can user use voice activation in a voice channel **:**")
                 permOne.append((roleBef.use_voice_activation))
@@ -15552,11 +15189,11 @@ async def on_guild_channel_update(before, after):
                     " Send emojis created in other guilds **:**".capitalize()
                 )
                 permTwo.append((roleAft.use_external_emojis))
-                # if (myPerms.use_slash_commands ):
+                # if (myPerms.use_slash_command ):
                 messageList.append(
                     " Use slash commands in a channel **:**".capitalize()
                 )
-                permTwo.append((roleAft.use_slash_commands))
+                permTwo.append((roleAft.use_slash_command))
                 # if (myPerms.use_voice_activation ):
                 messageList.append(
                     " Use voice activation in a voice channel **:**".capitalize()
@@ -16013,9 +15650,9 @@ async def on_guild_role_update(before, after):
             # if (myPerms.use_external_emojis ):
             # message=("Can user send emojis created in other guilds **:**")
             myList.append((myPerms.use_external_emojis))
-            # if (myPerms.use_slash_commands ):
+            # if (myPerms.use_slash_command ):
             # message=("Can user use slash commands in a channel **:**")
-            myList.append((myPerms.use_slash_commands))
+            myList.append((myPerms.use_slash_command))
             # if (myPerms.use_voice_activation ):
             # message=("Can user use voice activation in a voice channel **:**")
             myList.append((myPerms.use_voice_activation))
@@ -16158,9 +15795,9 @@ async def on_guild_role_update(before, after):
                 " Can share their computer screen in a voice channel **:**".capitalize()
             )
             myList1.append((myPerms.stream))
-            # if (myPerms.use_slash_commands ):
+            # if (myPerms.use_slash_command ):
             messageList.append(" Use slash commands in a channel **:**".capitalize())
-            myList1.append((myPerms.use_slash_commands))
+            myList1.append((myPerms.use_slash_command))
             # if (myPerms.use_voice_activation ):
             messageList.append(
                 " Use voice activation in a voice channel **:**".capitalize()
@@ -16460,8 +16097,6 @@ async def on_voice_state_update(member, before, after):
                 await logchannel.send(embed=embed)
     except Exception as ex:
         print(f" on_voice_state_update Logging error {ex}")
-
-
 try:
     client.run(token)
     # REQUIRES API KEY(BOT TOKEN)
@@ -16477,25 +16112,3 @@ except Exception as ex:
         )
     if client.is_ws_ratelimited():
         print("Client is rate limited...")
-        bot.ratelimit_time = datetime.utcnow()
-        while client.is_ws_ratelimited():
-            delta_uptime = datetime.utcnow() - bot.ratelimit_time
-            hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
-            minutes, seconds = divmod(remainder, 60)
-            days, hours = divmod(hours, 24)
-            print(f"Waiting... {days}d {hours}h {minutes}m {seconds}s")
-            time.sleep(5)
-        delta_uptime = datetime.utcnow() - bot.ratelimit_time
-        hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
-        minutes, seconds = divmod(remainder, 60)
-        days, hours = divmod(hours, 24)
-        print(f"Rate limit on bot lasted for {days}d {hours}h {minutes}m {seconds}s")
-        print("Attempting to restart bot...")
-        errOcc = False
-        try:
-            client.run(os.getenv("DISCORD_TOKEN"))
-        except Exception as ex:
-            print(f"Failed due to {ex}")
-            errOcc = True
-        if not errOcc:
-            print("Bot restarted successfully!")

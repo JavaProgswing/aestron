@@ -1,5 +1,5 @@
 git+https://github.com/lepture/captcha/@d4e0c5bd0e9f1c1f81d44db6f3ae58cb88747d0f
-py-cord >= 2.4.1
+wavelink >= 3.2.0
 langdetect >= 1.0.9
 python-dotenv >= 1.0.1
 mystbin.py >= 6.1.0
@@ -20,8 +20,7 @@ YouTubeMusicAPI == 2.0
 pydoodle >= 1.1.3
 webdriver-manager == 3.5.2
 jishaku >= 2.5.1
-aiohttp~=3.8.4
+aiohttp >= 3.6.0
 requests~=2.25.1
 beautifulsoup4~=4.12.2
 discord-together >= 1.2.6
-wavelink >= 3.2.0
