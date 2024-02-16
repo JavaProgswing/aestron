@@ -102,7 +102,7 @@ CREATE TABLE restrictedusers
 CREATE TABLE mceconomy
 (memberid bigint PRIMARY KEY,balance bigint,inventory text);
 CREATE TABLE IF NOT EXISTS githubcommits (
-    userid BIGINT PRIMARY KEY,
+    userid TEXT PRIMARY KEY,
     latestcommitsha TEXT
 );
 ```
