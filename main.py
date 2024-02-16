@@ -16101,10 +16101,11 @@ try:
     client.run(token)
     # REQUIRES API KEY(BOT TOKEN)
 except Exception as ex:
+    print(ex)
     print(f"Client session {client}")
     if isinstance(ex, discord.LoginFailure):
         print(
-            "An improper token has been passed , try logging in again with correct credentials."
+            "An improper token has been passed, try logging in again with correct credentials."
         )
     if isinstance(ex, discord.HTTPException):
         print(
