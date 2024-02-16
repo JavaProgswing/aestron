@@ -2936,7 +2936,7 @@ async def gitcommitcheck():
                             pass
 
                 subprocess.run(
-                    f"nohup python3 main.py restart {channeldev.id} &> output.log &",
+                    f"python main.py restart {channeldev.id}",
                     shell=True,
                 )
                 await asyncio.sleep(3)
@@ -3468,7 +3468,7 @@ async def restartlatestcommit(ctx, *, files=None):
                 pass
     await ctx.send(
         subprocess.run(
-            f"nohup python3 main.py restart {ctx.channel.id} &> output.log &",
+            f"python main.py restart {ctx.channel.id}",
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout
@@ -3492,7 +3492,7 @@ async def restart(ctx):
                 pass
     await ctx.send(
         subprocess.run(
-            f"nohup python3 main.py restart {ctx.channel.id} &> output.log &",
+            f"python main.py restart {ctx.channel.id}",
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout
