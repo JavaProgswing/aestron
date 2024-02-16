@@ -33,9 +33,7 @@ import psutil
 import pydoodle
 import requests
 import selenium
-import spotipy
 import validators
-import youtube_dl
 from aiohttp.client import ClientTimeout
 from bs4 import BeautifulSoup
 from captcha.image import ImageCaptcha
@@ -51,16 +49,16 @@ from langdetect import detect
 from mcstatus import JavaServer
 from PIL import Image, ImageDraw, ImageFont
 from selenium import webdriver
-from spotipy.oauth2 import SpotifyClientCredentials
 from translate import Translator
 import enum
 import long_responses as long
-from mainext import publicaexec
 import pickle
 import sys
 import subprocess
 import logging
-
+import wavelink
+from wavelink.tracks import TrackInfoPayload
+from typing import cast
 
 def noglobal(f):
     return types.FunctionType(f.__code__, {}, argdefs=f.__defaults__)
@@ -82,39 +80,10 @@ dbltoken = os.getenv("DBL_TOKEN")
 
 mystbin_client = mystbin.Client()
 rtfmclient = async_client()
-
-sp = spotipy.Spotify(
-    client_credentials_manager=SpotifyClientCredentials(
-        client_id=os.getenv("SPOTIFY_API_ID"),
-        client_secret=os.getenv("SPOTIFY_API_KEY"),
-    )
-)
-# https://developer.spotify.com/dashboard/applications
-# REQUIRES API KEY
-
 maintenancemodestatus = False
 onlystaffaccess = False
 maintenancemodereason = "fixing a bug"
 forcelogerrors = False
-youtube_dl.utils.bug_reports_message = lambda: ""
-
-ytdl_format_options = {
-    "format": "bestaudio/best",
-    "outtmpl": "%(extractor)s-%(id)s-%(title)s.%(ext)s",
-    "restrictfilenames": True,
-    "noplaylist": True,
-    "nocheckcertificate": True,
-    "ignoreerrors": True,
-    "logtostderr": True,
-    "quiet": False,
-    "no_warnings": False,
-    "default_search": "auto",
-    # bind to ipv4 since ipv6 addresses cause issues sometimes
-    "source_address": "0.0.0.0",
-    "cookiefile": "cookies.txt",
-}
-
-
 async def chatbotfetch(session, url):
     try:
         headers = {
@@ -191,7 +160,6 @@ class LyricsExtractor:
 
 
 extract_lyrics = LyricsExtractor()
-ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 DATABASE_URL = f"postgres://{os.getenv('DATABASE_USERNAME')}:{os.getenv('DATABASE_PASSWORD')}@{os.getenv('DATABASE_URL')}:{os.getenv('DATABASE_PORT')}/{os.getenv('DATABASE_NAME')}"
 # Sql database 1
 # REQUIRES API KEY
@@ -205,89 +173,6 @@ newconn = None
 pool = None
 newpool = None
 logger = None
-
-
-class YTDLRateLimited(Exception):
-    pass
-
-
-class YTDLSource(discord.PCMVolumeTransformer):
-    def __init__(self, source, *, data, url, volume=0.8):
-        super().__init__(source, volume)
-        self.data = data
-        self.url = url
-        self.duration = data.get("duration")
-        self.title = data.get("title")
-        self.internalurl = data.get("url")
-        self.description = data.get("description")
-        time = data.get("upload_date")
-        time_with_colon = None
-        try:
-            time = time[:4] + "/" + time[4:]
-            time_with_colon = time[:7] + "/" + time[7:]
-        except:
-            pass
-        self.published = time_with_colon
-        self.likes = data.get("like_count")
-        if self.likes is None:
-            self.likes = 0
-        vidviews = data.get("view_count")
-        self.is_live = data.get("is_live")
-        try:
-            formviews = "{:,}".format(int(vidviews))
-        except:
-            formviews = "0"
-        self.views = formviews
-        self.thumbnail = None
-        self.requester = None
-        self.type = " "
-        self.voice = None
-        self.source = source
-        self.epochtime = None
-        self.typeemoji = None
-
-    def __str__(self):
-        return self.title
-
-    @classmethod
-    async def from_url(
-            cls, url, *, loop=None, stream=True, start=None, end=None
-    ):
-        loop = loop or asyncio.get_event_loop()
-        data = None
-        try:
-            data = await loop.run_in_executor(
-                None, lambda: ytdl.extract_info(url, download=not stream)
-            )
-        except Exception as ex:
-            print(f"Exception in fetching data {ex}")
-
-        if start is None:
-            if "entries" in data:
-                # take first item from a playlist
-                data = data["entries"][0]
-            filename = data["url"] if stream else ytdl.prepare_filename(data)
-            ffmpeg_options = {
-                "options": "-vn",
-                "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-            }
-            return cls(
-                discord.FFmpegPCMAudio(filename, **ffmpeg_options), url=url, data=data
-            )
-        else:
-            if "entries" in data:
-                # take first item from a playlist
-                data = data["entries"][0]
-            filename = data["url"] if stream else ytdl.prepare_filename(data)
-            ffmpeg_options = {
-                "options": f"-vn -ss {start} -to {end}",
-                "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-            }
-            return cls(
-                discord.FFmpegPCMAudio(filename, **ffmpeg_options), url=url, data=data
-            )
-
-
 forceexecstop = False
 verifyCommand = None
 afterchannelupdate = []
@@ -1266,8 +1151,55 @@ class MyBot(bridge.Bot):
 
     async def is_owner(self, user: discord.User):
         return checkstaff(user)
+        
+    async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None:
+        player: wavelink.Player | None = payload.player
+        if not player:
+            # Handle edge cases...
+            return
 
+        original: wavelink.Playable | None = payload.original
+        track: wavelink.Playable = payload.track
+        embed = discord.Embed(
+            title=f"{track.title}",
+            description=f"Feat {track.artist.url}",
+            color=0x00FF00,
+        )
+        if track.source == "youtube":
+            embed.set_author(
+            name="Youtube",
+            icon_url="https://cdn.discordapp.com/avatars/812967359312297994/2c234518e4889657d01fe7001cd52422.webp?size=128",
+        )
+            track.type_emoji = "<:youtube:947131039418052658>"
+        elif track.source == "spotify":
+            embed.set_author(
+            name="Spotify",
+            icon_url="https://cdn.discordapp.com/avatars/841279857879154689/0d77aa58a3f0a937f6c45b0305030562.png?size=128",
+        )
+            track.type_emoji = "<:spotify:947128614179205131>"
+        else:
+            embed.set_author(
+            name="Unrecognised",
+            icon_url="https://cdn.discordapp.com/avatars/879269940853612544/3b32d0d2b8eafc0d32cdeac99f9ece6f.png?size=128",
+        )
+            track.type_emoji = ":warning:"
+        
+        if track.artwork:
+            embed.set_image(url=track.artwork)
 
+        if track.album.name:
+            embed.add_field(name="Album", value=track.album.name)
+
+        if original and original.recommended:
+            embed.description += f"(Recommended)"
+
+        embed.set_footer(text=track.author.name, icon_url=track.author.display_avatar)
+
+        panel = Songpanel(player.home.guild, player.home, track.author)
+        panel.set_message(
+                await player.home.respond(embed=embed, view=panel, ephemeral=True)
+            )
+        
 class BotStartStatus(enum.Enum):
     WAITING = 1
     PROCESSING = 2
@@ -1354,20 +1286,7 @@ currentlyunmuting = []
 currentlyblacklisting = []
 currentlyunblacklisting = []
 randomlist = randomjava + randompython
-guildmusicname = {}
-guildmusiccp = {}
-guildmusicqueue = {}
-guildmusicids = {}
-guildmusiccurrent = {}
-guildmusiccurrentstate = {}
-guildmusictime = {}
-guildmusictotaltime = {}
-guildmusicauthor = {}
-guildmusiccount = {}
-guildmusicrecent = {}
-guildmusicskipped = {}
 afkrecent = {}
-guildmusicloop = {}
 # BOT OWNER IDS
 tempbotowners = []
 guildids = []
@@ -1430,6 +1349,75 @@ yourCode = ""
 listOfUrls = []
 disabledChannels = []
 
+async def playmusic(ctx, songname):
+    """Play a song with the given query."""
+    if not ctx.guild:
+        return
+
+    player: wavelink.Player
+    player = cast(wavelink.Player, ctx.voice_client)  # type: ignore
+
+    if not player:
+        try:
+            player = await ctx.author.voice.channel.connect(cls=wavelink.Player)  # type: ignore
+        except AttributeError:
+            await ctx.send("Please join a voice channel first before using this command.")
+            return
+        except discord.ClientException:
+            await ctx.send("I was unable to join this voice channel. Please try again.")
+            return
+
+    # Turn on AutoPlay to enabled mode.
+    # enabled = AutoPlay will play songs for us and fetch recommendations...
+    # partial = AutoPlay will play songs for us, but WILL NOT fetch recommendations...
+    # disabled = AutoPlay will do nothing...
+    player.autoplay = wavelink.AutoPlayMode.enabled
+
+    # Lock the player to this channel...
+    if not hasattr(player, "home"):
+        player.home = ctx.channel
+    elif player.home != ctx.channel:
+        await ctx.send(f"You can only play songs in {player.home.mention}, as the player has already started there.")
+        return
+
+    # This will handle fetching Tracks and Playlists...
+    # Seed the doc strings for more information on this method...
+    # If spotify is enabled via LavaSrc, this will automatically fetch Spotify tracks if you pass a URL...
+    # Defaults to YouTube for non URL based queries...
+    tracks: wavelink.Search = await wavelink.Playable.search(songname)
+    if not tracks:
+        await ctx.send(f"{ctx.author.mention} - Could not find any tracks with that query. Please try again.")
+        return
+
+    if isinstance(tracks, wavelink.Playlist):
+        # tracks is a playlist...
+        added: int = await player.queue.put_wait(tracks)
+        embedVar = discord.Embed(
+                title=f"Added **{tracks.name}**({added} songs) to the queue.",
+                description=" ",
+                color=0x00FF00,
+            )
+        embedVar.set_author(
+            name=ctx.author.name, icon_url=ctx.author.display_avatar
+        )
+        await ctx.respond(embed=embedVar, ephemeral=True)
+    else:
+        track: wavelink.Playable = tracks[0]
+        await player.queue.put_wait(track)
+        embedVar = discord.Embed(
+                title=f"Added **{track}** to the queue.",
+                description=" ",
+                color=0x00FF00,
+            )
+        embedVar.set_author(
+            name=ctx.author.name, icon_url=ctx.author.display_avatar
+        )
+        await ctx.respond(embed=embedVar, ephemeral=True)
+
+    if not player.playing:
+        # Play now since we aren't playing anything...
+        await player.play(player.queue.get())
+        
 
 def songcheckperm(channel, member):
     if channel is None:
@@ -1438,13 +1426,12 @@ def songcheckperm(channel, member):
 
 
 class Songpanel(discord.ui.View):
-    def __init__(self, guild, channel, member, voice):
+    def __init__(self, guild, channel, member):
         super().__init__(timeout=None)
         self.member = member
         self.memberid = member.id
         self.channel = channel
         self.guild = guild
-        self.voice = voice
         self.message = None
 
     def set_message(self, message):
@@ -1463,33 +1450,20 @@ class Songpanel(discord.ui.View):
                 "You have not invoked this song.", ephemeral=True
             )
             return
-        voice = self.voice
+        
         guild = self.guild
+        player: wavelink.Player = cast(wavelink.Player, guild.voice_client)
+        if not player:
+            await interaction.response.send_message(
+                    "You didn't request a song to be played that can be paused.",
+                    ephemeral=True,
+                )
+            return
+        
         try:
-            if voice.is_playing():
-                guildmusiccurrentstate[guild.id] = "⏸️"
-                button.label = "▶️"
-                voice.pause()
-                try:
-                    await interaction.response.send_message(
-                        f"The audio has been paused by {interaction.user.mention}",
-                        delete_after=2,
-                        allowed_mentions=discord.AllowedMentions.none(),
-                    )
-                    await self.message.edit(view=self)
-                except:
-                    await interaction.followup.send(
-                        f"The audio has been paused by {interaction.user.mention}",
-                        delete_after=2,
-                        allowed_mentions=discord.AllowedMentions.none(),
-                    )
-            elif voice.is_paused():
-                if not guildmusicloop[guild.id]:
-                    guildmusiccurrentstate[guild.id] = "▶️"
-                else:
-                    guildmusiccurrentstate[guild.id] = "🔁"
+            if player.paused:
                 button.label = "⏸️"
-                voice.resume()
+                await player.pause(not player.paused)
                 try:
                     await interaction.response.send_message(
                         f"The audio has been resumed by {interaction.user.mention}",
@@ -1504,101 +1478,25 @@ class Songpanel(discord.ui.View):
                         allowed_mentions=discord.AllowedMentions.none(),
                     )
             else:
-                await interaction.response.send_message(
-                    "You didn't request a song to be played that can be paused.",
-                    ephemeral=True,
-                )
+                button.label = "▶️"
+                await player.pause(not player.paused)
+                try:
+                    await interaction.response.send_message(
+                        f"The audio has been paused by {interaction.user.mention}",
+                        delete_after=2,
+                        allowed_mentions=discord.AllowedMentions.none(),
+                    )
+                    await self.message.edit(view=self)
+                except:
+                    await interaction.followup.send(
+                        f"The audio has been paused by {interaction.user.mention}",
+                        delete_after=2,
+                        allowed_mentions=discord.AllowedMentions.none(),
+                    )
         except:
             await interaction.response.send_message(
                 "I cannot find any voice channels.", ephemeral=True
             )
-
-    @discord.ui.button(
-        label="🔁", style=discord.ButtonStyle.green, custom_id="songpanel:loop"
-    )
-    async def loop(self, button: discord.ui.Button, interaction: discord.Interaction):
-        if not interaction.user.id == self.memberid and not songcheckperm(
-                self.channel, interaction.user
-        ):
-            await interaction.response.send_message(
-                "You have not invoked this song.", ephemeral=True
-            )
-            return
-        global guildmusicrecent, guildmusicname, guildmusicauthor, guildmusicloop, guildmusiccurrentstate
-        voice = self.voice
-        member = self.member
-        guild = self.guild
-        author = member
-        playingmusic = None
-        try:
-            playingmusic = guildmusicrecent[guild.id][member.id]
-        except:
-            pass
-        if playingmusic is None:
-            await interaction.response.send_message(
-                "I could not find the song that was requested by you earlier in this guild.",
-                ephemeral=True,
-            )
-            return
-        if not guildmusicloop[guild.id]:
-            guildmusicloop[guild.id] = True
-            try:
-                await interaction.response.send_message(
-                    f"The loop has been activated by {interaction.user.mention}",
-                    delete_after=2,
-                    allowed_mentions=discord.AllowedMentions.none(),
-                )
-            except:
-                await interaction.followup.send(
-                    f"The loop has been activated by {interaction.user.mention}",
-                    delete_after=2,
-                    allowed_mentions=discord.AllowedMentions.none(),
-                )
-            guildmusiccurrentstate[guild.id] = "🔁"
-        else:
-            channel = self.channel
-            if not channel.permissions_for(author).manage_channels and not checkstaff(
-                    author
-            ):
-                await interaction.response.send_message(
-                    "I am already looping music,you must have `manage_channels` permissions to stop music loop.",
-                    ephemeral=True,
-                )
-                return
-            guildmusicloop[guild.id] = False
-            try:
-                await interaction.response.send_message(
-                    f"The loop has been de-activated by {interaction.user.mention}",
-                    delete_after=2,
-                    allowed_mentions=discord.AllowedMentions.none(),
-                )
-            except:
-                await interaction.followup.send(
-                    f"The loop has been de-activated by {interaction.user.mention}",
-                    delete_after=2,
-                    allowed_mentions=discord.AllowedMentions.none(),
-                )
-            guildmusiccurrentstate[guild.id] = "▶️"
-            return
-        songname = playingmusic
-        ctx = constructctx(guild, member, self.channel)
-        while voice.is_playing() or voice.is_paused():
-            voice = ctx.guild.voice_client
-            if voice is None:
-                break
-            await asyncio.sleep(1)
-        loopbool = True
-        while author.voice:
-            """Streams from a url (same as yt, but doesn't predownload)"""
-            await playmusic(ctx, songname, nonotice=loopbool)
-            loopbool = False
-            while voice.is_playing() or voice.is_paused():
-                voice = ctx.guild.voice_client
-                if voice is None:
-                    break
-                await asyncio.sleep(1)
-            if guild.voice_client is None or not guildmusicloop[guild.id]:
-                break
 
     @discord.ui.button(
         label="⬆️", style=discord.ButtonStyle.green, custom_id="songpanel:volumeup"
@@ -1613,23 +1511,25 @@ class Songpanel(discord.ui.View):
                 "You have not invoked this song.", ephemeral=True
             )
             return
-        if self.voice is None or self.voice.source is None:
+        
+        guild = self.guild
+        player: wavelink.Player = cast(wavelink.Player, guild.voice_client)
+        if not player:
             await interaction.response.send_message(
                 "No music is being played currently.", ephemeral=True
             )
             return
-        author = self.member
-        guild = self.guild
+        
         try:
-            guild.voice_client.source.volume = guild.voice_client.source.volume + 0.05
+            await player.set_volume(min(player.volume+5, 100))
             await interaction.response.send_message(
-                f"{interaction.user.mention} has changed 🔉 to {int(guild.voice_client.source.volume * 100)}.",
+                f"{interaction.user.mention} has changed 🔉 to {player.volume}.",
                 delete_after=2,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
         except:
             await interaction.followup.send(
-                f"{interaction.user.mention} has changed 🔉 to {int(guild.voice_client.source.volume * 100)}.",
+                f"{interaction.user.mention} has changed 🔉 to {player.volume}.",
                 delete_after=2,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
@@ -1647,23 +1547,25 @@ class Songpanel(discord.ui.View):
                 "You have not invoked this song.", ephemeral=True
             )
             return
-        if self.voice is None or self.voice.source is None:
+        
+        guild = self.guild
+        player: wavelink.Player = cast(wavelink.Player, guild.voice_client)
+        if not player:
             await interaction.response.send_message(
                 "No music is being played currently.", ephemeral=True
             )
             return
-        author = self.member
-        guild = self.guild
+        
         try:
-            guild.voice_client.source.volume = guild.voice_client.source.volume - 0.05
+            await player.set_volume(max(player.volume-5, 0))
             await interaction.response.send_message(
-                f"{interaction.user.mention} has changed 🔉 to {int(guild.voice_client.source.volume * 100)}.",
+                f"{interaction.user.mention} has changed 🔉 to {player.volume}.",
                 delete_after=2,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
         except:
             await interaction.followup.send(
-                f"{interaction.user.mention} has changed 🔉 to {int(guild.voice_client.source.volume * 100)}.",
+                f"{interaction.user.mention} has changed 🔉 to {player.volume}.",
                 delete_after=2,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
@@ -1673,47 +1575,52 @@ class Songpanel(discord.ui.View):
     )
     async def queue(self, button: discord.ui.Button, interaction: discord.Interaction):
         guild = self.guild
-        length = len(guildmusicqueue[guild.id])
-        if length < 1:
+        player: wavelink.Player = cast(wavelink.Player, guild.voice_client)
+        if not player:
             await interaction.response.send_message(
-                "No songs are queued in this guild.", ephemeral=True
-            )
-            return
-        else:
-            embedVar = discord.Embed(
-                title=f"{guild} tracks", description="", color=0x00FF00
-            )
-            listOfEmbeds = []
-            count = 0
-            for i in range(length):
-                count = count + 1
-                player = guildmusicqueue[guild.id][i]
-                embedVar.description = (
-                        embedVar.description
-                        + f"{i + 1}. {player.typeemoji} [`{timedelta(seconds=player.duration)}`] [{player.title}]({player.url}) : {player.requester.mention}\n"
+                    "No songs are queued in this guild.", ephemeral=True
                 )
-                if count == 10:
-                    listOfEmbeds.append(embedVar)
-                    embedVar = discord.Embed(
-                        title=f"{guild} tracks", description="", color=0x00FF00
-                    )
-                    count = 0
-            if length < 10:
-                listOfEmbeds.append(embedVar)
-            pagview = PaginateEmbed(listOfEmbeds)
-            await interaction.response.send_message(
-                view=pagview, embed=listOfEmbeds[0], ephemeral=True
+            return
+        
+        length = player.queue.count
+        embedVar = discord.Embed(
+            title=f"{guild} tracks", description="", color=0x00FF00
+        )
+        listOfEmbeds = []
+        count = 0
+        for i in range(length):
+            count = count + 1
+            song = player.queue.get_at(i)
+            embedVar.description = (
+                    embedVar.description
+                    + f"{i + 1}. {song.type_emoji} [`{timedelta(seconds=song.length)}`] [{song.title}]({song.uri}) : {song.author}\n"
             )
+            if count == 10:
+                listOfEmbeds.append(embedVar)
+                embedVar = discord.Embed(
+                    title=f"{guild} tracks", description="", color=0x00FF00
+                )
+                count = 0
+        if length < 10:
+            listOfEmbeds.append(embedVar)
+        pagview = PaginateEmbed(listOfEmbeds)
+        await interaction.response.send_message(
+            view=pagview, embed=listOfEmbeds[0], ephemeral=True
+        )
 
     @discord.ui.button(
         label="🎶", style=discord.ButtonStyle.green, custom_id="songpanel:lyrics"
     )
     async def lyrics(self, button: discord.ui.Button, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        global guildmusicname
         guild = self.guild
+        player: wavelink.Player = cast(wavelink.Player, guild.voice_client)
+        if not player:
+            return
+
+        song = player.queue.get()
         try:
-            songname = guildmusicname[guild.id][0].title
+            songname = player.queue.get(song.info.title)
         except:
             await interaction.followup.send(
                 "I could not find any playing song.",
@@ -1766,6 +1673,7 @@ class Songpanel(discord.ui.View):
         author = self.member
         channel = self.channel
         guild = self.guild
+
         if not (channel.permissions_for(author).manage_channels or checkstaff(author)):
             await interaction.response.send_message(
                 f"I am already playing music in a channel , you must have `manage_channels` permissions to stop music.",
@@ -1773,10 +1681,11 @@ class Songpanel(discord.ui.View):
             )
             return
         try:
-            await guild.voice_client.disconnect()
-            guildmusiccount[guild.id] = 0
-            guildmusicname[guild.id].clear()
-            guildmusicqueue[guild.id].clear()
+            player: wavelink.Player = cast(wavelink.Player, guild.voice_client)
+            if not player:
+                return
+
+            await player.disconnect()
             try:
                 await interaction.response.send_message(
                     f"The audio has been stopped by {interaction.user.mention}",
@@ -1784,9 +1693,6 @@ class Songpanel(discord.ui.View):
                 )
             except:
                 pass
-            guildmusicskipped[guild.id] = True
-            await asyncio.sleep(1)
-            guildmusicskipped[guild.id] = False
         except:
             await interaction.response.send_message(
                 "I am not connected to any voice channel.", ephemeral=True
@@ -2974,6 +2880,8 @@ async def runBot():  # Bot START Aestron START
     channeldev = client.get_channel(843081057506426880)
     channelgitlogging = client.get_channel(895884797099008050)
     print(f"The logging channel has been set to {channelerrorlogging}.")
+    nodes = [wavelink.Node(uri="192.168.29.64", password="youshallnotpass")]
+    await wavelink.Pool.connect(nodes=nodes, client=client, cache_capacity=None)
     # logger.info("The logging channel has been set to %s.", channelerrorlogging)
     if len(sys.argv) > 1 and sys.argv[1] == "restart":
         if len(sys.argv) > 2:
@@ -12375,7 +12283,7 @@ class Music(commands.Cog):
         if ctx.voice_client is None:
             if ctx.author.voice:
                 try:
-                    await ctx.author.voice.channel.connect()
+                    await ctx.author.voice.channel.connect(cls=wavelink.Player)
                 except:
                     raise commands.CommandError(
                         f"I don't have permissions to join {ctx.author.voice.channel.mention}"
@@ -12388,31 +12296,6 @@ class Music(commands.Cog):
 
 
 client.add_cog(Music(client))
-
-
-@client.slash_command(
-    brief="This command can be used to search and play a song.",
-    description="This command can be used to search and play a song.",
-    usage="songname start end",
-)
-@commands.guild_only()
-@commands.cooldown(1, 50, BucketType.member)
-async def multipleplay(
-        ctx,
-        songname: str,
-        multiplesearch: discord.Option(bool, "Search queue", required=False),
-):
-    await ctx.respond(
-        "Trimming the track :cd: , this may take a while!", ephemeral=True
-    )
-    if multiplesearch is None:
-        multiplesearch = False
-    exOcc = await ensure_voice(ctx.guild, ctx.author)
-    if exOcc:
-        return
-    await playmusic(ctx, songname, search=multiplesearch)
-
-
 class YoutubeTogether(commands.Cog):
     """This YouTube command can play a video"""
 
@@ -12474,7 +12357,7 @@ async def ensure_voice(guild, member):
     if guild.voice_client is None:
         if member.voice:
             try:
-                await member.voice.channel.connect()
+                await member.voice.channel.connect(cls=wavelink.Player)
             except:
                 print(
                     f"I don't have permissions to join {member.voice.channel.mention}"
@@ -12517,781 +12400,6 @@ def constructmsg(guild, member):
 
     constructedctx = defcontext(guild, member)
     return constructedctx
-
-
-async def constructsong(url, start=None, end=None):
-    player = await YTDLSource.from_url(
-        url, loop=client.loop, stream=True, start=start, end=end
-    )
-    if not player or player.is_live:
-        player = await YTDLSource.from_url(
-            url, loop=client.loop, stream=True, start=start, end=end
-        )
-    player.id = id(player)
-    return player
-
-
-async def startvc(ctx, player, nonotice, norepeat=False, count=1):
-    guildmusicskipped[ctx.guild.id] = False
-    vidduration = player.duration
-    voice = ctx.voice_client
-    if not vidduration:
-        vidduration = 0
-    guildmusiccurrent[ctx.guild.id] = player
-    guildmusicrecent[ctx.guild.id][ctx.author.id] = player.title
-    if voice is None:
-        # print("STOPPING AS VOICE CLIENT NONE")
-        guildmusiccp[ctx.guild.id] = False
-        guildmusicname[ctx.guild.id] = collections.deque([])
-        guildmusicqueue[ctx.guild.id] = collections.deque([])
-        guildmusicids[ctx.guild.id] = collections.deque([])
-        guildmusicskipped[ctx.guild.id] = False
-        guildmusiccount[ctx.guild.id] = 0
-        guildmusicrecent[ctx.guild.id] = {}
-        guildmusicloop[ctx.guild.id] = False
-        guildmusicauthor[ctx.guild.id] = collections.deque([])
-        guildmusictime[ctx.guild.id] = 0
-        guildmusictotaltime[ctx.guild.id] = 0
-        guildmusiccurrent[ctx.guild.id] = ""
-        guildmusiccurrentstate[ctx.guild.id] = "▶️"
-        return
-    cplayer = player
-    try:
-        ctx.voice_client.play(source=cplayer)
-    except Exception as ex:
-        pass
-    # print(f"{player.requester.name} -> {player.title}")
-    guildmusictotaltime[ctx.guild.id] = vidduration
-    starttime = -1
-    endtime = -1
-    starttime = time.time()
-    pausedstarttime = -1
-    pausedendtime = -1
-    totalpausedtime = 0
-    songpaused = False
-    # print(f"Song {player.title} started in {starttime}")
-    while (voice.is_playing() or voice.is_paused()) and (
-            (endtime - starttime) - totalpausedtime
-    ) < vidduration:
-        endtime = time.time()
-        # print(f"Song playing till {endtime}...")
-        if songpaused and voice.is_playing():
-            # print(f"Songpaused TRUE and voice playing!")
-            pausedendtime = time.time()
-            # print(f"Pause ended at {pausedendtime}")
-            totalpausedtime += pausedendtime - pausedstarttime
-            # print(f"Total pause {totalpausedtime}")
-            songpaused = False
-
-        if voice.is_paused() and not songpaused:
-            # print(f"Voice paused!")
-            songpaused = True
-            pausedstarttime = time.time()
-            # print(f"Pause started at {pausedstarttime}")
-        elif voice.is_playing():
-            # print(f"Elapsed time since start {endtime-starttime}")
-            # print(f"Elapsed time since start without pause {(endtime-starttime)-totalpausedtime}")
-            guildmusictime[ctx.guild.id] = (endtime - starttime) - totalpausedtime
-            # print(f"Setting musictime in {player.title} to {timedelta(seconds=int(guildmusictime[ctx.guild.id]))}")
-        voice = ctx.guild.voice_client
-        if voice is None:
-            break
-        await asyncio.sleep(1)
-    # print(f"Song {player.title} ended.")
-    guildmusictime[ctx.guild.id] = (endtime - starttime) - totalpausedtime
-    try:
-        guildmusicname[ctx.guild.id].remove(player)
-        guildmusicqueue[ctx.guild.id].remove(player)
-        guildmusicauthor[ctx.guild.id].remove(ctx.author.id)
-    except:
-        pass
-    timetaken = ((endtime - starttime) - totalpausedtime) + 1
-    # print(f"Time taken {timetaken}")
-    # print(f"Vid duration {vidduration}")
-    if (timetaken + 5) < vidduration:
-        if guildmusicskipped[ctx.guild.id]:
-            guildmusicskipped[ctx.guild.id] = False
-            try:
-                guildmusicids[ctx.guild.id].remove(player.id)
-            except:
-                pass
-            try:
-                guildmusiccount[ctx.guild.id] = guildmusicids[ctx.guild.id][0]
-            except Exception as ex:
-                pass
-            guildmusiccurrent[ctx.guild.id] = ""
-            return
-        elif count == 2:
-            embed = discord.Embed(
-                title="📬 Music interruption",
-                description="```Problems encountered playing this song, trying to resume.```",
-            )
-            await ctx.respond(embed=embed, ephemeral=True)
-            guildmusiccp[ctx.guild.id] = False
-            guildmusicname[ctx.guild.id] = collections.deque([])
-            guildmusicqueue[ctx.guild.id] = collections.deque([])
-            guildmusicids[ctx.guild.id] = collections.deque([])
-            guildmusicskipped[ctx.guild.id] = False
-            guildmusiccount[ctx.guild.id] = 0
-            guildmusicrecent[ctx.guild.id] = {}
-            guildmusicloop[ctx.guild.id] = False
-            guildmusicauthor[ctx.guild.id] = collections.deque([])
-            guildmusictime[ctx.guild.id] = 0
-            guildmusictotaltime[ctx.guild.id] = 0
-            guildmusiccurrent[ctx.guild.id] = ""
-            guildmusiccurrentstate[ctx.guild.id] = "▶️"
-            return
-        if not norepeat:
-            playernew = await constructsong(player.url, timetaken, vidduration)
-            playernew.type = player.type
-            playernew.typeemoji = player.typeemoji
-            playernew.voice = player.voice
-            playernew.requester = player.requester
-            playernew.thumbnail = player.thumbnail
-            playernew.epochtime = player.epochtime
-            playernew.id = player.id
-            try:
-                guildmusicname[ctx.guild.id].appendleft(playernew)
-                guildmusicqueue[ctx.guild.id].append(playernew)
-                guildmusicauthor[ctx.guild.id].appendleft(ctx.author.id)
-            except:
-                pass
-            # print(
-            # f"Starting vc again for {ctx.author} in {count} with {guildmusicskipped[ctx.guild.id]}.")
-            asyncio.create_task(
-                startvc(ctx, playernew, nonotice, True, count=count + 1)
-            )
-    else:
-        try:
-            guildmusicids[ctx.guild.id].remove(player.id)
-        except:
-            pass
-        try:
-            guildmusiccount[ctx.guild.id] = guildmusicids[ctx.guild.id][0]
-        except Exception as ex:
-            pass
-        guildmusiccurrent[ctx.guild.id] = ""
-
-
-async def waitqueue(ctx, currentmusiccount, player, nonotice=False, repeated=False):
-    voice = ctx.guild.voice_client
-    if not voice:
-        return
-    global guildmusiccount
-    songname = player.title
-    viddes = player.description
-    if viddes:
-        viddes = (viddes[:50] + "..") if len(viddes) > 50 else viddes
-    else:
-        viddes = "Not provided"
-    vidviews = player.views
-    vidpublished = player.published
-    vidlikes = player.likes
-    is_live = player.is_live
-    if is_live:
-        if not nonotice:
-            await on_command_error(
-                ctx,
-                f"The requested song {songname} was streamed live and will be trimmed when played!",
-            )
-    viddur = player.duration
-    if not viddur:
-        viddur = 0
-    embedVar = discord.Embed(
-        title=f"{songname}",
-        description=f"`{timedelta(seconds=viddur)}`",
-        color=0x00FF00,
-    )
-    embedVar.add_field(
-        name="Views | publish time",
-        value=str(vidviews) + " | " + str(vidpublished),
-    )
-    embedVar.set_footer(text=ctx.author.name, icon_url=ctx.author.display_avatar)
-    if player.thumbnail is not None:
-        try:
-            embedVar.set_thumbnail(url=player.thumbnail)
-        except:
-            pass
-    if player.type == "spotify":
-        embedVar.set_author(
-            name="Spotify",
-            icon_url="https://cdn.discordapp.com/avatars/841279857879154689/0d77aa58a3f0a937f6c45b0305030562.png?size=128",
-        )
-    elif player.type == "notrecog":
-        embedVar.set_author(
-            name="Unrecognised",
-            icon_url="https://cdn.discordapp.com/avatars/879269940853612544/3b32d0d2b8eafc0d32cdeac99f9ece6f.png?size=128",
-        )
-    else:
-        embedVar.set_author(
-            name="Youtube",
-            icon_url="https://cdn.discordapp.com/avatars/812967359312297994/2c234518e4889657d01fe7001cd52422.webp?size=128",
-        )
-    viewobj = None
-    if not nonotice:
-        viewobj = Songpanel(ctx.guild, ctx.channel, ctx.author, voice)
-    # print(f"{songname} has an id {currentmusiccount}")
-    if len(guildmusicids[ctx.guild.id]) != 1:
-        try:
-            while (
-                    currentmusiccount != guildmusiccount[ctx.guild.id]
-                    or voice.is_paused()
-                    or voice.is_playing()
-            ):
-                if voice is None:
-                    break
-                await asyncio.sleep(1)
-                voice = ctx.guild.voice_client
-        except:
-            return
-        # print(f"Breaking loop for {songname} as {guildmusiccount[ctx.guild.id]}=={currentmusiccount}")
-        if viewobj and ctx.voice_client:
-            viewobj.set_message(
-                await ctx.respond(embed=embedVar, view=viewobj, ephemeral=True)
-            )
-        asyncio.create_task(startvc(ctx, player, nonotice, repeated))
-    else:
-        if viewobj and ctx.voice_client:
-            viewobj.set_message(
-                await ctx.respond(embed=embedVar, view=viewobj, ephemeral=True)
-            )
-        asyncio.create_task(startvc(ctx, player, nonotice, repeated))
-
-
-async def playmusic(ctx, songname, start=None, end=None, nonotice=False, search=False):
-    global guildmusiccount, guildmusicname, guildmusicauthor, guildmusicloop, guildmusictime, guildmusictotaltime
-    voice = ctx.guild.voice_client
-    if voice is None:
-        return
-    songname = songname.strip("<>")
-    if songname.startswith("www."):
-        songname = "https://" + songname
-
-    def ordinal(n):
-        return "%d%s" % (
-            n,
-            "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10:: 4],
-        )
-
-    try:
-        if ctx.author.voice.self_deaf:
-            if not nonotice:
-                await on_command_error(
-                    ctx,
-                    "You are deafened in the voice channel , you won't be able to hear the playing audio.",
-                )
-    except:
-        pass
-    sptrackcheck = re.compile(
-        "^((?:https?:)?//)?((?:www|m).)?(open.spotify.com|spotify.com)(/track)"
-    )
-    spplaylistcheck = re.compile(
-        "^((?:https?:)?//)?((?:www|m).)?(open.spotify.com|spotify.com)(/playlist)"
-    )
-    spartistcheck = re.compile(
-        "^((?:https?:)?//)?((?:www|m).)?(open.spotify.com|spotify.com)(/artist)|(/artists)"
-    )
-    spalbumcheck = re.compile(
-        "^((?:https?:)?//)?((?:www|m).)?(open.spotify.com|spotify.com)(/album)|(/albums)"
-    )
-    ytplaylistcheck = re.compile(
-        "^((?:https?:)?//)?((?:www|m).)?(youtube.com|youtu.be)(/playlist)"
-    )
-    yttrackcheck = re.compile("^(https?://)?((www\.)?youtube\.com|youtu\.be)/.+$")
-    norepeat = start is not None
-    if sptrackcheck.match(songname):
-        try:
-            results = sp.track(track_id=songname)
-        except:
-            if not nonotice:
-                await on_command_error(
-                    ctx, "The specified track was not found on spotify!"
-                )
-            return
-        trackname = results["name"]
-        artistname = results["album"]["artists"][0]["name"]
-        try:
-            trackname = results["external_ids"]["isrc"]
-        except:
-            pass
-        try:
-            videosSearch = VideosSearch(trackname, limit=1)
-            data = await videosSearch.next()
-            track = data["result"][0]
-        except:
-            if not nonotice:
-                await on_command_error(
-                    ctx, "We had some problems trying to play your song , try again!"
-                )
-            return
-        url = track["link"]
-        try:
-            thumbnail = track["thumbnails"][-1]["url"]
-        except:
-            pass
-        player = await constructsong(url, start, end)
-        player.type = "spotify"
-        player.typeemoji = "<:spotify:947128614179205131>"
-        player.voice = voice
-        player.requester = ctx.author
-        player.thumbnail = thumbnail
-        player.epochtime = int(time.time())
-        guildmusicauthor[ctx.guild.id].appendleft(ctx.author.id)
-        guildmusicname[ctx.guild.id].appendleft(player)
-        guildmusicqueue[ctx.guild.id].append(player)
-        currentmusiccount = player.id
-        guildmusicids[ctx.guild.id].append(player.id)
-        if len(guildmusicids[ctx.guild.id]) != 1:
-            embedVar = discord.Embed(
-                title=f"Added to queue #{len(guildmusicids[ctx.guild.id])}",
-                description=player.title,
-                color=0x00FF00,
-            )
-            embedVar.set_author(
-                name=ctx.author.name, icon_url=ctx.author.display_avatar
-            )
-            if not nonotice:
-                try:
-                    await ctx.respond(embed=embedVar, ephemeral=True)
-                except:
-                    pass
-
-        t1 = await waitqueue(
-            ctx, currentmusiccount, player, nonotice, repeated=norepeat
-        )
-    elif spartistcheck.match(songname):
-        try:
-            results = sp.artist_albums(artist_id=songname)
-        except:
-            if not nonotice:
-                await on_command_error(
-                    ctx, "The specified artist was not found on spotify!"
-                )
-            return
-        listofalbums = results["items"]
-        albumcount = 1
-        trackcount = 1
-        for album in listofalbums:
-            trackcount = 1
-            albumid = album["id"]
-            try:
-                results = sp.album(album_id=albumid)
-            except:
-                if not nonotice:
-                    await on_command_error(
-                        ctx,
-                        f"We had some problems trying to play {albumcount}{ordinal(albumcount)} album  , try again!",
-                    )
-                continue
-            albumcount = albumcount + 1
-            listoftracks = results["tracks"]["items"]
-            for trackl in listoftracks:
-                try:
-                    results = sp.track(track_id=trackl["id"])
-                except:
-                    continue
-                trackcount = trackcount + 1
-                trackname = results["name"]
-                try:
-                    trackname = results["external_ids"]["isrc"]
-                except:
-                    pass
-                artistname = results["artists"][0]["name"]
-                try:
-                    videosSearch = VideosSearch(trackname, limit=1)
-                    data = await videosSearch.next()
-                    track = data["result"][0]
-                except:
-                    continue
-                url = track["link"]
-                try:
-                    thumbnail = track["thumbnails"][-1]["url"]
-                except:
-                    pass
-                try:
-                    player = await constructsong(url, start, end)
-                except:
-                    continue
-                player.type = "spotify"
-                player.typeemoji = "<:spotify:947128614179205131>"
-                player.voice = voice
-                player.requester = ctx.author
-                player.thumbnail = thumbnail
-                player.epochtime = int(time.time())
-                guildmusicauthor[ctx.guild.id].appendleft(ctx.author.id)
-                guildmusicname[ctx.guild.id].appendleft(player)
-                guildmusicqueue[ctx.guild.id].append(player)
-                currentmusiccount = player.id
-                guildmusicids[ctx.guild.id].append(player.id)
-                if len(guildmusicids[ctx.guild.id]) != 1:
-                    embedVar = discord.Embed(
-                        title=f"Added to queue #{len(guildmusicids[ctx.guild.id])}",
-                        description=player.title,
-                        color=0x00FF00,
-                    )
-                    embedVar.set_author(
-                        name=ctx.author.name, icon_url=ctx.author.display_avatar
-                    )
-                    if not nonotice:
-                        try:
-                            await ctx.respond(embed=embedVar, ephemeral=True)
-                        except:
-                            pass
-                t1 = asyncio.create_task(
-                    waitqueue(
-                        ctx, currentmusiccount, player, nonotice, repeated=norepeat
-                    )
-                )
-    elif spalbumcheck.match(songname):
-        try:
-            results = sp.album(album_id=songname)
-        except:
-            if not nonotice:
-                await on_command_error(
-                    ctx, "The specified album was not found on spotify!"
-                )
-            return
-        listoftracks = results["tracks"]["items"]
-        tracklist = []
-        artistlist = []
-        for track in listoftracks:
-            trackname = track["track"]["name"]
-            try:
-                trackname = track["track"]["external_ids"]["isrc"]
-            except:
-                pass
-            tracklist.append(trackname)
-            artistlist.append(track["track"]["artists"][0]["name"])
-        for i in range(len(tracklist)):
-            trackname = tracklist[i]
-            artistname = artistlist[i]
-            try:
-                videosSearch = VideosSearch(trackname, limit=1)
-                data = await videosSearch.next()
-                track = data["result"][0]
-            except:
-                continue
-            url = track["link"]
-            try:
-                thumbnail = track["thumbnails"][-1]["url"]
-            except:
-                pass
-            try:
-                player = await constructsong(url, start, end)
-            except:
-                continue
-            player.type = "spotify"
-            player.typeemoji = "<:spotify:947128614179205131>"
-            player.voice = voice
-            player.requester = ctx.author
-            player.thumbnail = thumbnail
-            player.epochtime = int(time.time())
-            guildmusicauthor[ctx.guild.id].appendleft(ctx.author.id)
-            guildmusicname[ctx.guild.id].appendleft(player)
-            guildmusicqueue[ctx.guild.id].append(player)
-            currentmusiccount = player.id
-            guildmusicids[ctx.guild.id].append(player.id)
-            if len(guildmusicids[ctx.guild.id]) != 1:
-                embedVar = discord.Embed(
-                    title=f"Added to queue #{len(guildmusicids[ctx.guild.id])}",
-                    description=player.title,
-                    color=0x00FF00,
-                )
-                embedVar.set_author(
-                    name=ctx.author.name, icon_url=ctx.author.display_avatar
-                )
-                if not nonotice:
-                    try:
-                        await ctx.respond(embed=embedVar, ephemeral=True)
-                    except:
-                        pass
-            t1 = asyncio.create_task(
-                waitqueue(ctx, currentmusiccount, player, nonotice, repeated=norepeat)
-            )
-    elif spplaylistcheck.match(songname):
-        try:
-            results = sp.playlist(playlist_id=songname)
-        except:
-            if not nonotice:
-                await on_command_error(
-                    ctx, "The specified playlist was not found on spotify!"
-                )
-            return
-        listoftracks = results["tracks"]["items"]
-        tracklist = []
-        artistlist = []
-        for track in listoftracks:
-            trackname = track["track"]["name"]
-            try:
-                trackname = track["track"]["external_ids"]["isrc"]
-            except:
-                pass
-            tracklist.append(trackname)
-            artistlist.append(track["track"]["artists"][0]["name"])
-        for i in range(len(tracklist)):
-            trackname = tracklist[i]
-            artistname = artistlist[i]
-            try:
-                videosSearch = VideosSearch(trackname, limit=1)
-                data = await videosSearch.next()
-                track = data["result"][0]
-            except:
-                continue
-            url = track["link"]
-            try:
-                thumbnail = track["thumbnails"][-1]["url"]
-            except:
-                pass
-            try:
-                player = await constructsong(url, start, end)
-            except:
-                continue
-            player.type = "spotify"
-            player.typeemoji = "<:spotify:947128614179205131>"
-            player.voice = voice
-            player.requester = ctx.author
-            player.thumbnail = thumbnail
-            player.epochtime = int(time.time())
-            guildmusicauthor[ctx.guild.id].appendleft(ctx.author.id)
-            guildmusicname[ctx.guild.id].appendleft(player)
-            guildmusicqueue[ctx.guild.id].append(player)
-            currentmusiccount = player.id
-            guildmusicids[ctx.guild.id].append(player.id)
-            if len(guildmusicids[ctx.guild.id]) != 1:
-                embedVar = discord.Embed(
-                    title=f"Added to queue #{len(guildmusicids[ctx.guild.id])}",
-                    description=player.title,
-                    color=0x00FF00,
-                )
-                embedVar.set_author(
-                    name=ctx.author.name, icon_url=ctx.author.display_avatar
-                )
-                if not nonotice:
-                    try:
-                        await ctx.respond(embed=embedVar, ephemeral=True)
-                    except:
-                        pass
-            t1 = asyncio.create_task(
-                waitqueue(ctx, currentmusiccount, player, nonotice, repeated=norepeat)
-            )
-    elif ytplaylistcheck.match(songname):
-        try:
-            data = await Playlist.get(songname)
-            videoslist = data["videos"]
-        except:
-            if not nonotice:
-                await on_command_error(ctx, f"No playlists were found for {songname} ")
-            return
-        for video in videoslist:
-            url = video["link"]
-            try:
-                thumbnail = await get_url_image(url)
-            except:
-                pass
-            try:
-                player = await constructsong(url, start, end)
-            except:
-                continue
-            player.type = "youtube"
-            player.typeemoji = "<:youtube:947131039418052658>"
-            player.voice = voice
-            player.requester = ctx.author
-            player.thumbnail = thumbnail
-            player.epochtime = int(time.time())
-            guildmusicauthor[ctx.guild.id].appendleft(ctx.author.id)
-            guildmusicname[ctx.guild.id].appendleft(player)
-            guildmusicqueue[ctx.guild.id].append(player)
-            currentmusiccount = player.id
-            guildmusicids[ctx.guild.id].append(player.id)
-            if len(guildmusicids[ctx.guild.id]) != 1:
-                embedVar = discord.Embed(
-                    title=f"Added to queue #{len(guildmusicids[ctx.guild.id])}",
-                    description=player.title,
-                    color=0x00FF00,
-                )
-                embedVar.set_author(
-                    name=ctx.author.name, icon_url=ctx.author.display_avatar
-                )
-                if not nonotice:
-                    try:
-                        await ctx.respond(embed=embedVar, ephemeral=True)
-                    except:
-                        pass
-            t1 = asyncio.create_task(
-                waitqueue(ctx, currentmusiccount, player, nonotice, repeated=norepeat)
-            )
-    elif songname.startswith("https://") or songname.startswith("http://"):
-        url = songname
-        player = await constructsong(url, start, end)
-        if yttrackcheck.match(songname):
-            player.type = "youtube"
-            player.typeemoji = "<:youtube:947131039418052658>"
-        else:
-            player.type = "notrecog"
-            player.typeemoji = "<:unrecognised:947130616321822800>"
-        player.voice = voice
-        player.requester = ctx.author
-        player.epochtime = int(time.time())
-        guildmusicauthor[ctx.guild.id].appendleft(ctx.author.id)
-        guildmusicname[ctx.guild.id].appendleft(player)
-        guildmusicqueue[ctx.guild.id].append(player)
-        currentmusiccount = player.id
-        guildmusicids[ctx.guild.id].append(player.id)
-        if len(guildmusicids[ctx.guild.id]) != 1:
-            embedVar = discord.Embed(
-                title=f"Added to queue #{len(guildmusicids[ctx.guild.id])}",
-                description=player.title,
-                color=0x00FF00,
-            )
-            embedVar.set_author(
-                name=ctx.author.name, icon_url=ctx.author.display_avatar
-            )
-            if not nonotice:
-                try:
-                    await ctx.respond(embed=embedVar, ephemeral=True)
-                except:
-                    pass
-        t1 = await waitqueue(
-            ctx, currentmusiccount, player, nonotice, repeated=norepeat
-        )
-    else:
-        if search:
-            length = 5
-            videosSearch = VideosSearch(songname, limit=length)
-            novids = True
-            playerlist = []
-            for i in range(length):
-                data = await videosSearch.next()
-                videoexist = data["result"]
-                boolvideoexist = not len(videoexist) == 0
-                if boolvideoexist:
-                    novids = False
-                    try:
-                        selectedresult = data["result"][i]
-                        thumbnail = None
-                        try:
-                            thumbnail = selectedresult["thumbnails"][-1]["url"]
-                        except:
-                            pass
-                        url = selectedresult["link"]
-                        player = await constructsong(url, start, end)
-                        player.type = "youtube"
-                        player.typeemoji = "<:youtube:947131039418052658>"
-                        player.voice = voice
-                        player.requester = ctx.author
-                        player.thumbnail = thumbnail
-                        player.epochtime = int(time.time())
-                        playerlist.append(player)
-                    except:
-                        pass
-            if novids:
-                if not nonotice:
-                    await on_command_error(ctx, f"No videos were found for {songname} ")
-                return
-            listOfEmbeds = []
-            for i in range(length):
-                try:
-                    player = playerlist[i]
-                    vidviews = player.views
-                    vidpublished = player.published
-                    vidlikes = player.likes
-                    viddur = player.duration
-                    embedVar = discord.Embed(
-                        title=f"{i + 1}) {player.title}",
-                        description=f"`{timedelta(seconds=viddur)}`",
-                        color=0x00FF00,
-                    )
-                    embedVar.add_field(
-                        name="Views | publish time",
-                        value=str(vidviews) + " | " + str(vidpublished),
-                    )
-                    if player.thumbnail is not None:
-                        try:
-                            embedVar.set_thumbnail(url=player.thumbnail)
-                        except:
-                            pass
-                    embedVar.set_author(
-                        name="Choose a song",
-                        icon_url="https://cdn.discordapp.com/avatars/812967359312297994/2c234518e4889657d01fe7001cd52422.webp?size=128",
-                    )
-                    listOfEmbeds.append(embedVar)
-                except:
-                    pass
-            pagview = PaginateSongEmbed(listOfEmbeds, playerlist)
-            await ctx.respond(view=pagview, embed=listOfEmbeds[0], ephemeral=True)
-            await pagview.wait()
-            if pagview.value is None:
-                player = playerlist[0]
-            elif pagview.value:
-                player = pagview.value
-            guildmusicauthor[ctx.guild.id].appendleft(ctx.author.id)
-            guildmusicname[ctx.guild.id].appendleft(player)
-            guildmusicqueue[ctx.guild.id].append(player)
-            currentmusiccount = player.id
-            guildmusicids[ctx.guild.id].append(player.id)
-            if len(guildmusicids[ctx.guild.id]) != 1:
-                embedVar = discord.Embed(
-                    title=f"Added to queue #{len(guildmusicids[ctx.guild.id])}",
-                    description=player.title,
-                    color=0x00FF00,
-                )
-                embedVar.set_author(
-                    name=ctx.author.name, icon_url=ctx.author.display_avatar
-                )
-                if not nonotice:
-                    try:
-                        await ctx.respond(embed=embedVar, ephemeral=True)
-                    except:
-                        pass
-            t1 = await waitqueue(
-                ctx, currentmusiccount, player, nonotice, repeated=norepeat
-            )
-        else:
-            videosSearch = VideosSearch(songname, limit=1)
-            data = await videosSearch.next()
-            videoexist = data["result"]
-            boolvideoexist = not len(videoexist) == 0
-            selectedresult = data["result"][0]
-            if boolvideoexist:
-                try:
-                    thumbnail = selectedresult["thumbnails"][-1]["url"]
-                except:
-                    pass
-                url = selectedresult["link"]
-                player = await constructsong(url, start, end)
-                player.type = "youtube"
-                player.typeemoji = "<:youtube:947131039418052658>"
-                player.voice = voice
-                player.requester = ctx.author
-                player.thumbnail = thumbnail
-                player.epochtime = int(time.time())
-                guildmusicauthor[ctx.guild.id].appendleft(ctx.author.id)
-                guildmusicname[ctx.guild.id].appendleft(player)
-                guildmusicqueue[ctx.guild.id].append(player)
-                currentmusiccount = player.id
-                guildmusicids[ctx.guild.id].append(player.id)
-                if len(guildmusicids[ctx.guild.id]) != 1:
-                    embedVar = discord.Embed(
-                        title=f"Added to queue #{len(guildmusicids[ctx.guild.id])}",
-                        description=player.title,
-                        color=0x00FF00,
-                    )
-                    embedVar.set_author(
-                        name=ctx.author.name, icon_url=ctx.author.display_avatar
-                    )
-                    if not nonotice:
-                        try:
-                            await ctx.respond(embed=embedVar, ephemeral=True)
-                        except:
-                            pass
-                t1 = await waitqueue(
-                    ctx, currentmusiccount, player, nonotice, repeated=norepeat
-                )
-            else:
-                if not nonotice:
-                    await on_command_error(ctx, f"No videos were found for {songname} ")
-                return
-
 
 class channelNotProvided(Exception):
     pass
