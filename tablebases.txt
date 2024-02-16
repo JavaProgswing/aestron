@@ -1,0 +1,62 @@
+CREATE TABLE callsettings
+(settingbool boolean ,userid bigint );
+CREATE TABLE spamchannels
+(channelid bigint );
+CREATE TABLE leveling
+(messagecount bigint ,memberid bigint ,guildid bigint );
+CREATE TABLE snipelog
+(timedeletion timestamp without time zone ,embeds text ,content text ,username text ,channelid bigint );
+CREATE TABLE developer
+(bypass boolean ,userid bigint );
+CREATE TABLE logchannels
+(channelid bigint ,guildid bigint );
+CREATE TABLE botbuilds
+(buildchanges text ,buildname text ,buildtime timestamp without time zone );
+CREATE TABLE customcommands
+(commandoutput text ,commandname text ,guildid bigint );
+CREATE TABLE polls
+(messageid bigint );
+CREATE TABLE verifychannels
+(channelid bigint );
+CREATE TABLE levelconfig
+(messagecount bigint ,channelid bigint );
+CREATE TABLE musicchannel
+(channelid bigint ,guildid bigint );
+CREATE TABLE antiraid
+(channelid bigint ,guildid bigint );
+CREATE TABLE prefixes
+(prefix text ,guildid bigint );
+CREATE TABLE ticketchannels
+(emoji text ,roleid bigint ,messageid bigint ,channelid bigint );
+CREATE TABLE profanechannels
+(channelid bigint );
+CREATE TABLE linkchannels
+(channelid bigint );
+CREATE TABLE levelsettings
+(setting boolean ,channelid bigint );
+CREATE TABLE verifymsg
+(messageid bigint ,channelid bigint ,guildid bigint );
+CREATE TABLE pendingunmute
+(epochtime bigint ,reason text ,memberid bigint ,channelid bigint ,guildid bigint );
+CREATE TABLE leaderboard
+(mention text );
+CREATE TABLE cautionraid
+(guildid bigint );
+CREATE TABLE pendingunblacklist
+(epochtime bigint ,reason text ,memberid bigint ,channelid bigint ,guildid bigint );
+CREATE TABLE blacklistedusers
+(roleslist bigint[] ,userid bigint ,guildid bigint );
+CREATE TABLE mutedusers
+(roleslist bigint[] ,userid bigint ,guildid bigint );
+CREATE TABLE pendingtrivia
+(channelid bigint );
+CREATE TABLE warnings
+(messageid bigint ,warning text ,guildid bigint ,userid bigint );
+CREATE TABLE dankcmds
+(implemented boolean ,rawtext text );
+CREATE TABLE commandguildstatus
+(commandname text ,guildid bigint );
+CREATE TABLE riotaccount
+(accounttag text ,accountname text ,accountimage text ,accountregion text ,accountpuuid text ,discorduserid bigint );
+CREATE TABLE restrictedusers
+(epochtime bigint ,memberid bigint ,guildid bigint );
