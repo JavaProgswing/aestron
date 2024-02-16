@@ -42,7 +42,6 @@ from captcha.image import ImageCaptcha
 from discord import Color, Webhook
 from discord.ext import commands, tasks, bridge
 from discord.ext.commands import BucketType, bot
-from discord_together import DiscordTogether
 from dotenv import load_dotenv
 from googleapiclient import discovery
 from googlesearch import search as gsearch
@@ -7567,7 +7566,6 @@ async def take_screenshot(ctx, url, save_fn="capture.png"):
             raise commands.CommandError(
                 "The url provided to take a screenshot was invalid!"
             )
-            return
         elif isinstance(ex, selenium.common.exceptions.InvalidSessionIdException):
             options = webdriver.ChromeOptions()
             options.add_argument("--headless")
@@ -7583,7 +7581,6 @@ async def take_screenshot(ctx, url, save_fn="capture.png"):
             return
         else:
             raise ex
-            return
     try:
         browser.save_screenshot(save_fn)
     except:
@@ -11997,35 +11994,20 @@ class Support(commands.Cog):
             ctx.replymessage = refermsg
         except:
             pass
-        if not checkstaff(ctx.author):
-            ctxa = constructctx(ctx.guild, ctx.author, ctx.channel)
-            clienta = constructsafeclient(ctx.author)
-        else:
-            clienta = client
-            ctxa = ctx
-        if checkstaff(ctx.author):
-            f = StringIO()
-            e = StringIO()
-            directout = None
-            with redirect_stderr(e):
-                with redirect_stdout(f):
-                    try:
-                        directout = await aexec(code, ctxa)
-                    except Exception as ex:
-                        await on_command_error(ctx, ex, tracebackreq=True)
-                        return
-            if directout is None:
-                directout = ""
-            output = f.getvalue() + f" {directout}"
-            erroutput = e.getvalue()
-        else:
-            try:
-                directjson = await publicaexec(code, ctxa, clienta)
-                output = directjson["output"]
-                erroutput = directjson["erroutput"]
-            except Exception as ex:
-                await on_command_error(ctx, ex, tracebackreq=True)
-                return
+        f = StringIO()
+        e = StringIO()
+        directout = None
+        with redirect_stderr(e):
+            with redirect_stdout(f):
+                try:
+                    directout = await aexec(code, ctx)
+                except Exception as ex:
+                    await on_command_error(ctx, ex, tracebackreq=True)
+                    return
+        if directout is None:
+            directout = ""
+        output = f.getvalue() + f" {directout}"
+        erroutput = e.getvalue()
         embedtwo = discord.Embed(
             title=f"",
             description=(f"{client.user.name} executed your code."),
