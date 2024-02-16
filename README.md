@@ -99,10 +99,6 @@ CREATE TABLE riotseason (
 CREATE TABLE riotparsedmatches (id text PRIMARY KEY, data bytea);
 CREATE TABLE restrictedusers
 (epochtime bigint ,memberid bigint PRIMARY KEY,guildid bigint);
-CREATE TABLE riotseason (
-    act text,
-    episode text
-);
 CREATE TABLE mceconomy
 (memberid bigint PRIMARY KEY,balance bigint,inventory text);
 ```
