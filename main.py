@@ -455,8 +455,6 @@ async def get_guild_prefixid(guildid):
                 chars = "a!"
             else:
                 chars = prefixeslist["prefix"]
-                if chars == "None":
-                    chars = "a!"
         except:
             chars = "a!"
     else:
@@ -483,8 +481,6 @@ async def get_guild_prefix(guild):
                 chars = "a!"
             else:
                 chars = prefixeslist["prefix"]
-                if chars == "None":
-                    chars = "a!"
         except:
             chars = "a!"
     else:
@@ -1237,9 +1233,7 @@ async def get_prefix(client, message):
                         )
                     chars = "a!"
                 else:
-                    chars = prefixeslist[1]
-                    if chars == "None":
-                        chars = "a!"
+                    chars = prefixeslist["prefix"]
                 results = list(
                     map("".join, itertools.product(*zip(chars.upper(), chars.lower())))
                 )
@@ -14907,7 +14901,7 @@ async def on_guild_join(guild):
                 await con.execute(statement, guild.id, "a!")
             chars = "a!"
         else:
-            chars = prefixeslist[1]
+            chars = prefixeslist["prefix"]
         if not guild.id in guildids:
             guildids.append(guild.id)
         guildids.append(guild.id)
@@ -15770,22 +15764,20 @@ async def on_message(message):
                         await con.execute(statement, message.guild.id, "a!")
                     chars = "a!"
                 else:
-                    chars = prefixeslist[1]
-                    if chars == "None":
-                        chars = "a!"
+                    chars = prefixeslist["prefix"]
                 try:
                     await message.reply(
-                        f"My {message.guild} prefix is `{chars}` , do setprefix to change prefixes."
+                        f"My {message.guild} prefix is `{chars}`, do setprefix to change prefixes."
                     )
                 except:
                     await message.author.send(
-                        "I could not send it in the channel , I don't have send messages permission."
+                        "I could not send it in the channel, I don't have send messages permission."
                     )
                     await message.author.send(
-                        f"My {message.guild} prefix is `{chars}` , do setprefix to change prefixes."
+                        f"My {message.guild} prefix is `{chars}`, do setprefix to change prefixes."
                     )
             else:
-                await message.reply("My default dm prefix is `a!` .")
+                await message.reply("My default dm prefix is `a!`.")
         if debugCode:
             str_obj = io.StringIO()  # Retrieves a stream of data
             try:
