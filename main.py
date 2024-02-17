@@ -50,7 +50,6 @@ from PIL import Image, ImageDraw, ImageFont
 from selenium import webdriver
 from translate import Translator
 import enum
-import long_responses as long
 import pickle
 import sys
 import subprocess
@@ -58,6 +57,7 @@ import logging
 import wavelink
 from typing import cast
 from discord import app_commands
+
 
 def noglobal(f):
     return types.FunctionType(f.__code__, {}, argdefs=f.__defaults__)
@@ -84,6 +84,9 @@ onlystaffaccess = False
 maintenancemodereason = "fixing a bug"
 forcelogerrors = False
 firstgithubcheck = True
+customCog = None
+
+
 async def chatbotfetch(session, url):
     try:
         headers = {
@@ -179,6 +182,7 @@ forceexecstop = False
 afterchannelupdate = []
 beforechannelupdate = []
 
+
 def get_example(command, guild):
     commandDict = dict(command.clean_params)
     exStr = ""
@@ -214,17 +218,28 @@ def get_example(command, guild):
                 exStr = exStr + str(random.choice(guild.roles).mention)
             else:
                 exStr = exStr + "@rolename"
-        elif value == typing.Union[discord.channel.TextChannel, str] or value == discord.TextChannel:
+        elif (
+            value == typing.Union[discord.channel.TextChannel, str]
+            or value == discord.TextChannel
+        ):
             if len(guild.text_channels):
                 exStr = exStr + str(random.choice(guild.text_channels).mention)
             else:
                 exStr = exStr + "#textchannel"
-        elif value == typing.Union[discord.channel.VoiceChannel, str] or value == discord.VoiceChannel:
+        elif (
+            value == typing.Union[discord.channel.VoiceChannel, str]
+            or value == discord.VoiceChannel
+        ):
             if len(guild.voice_channels):
                 exStr = exStr + str(random.choice(guild.voice_channels).mention)
             else:
                 exStr = exStr + "#voicechannel"
-        elif value == typing.Union[discord.VoiceChannel, discord.TextChannel, discord.StageChannel]:
+        elif (
+            value
+            == typing.Union[
+                discord.VoiceChannel, discord.TextChannel, discord.StageChannel
+            ]
+        ):
             if len(guild.text_channels):
                 exStr = exStr + str(random.choice(guild.text_channels).mention)
             else:
@@ -258,7 +273,10 @@ def get_example(command, guild):
             elif key == "duration":
                 exStr = exStr + "10s"
             elif key == "avatarprovided":
-                exStr = exStr + "https://cdn.discordapp.com/avatars/1061480715172200498/89424d67ceb481fa6ad2613e3037ae43.png?size=1024"
+                exStr = (
+                    exStr
+                    + "https://cdn.discordapp.com/avatars/1061480715172200498/89424d67ceb481fa6ad2613e3037ae43.png?size=1024"
+                )
             elif key == "riotaccount":
                 exStr = exStr + "ValoName#Id"
             elif key == "copytemplate":
@@ -266,61 +284,62 @@ def get_example(command, guild):
             elif key == "list_members":
                 if len(guild.members):
                     exStr = (
-                            exStr
-                            + str(random.choice(guild.members))
-                            + " "
-                            + str(random.choice(guild.members))
-                            + " ..."
+                        exStr
+                        + str(random.choice(guild.members))
+                        + " "
+                        + str(random.choice(guild.members))
+                        + " ..."
                     )
                 else:
                     exStr = exStr + "Member-A Member-B ..."
             elif key == "list_users":
                 if len(guild.members):
                     exStr = (
-                            exStr
-                            + str(random.choice(guild.members))
-                            + " "
-                            + str(random.choice(guild.members))
-                            + " ..."
+                        exStr
+                        + str(random.choice(guild.members))
+                        + " "
+                        + str(random.choice(guild.members))
+                        + " ..."
                     )
                 else:
                     exStr = exStr + "Member-A Member-B ..."
             elif key == "list_textstagevoicechannels":
                 if len(guild.channels):
                     exStr = (
-                            exStr
-                            + str(random.choice(guild.channels))
-                            + " "
-                            + str(random.choice(guild.channels))
-                            + " ..."
+                        exStr
+                        + str(random.choice(guild.channels))
+                        + " "
+                        + str(random.choice(guild.channels))
+                        + " ..."
                     )
                 else:
                     exStr = exStr + "Channel-A VoiceChannel-B ..."
             elif key == "list_textchannels":
                 if len(guild.text_channels):
                     exStr = (
-                            exStr
-                            + str(random.choice(guild.text_channels))
-                            + " "
-                            + str(random.choice(guild.text_channels))
-                            + " ..."
+                        exStr
+                        + str(random.choice(guild.text_channels))
+                        + " "
+                        + str(random.choice(guild.text_channels))
+                        + " ..."
                     )
                 else:
                     exStr = exStr + "Channel-A Channel-B ..."
             elif key == "list_guilds":
                 if len(client.guilds):
                     exStr = (
-                            exStr
-                            + str(random.choice(client.guilds))
-                            + " "
-                            + str(random.choice(client.guilds))
-                            + " ..."
+                        exStr
+                        + str(random.choice(client.guilds))
+                        + " "
+                        + str(random.choice(client.guilds))
+                        + " ..."
                     )
                 else:
                     exStr = exStr + "Guild-A Guild-B" + " ..."
             else:
                 exStr = exStr + key
     return (exStr, optType)
+
 
 async def get_guild_prefixid(guildid):
     if guildid:
@@ -406,13 +425,13 @@ class MyHelp(commands.HelpCommand):
                 filcmds = await self.filter_commands(commands=commands, sort=True)
                 for cmd in filcmds:
                     if (
-                            cog == customCog
-                            and (
+                        cog == customCog
+                        and (
                             cmd.name == "addcommand"
                             or cmd.name == "removecommand"
                             or cmd.name == "customcommands"
-                    )
-                            or cog != customCog
+                        )
+                        or cog != customCog
                     ):
                         filteredcmds.append(cmd.name)
             except:
@@ -451,10 +470,12 @@ class MyHelp(commands.HelpCommand):
             icon_url=self.context.author.display_avatar,
         )
         view = DefaultHelp(filteredcmds, allcommands, self.context.author)
-        view.set_message(await self.context.send(
-            embed=embed,
-            view=view,
-        ))
+        view.set_message(
+            await self.context.send(
+                embed=embed,
+                view=view,
+            )
+        )
 
     # !help <command>
     async def send_command_help(self, commandname):
@@ -469,8 +490,8 @@ class MyHelp(commands.HelpCommand):
         exampleLine = example[0]
         if example[1]:
             exampleLine = (
-                    exampleLine
-                    + "\n\nNote: (OPT.) means that argument in the command is optional."
+                exampleLine
+                + "\n\nNote: (OPT.) means that argument in the command is optional."
             )
         embed.add_field(name="Usage", value=f"{prefix}{commandname} {exampleLine}")
         embed.add_field(name="Aliases", value=aliases)
@@ -482,7 +503,8 @@ class MyHelp(commands.HelpCommand):
         try:
             embed.set_image(url=f"attachment://{command.name}.gif")
             file = discord.File(
-                f"./commandusages/{command.name}.gif", filename=f"{command.name}.gif"
+                f"./resources/command_usages/{command.name}.gif",
+                filename=f"{command.name}.gif",
             )
             await channel.send(embed=embed, file=file)
             return
@@ -500,13 +522,13 @@ class MyHelp(commands.HelpCommand):
             exampleLine = example[0]
             if example[1]:
                 exampleLine = (
-                        exampleLine
-                        + "\n\nNote: **...** indicates all other members or channels or roles you want."
+                    exampleLine
+                    + "\n\nNote: **...** indicates all other members or channels or roles you want."
                 )
             if example[2]:
                 exampleLine = (
-                        exampleLine
-                        + "\n\nNote: (OPT.) means that argument in the command is optional."
+                    exampleLine
+                    + "\n\nNote: (OPT.) means that argument in the command is optional."
                 )
             embed.add_field(name=f"{prefix}{c.name} {exampleLine}", value=c.brief)
             aliases = ", ".join(c.aliases) + "** **"
@@ -574,14 +596,15 @@ class CommandHelpSelect(discord.ui.Select):
         exampleLine = example[0]
         if example[1]:
             exampleLine = (
-                    exampleLine
-                    + "\n\nNote: (OPT.) means that argument in the command is optional."
+                exampleLine
+                + "\n\nNote: (OPT.) means that argument in the command is optional."
             )
         embed.add_field(name="Usage", value=f"{prefix}{commandname} {exampleLine}")
         try:
             embed.set_image(url=f"attachment://{command.name}.gif")
             file = discord.File(
-                f"./commandusages/{command.name}.gif", filename=f"{command.name}.gif"
+                f"./resources/command_usages/{command.name}.gif",
+                filename=f"{command.name}.gif",
             )
             await interaction.response.send_message(
                 embed=embed, file=file, ephemeral=True
@@ -597,7 +620,7 @@ class CommandHelp(discord.ui.View):
         super().__init__(timeout=65)
         self.add_item(CommandHelpSelect(cog, author))
         self._message = None
-    
+
     def set_message(self, _message):
         self._message = _message
 
@@ -612,7 +635,7 @@ class CodingLanguageView(discord.ui.View):
         super().__init__(timeout=60)
         self.add_item(CodingLanguageSelect(code, author, channel))
         self._message = None
-    
+
     def set_message(self, _message):
         self._message = _message
 
@@ -857,12 +880,13 @@ class DefaultHelp(discord.ui.View):
         )
         self.add_item(self.currentSelectMenu)
         self._message = None
-    
+
     def set_message(self, _message):
         self._message = _message
 
     @discord.ui.button(
-        label="⚪Click to toggle(Showing your commands)", style=discord.ButtonStyle.green
+        label="⚪Click to toggle(Showing your commands)",
+        style=discord.ButtonStyle.green,
     )
     async def toggle(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.showAll = not self.showAll
@@ -1098,7 +1122,7 @@ class MCShop(discord.ui.View):
         super().__init__(timeout=120)
         self.add_item(MCShopSelect(author))
         self._message = None
-    
+
     def set_message(self, _message):
         self._message = _message
 
@@ -1154,6 +1178,7 @@ Dactivity = discord.Activity(
     name="@Aestron for commands.", type=discord.ActivityType.watching
 )
 
+
 async def runBot():
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
@@ -1172,7 +1197,9 @@ async def runBot():
     client.session = aiohttp.ClientSession()
     print(f"The session has been set to {client.session}")
     client.github_session = aiohttp.ClientSession()
-    nodes = [wavelink.Node(uri="http://192.168.29.64:27051/", password="youshallnotpass")]
+    nodes = [
+        wavelink.Node(uri="http://192.168.29.64:27051/", password="youshallnotpass")
+    ]
     await wavelink.Pool.connect(nodes=nodes, client=client, cache_capacity=None)
     if len(sys.argv) > 1 and sys.argv[1] == "restart":
         if len(sys.argv) > 2:
@@ -1208,6 +1235,7 @@ async def runBot():
     gitcommitcheck.start()
     client.start_status = BotStartStatus.COMPLETED
 
+
 class MyBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1217,8 +1245,10 @@ class MyBot(commands.Bot):
 
     async def setup_hook(self):
         self.loop.create_task(runBot())
-        
-    async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None:
+
+    async def on_wavelink_track_start(
+        self, payload: wavelink.TrackStartEventPayload
+    ) -> None:
         player: wavelink.Player | None = payload.player
         if not player:
             # Handle edge cases...
@@ -1226,49 +1256,49 @@ class MyBot(commands.Bot):
 
         original: wavelink.Playable | None = payload.original
         track: wavelink.Playable = payload.track
-        embed = discord.Embed(
-            title="",
-            description=f"Feat {track.artist.url}",
-            color=0x00FF00,
-        )
+        if track.artist.url is None:
+            embed = discord.Embed(
+                title="",
+                description=f"Feat {track.author}",
+                color=0x00FF00,
+            )
+        else:
+            embed = discord.Embed(
+                title="",
+                description=f"Feat [{track.author}]({track.artist.url})",
+                color=0x00FF00,
+            )
         if track.source == "youtube":
             embed.set_author(
-            name=track.title,
-            icon_url="https://cdn.discordapp.com/avatars/812967359312297994/2c234518e4889657d01fe7001cd52422.webp?size=128",
-        )
-            track.type_emoji = "<:youtube:947131039418052658>"
+                name=track.title,
+                icon_url="https://cdn.discordapp.com/avatars/812967359312297994/2c234518e4889657d01fe7001cd52422.webp?size=128",
+            )
         elif track.source == "spotify":
             embed.set_author(
-            name=track.title,
-            icon_url="https://cdn.discordapp.com/avatars/841279857879154689/0d77aa58a3f0a937f6c45b0305030562.png?size=128",
-        )
-            track.type_emoji = "<:spotify:947128614179205131>"
+                name=track.title,
+                icon_url="https://cdn.discordapp.com/avatars/841279857879154689/0d77aa58a3f0a937f6c45b0305030562.png?size=128",
+            )
         else:
             embed.set_author(
-            name=track.title,
-            icon_url="https://cdn.discordapp.com/avatars/879269940853612544/3b32d0d2b8eafc0d32cdeac99f9ece6f.png?size=128",
-        )
-            track.type_emoji = ":warning:"
-        
+                name=track.title,
+                icon_url="https://cdn.discordapp.com/avatars/879269940853612544/3b32d0d2b8eafc0d32cdeac99f9ece6f.png?size=128",
+            )
+
         if track.artwork:
             embed.set_image(url=track.artwork)
-
-        if track.album.name:
-            embed.add_field(name="Album", value=track.album.name)
 
         if original and original.recommended:
             embed.description += f"(Recommended)"
 
-        embed.set_footer(text=track.author)
         panel = Songpanel(player.home.guild, player.home, player)
-        panel.set_message(
-                await player.home.send(embed=embed, view=panel)
-            )
-        
+        panel.set_message(await player.home.send(embed=embed, view=panel))
+
+
 class BotStartStatus(enum.Enum):
     WAITING = 1
     PROCESSING = 2
     COMPLETED = 3
+
 
 client = MyBot(
     command_prefix=get_prefix,
@@ -1278,6 +1308,7 @@ client = MyBot(
     help_command=MyHelp(),
     strip_after_prefix=True,
 )
+
 
 class CustomFormatter(logging.Formatter):
     grey = "\x1b[38;20m"
@@ -1301,6 +1332,14 @@ class CustomFormatter(logging.Formatter):
         log_fmt = self.FORMATS.get(record.levelno)
         formatter = logging.Formatter(log_fmt)
         return formatter.format(record)
+
+
+def get_traceback(error):
+    etype = type(error)
+    trace = error.__traceback__
+    lines = traceback.format_exception(etype, error, trace)
+    traceback_text = "".join(lines)
+    return traceback_text
 
 
 client._BotBase__cogs = commands.core._CaseInsensitiveDict()
@@ -1405,6 +1444,7 @@ yourCode = ""
 listOfUrls = []
 disabledChannels = []
 
+
 async def playmusic(ctx, songname):
     """Play a song with the given query."""
     if not ctx.guild:
@@ -1417,7 +1457,9 @@ async def playmusic(ctx, songname):
         try:
             player = await ctx.author.voice.channel.connect(cls=wavelink.Player)  # type: ignore
         except AttributeError:
-            await ctx.send("Please join a voice channel first before using this command.")
+            await ctx.send(
+                "Please join a voice channel first before using this command."
+            )
             return
         except discord.ClientException:
             await ctx.send("I was unable to join this voice channel. Please try again.")
@@ -1427,13 +1469,15 @@ async def playmusic(ctx, songname):
     # enabled = AutoPlay will play songs for us and fetch recommendations...
     # partial = AutoPlay will play songs for us, but WILL NOT fetch recommendations...
     # disabled = AutoPlay will do nothing...
-    player.autoplay = wavelink.AutoPlayMode.disabled
+    player.autoplay = wavelink.AutoPlayMode.partial
 
     # Lock the player to this channel...
     if not hasattr(player, "home"):
         player.home = ctx.channel
     elif player.home != ctx.channel:
-        await ctx.send(f"You can only play songs in {player.home.mention}, as the player has already started there.")
+        await ctx.send(
+            f"You can only play songs in {player.home.mention}, as the player has already started there."
+        )
         return
 
     # This will handle fetching Tracks and Playlists...
@@ -1442,42 +1486,59 @@ async def playmusic(ctx, songname):
     # Defaults to YouTube for non URL based queries...
     tracks: wavelink.Search = await wavelink.Playable.search(songname)
     if not tracks:
-        await ctx.send(f"{ctx.author.mention} - Could not find any tracks with that query. Please try again.")
+        await ctx.send(
+            f"{ctx.author.mention} - Could not find any tracks with that query. Please try again."
+        )
         return
 
     if isinstance(tracks, wavelink.Playlist):
         for track in tracks:
-            track.extras = {"requester_id": ctx.author.id}
-        
+            track.extras = {
+                "requester_id": ctx.author.id,
+                "type_emoji": (
+                    "<:youtube:947131039418052658>"
+                    if track.source == "youtube"
+                    else (
+                        "<:spotify:947128614179205131>"
+                        if track.source == "spotify"
+                        else ":warning:"
+                    )
+                ),
+            }
         added: int = await player.queue.put_wait(tracks)
         embedVar = discord.Embed(
-                title=f"Added **{tracks.name}**({added} songs) to the queue.",
-                description=" ",
-                color=0x00FF00,
-            )
-        embedVar.set_author(
-            name=ctx.author.name, icon_url=ctx.author.display_avatar
+            title=f"Added **{tracks.name}**({added} songs) to the queue.",
+            description=" ",
+            color=0x00FF00,
         )
+        embedVar.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar)
         await ctx.send(embed=embedVar, ephemeral=True)
     else:
         track: wavelink.Playable = tracks[0]
-        track.extras = {"requester_id": ctx.author.id}
+        track.extras = {
+            "requester_id": ctx.author.id,
+            "type_emoji": (
+                "<:youtube:947131039418052658>"
+                if track.source == "youtube"
+                else (
+                    "<:spotify:947128614179205131>"
+                    if track.source == "spotify"
+                    else ":warning:"
+                )
+            ),
+        }
         await player.queue.put_wait(track)
         embedVar = discord.Embed(
-                title=f"Added **{track}** to the queue.",
-                description=" ",
-                color=0x00FF00,
-            )
-        embedVar.set_author(
-            name=ctx.author.name, icon_url=ctx.author.display_avatar
+            title=f"Added **{track}** to the queue.",
+            description=" ",
+            color=0x00FF00,
         )
+        embedVar.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar)
         await ctx.send(embed=embedVar, ephemeral=True)
 
     if not player.playing:
-        # Play now since we aren't playing anything...
-        latest_track = player.queue.get()
-        await player.play(latest_track)
-        
+        await player.play(player.queue.get())
+
 
 def songcheckperm(channel, member):
     if channel is None:
@@ -1500,26 +1561,26 @@ class Songpanel(discord.ui.View):
         label="⏸️", style=discord.ButtonStyle.green, custom_id="songpanel:playpause"
     )
     async def playpause(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         member = self.player.guild.get_member(self.player.current.extras.requester_id)
         if not interaction.user.id == member.id and not songcheckperm(
-                self.channel, interaction.user
+            self.channel, interaction.user
         ):
             await interaction.response.send_message(
                 "You have not invoked this song.", ephemeral=True
             )
             return
-        
+
         guild = self.guild
         player = self.player
-        if not player:
+        if not player or not player.current:
             await interaction.response.send_message(
-                    "You didn't request a song to be played that can be paused.",
-                    ephemeral=True,
-                )
+                "You didn't request a song to be played that can be paused.",
+                ephemeral=True,
+            )
             return
-        
+
         try:
             if player.paused:
                 button.label = "⏸️"
@@ -1558,27 +1619,27 @@ class Songpanel(discord.ui.View):
         label="⬆️", style=discord.ButtonStyle.green, custom_id="songpanel:volumeup"
     )
     async def volumeup(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         member = self.player.guild.get_member(self.player.current.extras.requester_id)
         if not interaction.user.id == member.id and not songcheckperm(
-                self.channel, interaction.user
+            self.channel, interaction.user
         ):
             await interaction.response.send_message(
                 "You have not invoked this song.", ephemeral=True
             )
             return
-        
+
         guild = self.guild
         player = self.player
-        if not player:
+        if not player or not player.current:
             await interaction.response.send_message(
                 "No music is being played currently.", ephemeral=True
             )
             return
-        
+
         try:
-            await player.set_volume(min(player.volume+5, 100))
+            await player.set_volume(min(player.volume + 5, 100))
             await interaction.response.send_message(
                 f"{interaction.user.mention} has changed 🔉 to {player.volume}.",
                 allowed_mentions=discord.AllowedMentions.none(),
@@ -1593,27 +1654,27 @@ class Songpanel(discord.ui.View):
         label="⬇️", style=discord.ButtonStyle.green, custom_id="songpanel:volumedown"
     )
     async def volumedown(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         member = self.player.guild.get_member(self.player.current.extras.requester_id)
         if not interaction.user.id == member.id and not songcheckperm(
-                self.channel, interaction.user
+            self.channel, interaction.user
         ):
             await interaction.response.send_message(
                 "You have not invoked this song.", ephemeral=True
             )
             return
-        
+
         guild = self.guild
         player = self.player
-        if not player:
+        if not player or not player.current:
             await interaction.response.send_message(
                 "No music is being played currently.", ephemeral=True
             )
             return
-        
+
         try:
-            await player.set_volume(max(player.volume-5, 0))
+            await player.set_volume(max(player.volume - 5, 0))
             await interaction.response.send_message(
                 f"{interaction.user.mention} has changed 🔉 to {player.volume}.",
                 allowed_mentions=discord.AllowedMentions.none(),
@@ -1630,12 +1691,12 @@ class Songpanel(discord.ui.View):
     async def queue(self, interaction: discord.Interaction, button: discord.ui.Button):
         guild = self.guild
         player = self.player
-        if not player:
+        if not player or not player.current:
             await interaction.response.send_message(
-                    "No songs are queued in this guild.", ephemeral=True
-                )
+                "No songs are playing in this guild.", ephemeral=True
+            )
             return
-        
+
         length = player.queue.count
         embedVar = discord.Embed(
             title=f"{guild} tracks", description="", color=0x00FF00
@@ -1646,8 +1707,8 @@ class Songpanel(discord.ui.View):
             count = count + 1
             song = player.queue.get_at(i)
             embedVar.description = (
-                    embedVar.description
-                    + f"{i + 1}. {song.type_emoji} [`{timedelta(seconds=song.length)}`] [{song.title}]({song.uri}) : <@{song.extras.requester_id}>\n"
+                embedVar.description
+                + f"{i + 1}. {song.extras.type_emoji} [`{timedelta(milliseconds=song.length)}`] [{song.title}]({song.uri}) : <@{song.extras.requester_id}>\n"
             )
             if count == 10:
                 listOfEmbeds.append(embedVar)
@@ -1658,19 +1719,28 @@ class Songpanel(discord.ui.View):
         if length < 10:
             listOfEmbeds.append(embedVar)
         pagview = PaginateEmbed(listOfEmbeds)
-        pagview.set_message(await interaction.response.send_message(
-            view=pagview, embed=listOfEmbeds[0], ephemeral=True
-        ))
-
+        pagview.set_message(
+            await interaction.response.send_message(
+                view=pagview, embed=listOfEmbeds[0], ephemeral=True
+            )
+        )
 
     @discord.ui.button(
         label="🎶", style=discord.ButtonStyle.green, custom_id="songpanel:lyrics"
     )
     async def lyrics(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if button.label == "🔙":
+            button.label = "🎶"
+            await interaction.response.defer(ephemeral=True)
+            await interaction.edit_original_response(
+                embed=self._message.embeds[0], view=self
+            )
+            return
+
         await interaction.response.defer(ephemeral=True)
         guild = self.guild
         player = self.player
-        if not player:
+        if not player or not player.current:
             return
 
         song = player.current
@@ -1707,9 +1777,10 @@ class Songpanel(discord.ui.View):
         except:
             pass
         try:
-            await interaction.edit_original_response(embed=embed)
+            button.label = "🔙"
+            await interaction.edit_original_response(embed=embed, view=self)
         except Exception as ex:
-            pass
+            print(get_traceback(ex))
 
     @discord.ui.button(
         label="🛑", style=discord.ButtonStyle.red, custom_id="songpanel:stop"
@@ -1727,7 +1798,7 @@ class Songpanel(discord.ui.View):
             return
         try:
             player = self.player
-            if not player:
+            if not player or not player.current:
                 return
 
             await player.disconnect()
@@ -1742,13 +1813,105 @@ class Songpanel(discord.ui.View):
                 "I am not connected to any voice channel.", ephemeral=True
             )
 
+    @discord.ui.button(
+        label="🔁", style=discord.ButtonStyle.red, custom_id="songpanel:loop"
+    )
+    async def loop(self, interaction: discord.Interaction, button: discord.ui.Button):
+        player = self.player
+        if not player or not player.current:
+            await interaction.response.send_message(
+                "No songs are queued in this guild.", ephemeral=True
+            )
+            return
+        if player.queue.mode == wavelink.QueueMode.normal:
+            player.queue.mode = wavelink.QueueMode.loop
+            await interaction.response.send_message(
+                f"{interaction.user.mention} enabled loop for the last song in queue."
+            )
+            button.label = "🔁"
+            button.style = discord.ButtonStyle.green
+            await self._message.edit(view=self)
+        elif player.queue.mode == wavelink.QueueMode.loop:
+            player.queue.mode = wavelink.QueueMode.loop_all
+            await interaction.response.send_message(
+                f"{interaction.user.mention} enabled loop for all songs in queue."
+            )
+            button.label = "🔁1️⃣"
+            button.style = discord.ButtonStyle.green
+            await self._message.edit(view=self)
+        else:
+            player.queue.mode = wavelink.QueueMode.normal
+            await interaction.response.send_message(
+                f"{interaction.user.mention} has disabled loop mode."
+            )
+            button.label = "🔁"
+            button.style = discord.ButtonStyle.red
+            await self._message.edit(view=self)
+
+    @discord.ui.button(
+        label="🔀", style=discord.ButtonStyle.green, custom_id="songpanel:shuffle"
+    )
+    async def shuffle(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        player = self.player
+        if not player or not player.current:
+            await interaction.response.send_message(
+                "No songs are queued in this guild.", ephemeral=True
+            )
+            return
+        player.queue.shuffle()
+        await interaction.response.send_message(
+            f"{interaction.user.mention} has shuffled the songs in queue!"
+        )
+
+    @discord.ui.button(
+        label="⏪", style=discord.ButtonStyle.green, custom_id="songpanel:backward"
+    )
+    async def backward(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        player = self.player
+        if not player or not player.current:
+            await interaction.response.send_message(
+                "No songs are queued in this guild.", ephemeral=True
+            )
+            return
+        if player.queue.history.count <= 1:
+            await interaction.response.send_message(
+                f"{interaction.user.mention} has played the previous song."
+            )
+            return
+        await player.play(player.queue.history[-2])
+        await interaction.response.send_message(
+            f"{interaction.user.mention} has played the previous song."
+        )
+
+    @discord.ui.button(
+        label="⏩", style=discord.ButtonStyle.green, custom_id="songpanel:forward"
+    )
+    async def forward(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        player = self.player
+        if not player or not player.current:
+            await interaction.response.send_message(
+                "No songs are queued in this guild.", ephemeral=True
+            )
+            return
+        await player.skip(force=True)
+        await interaction.response.send_message(
+            f"{interaction.user.mention} has played the next song."
+        )
+
+
 class Confirmpvp(discord.ui.View):
     def __init__(self, member):
         super().__init__(timeout=30)
         self.memberid = member
         self.value = None
         self._message = None
-    
+
     def set_message(self, _message):
         self._message = _message
 
@@ -1762,7 +1925,7 @@ class Confirmpvp(discord.ui.View):
     # We also send the user an ephemeral _message that we're confirming their choice.
     @discord.ui.button(label="⚔️Confirm", style=discord.ButtonStyle.green)
     async def confirm(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         if not interaction.user.id == self.memberid:
             await interaction.response.send_message(
@@ -1778,7 +1941,7 @@ class Confirmpvp(discord.ui.View):
     # This one is similar to the confirmation button except sets the inner value to `False`
     @discord.ui.button(label="🎌Decline", style=discord.ButtonStyle.red)
     async def decline(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         if not interaction.user.id == self.memberid:
             await interaction.response.send_message(
@@ -1804,7 +1967,7 @@ class ConfirmDecline(discord.ui.View):
 
     @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
     async def confirm(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         # await interaction.response.send_message('Confirming', ephemeral=True)
         if not interaction.channel.permissions_for(interaction.user).manage_guild:
@@ -1822,7 +1985,7 @@ class Confirm(discord.ui.View):
         super().__init__(timeout=60)
         self.value = None
         self._message = None
-    
+
     def set_message(self, _message):
         self._message = _message
 
@@ -1836,7 +1999,7 @@ class Confirm(discord.ui.View):
     # We also send the user an ephemeral message that we're confirming their choice.
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
     async def confirm(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         # await interaction.response.send_message('Confirming', ephemeral=True)
         if not checkstaff(interaction.user):
@@ -1876,14 +2039,6 @@ async def exception_catching_callback(task):
         traceback_text = get_traceback(error)
         embederror.add_field(name="Traceback: ", value=traceback_text)
         await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(embed=embederror)
-
-
-def get_traceback(error):
-    etype = type(error)
-    trace = error.__traceback__
-    lines = traceback.format_exception(etype, error, trace)
-    traceback_text = "".join(lines)
-    return traceback_text
 
 
 @client.event
@@ -1933,11 +2088,11 @@ async def on_application_command_error(ctx, error):
         exampleLine = example[0]
         if example[1]:
             exampleLine = (
-                    exampleLine
-                    + "\n\nNote: (OPT.) means that argument in the command is optional."
+                exampleLine
+                + "\n\nNote: (OPT.) means that argument in the command is optional."
             )
         errordata = (
-                errordata + f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
+            errordata + f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
         )
     if isinstance(error, commands.BadArgument):
         errordata = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
@@ -1945,11 +2100,11 @@ async def on_application_command_error(ctx, error):
         exampleLine = example[0]
         if example[1]:
             exampleLine = (
-                    exampleLine
-                    + "\n\nNote: (OPT.) means that argument in the command is optional."
+                exampleLine
+                + "\n\nNote: (OPT.) means that argument in the command is optional."
             )
         errordata = (
-                errordata + f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
+            errordata + f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
         )
     embedone = discord.Embed(
         title=f"🚫 Command Error ", description=errordata, color=Color.dark_red()
@@ -1987,14 +2142,22 @@ async def on_application_command_error(ctx, error):
     try:
         await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(embed=embederror)
     except:
-        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"Command : {ctx.command}.")
-        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"🚫 Error occured ({type(error)}) : **{error}**")
-        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"Traceback: {traceback_text}")
+        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
+            f"Command : {ctx.command}."
+        )
+        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
+            f"🚫 Error occured ({type(error)}) : **{error}**"
+        )
+        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
+            f"Traceback: {traceback_text}"
+        )
         await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
             f"Member: {ctx.author.mention} ({ctx.author.name})"
         )
         if ctx.guild:
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"Guild : {ctx.guild}")
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
+                f"Guild : {ctx.guild}"
+            )
     try:
         errorMsg = await ctx.send(embed=embedone, ephemeral=True)
     except:
@@ -2003,7 +2166,7 @@ async def on_application_command_error(ctx, error):
 
 @client.event
 async def on_command_error(
-        ctx, error, tracebackreq=False, forcelog=forcelogerrors, userlog=True
+    ctx, error, tracebackreq=False, forcelog=forcelogerrors, userlog=True
 ):
     # logger.warning(f"Error {error} in {ctx.command} command.")
     # logger.warning(get_traceback(error))
@@ -2038,7 +2201,7 @@ async def on_command_error(
     if isinstance(error, commands.CommandNotFound):
         return
     if isinstance(error, commands.CheckAnyFailure) or isinstance(
-            error, commands.CheckFailure
+        error, commands.CheckFailure
     ):
         try:
             errordata = error.errors[0]
@@ -2049,11 +2212,13 @@ async def on_command_error(
         if str(ctx.author.id) in tempbotowners:
             view = Confirm()
             embed = discord.Embed(title="Command sent", description=ctx.message.content)
-            view.set_message(statmsg:=await client.get_channel(CHANNEL_DEV_ID).send(
-                f"(Missing perms) Temporary bot staff ({ctx.author.id}) : {ctx.author.mention} wrote *MESSAGE BELOW* ({ctx.command}) in {ctx.guild}.",
-                view=view,
-                embed=embed,
-            ))
+            view.set_message(
+                statmsg := await client.get_channel(CHANNEL_DEV_ID).send(
+                    f"(Missing perms) Temporary bot staff ({ctx.author.id}) : {ctx.author.mention} wrote *MESSAGE BELOW* ({ctx.command}) in {ctx.guild}.",
+                    view=view,
+                    embed=embed,
+                )
+            )
             # Wait for the View to stop listening for input...
             await view.wait()
             if view.value is None:
@@ -2067,7 +2232,7 @@ async def on_command_error(
         else:
             errordata = "You do not have permission to run this command."
     if isinstance(error, commands.errors.CommandError) or isinstance(
-            error, NoCooldownError
+        error, NoCooldownError
     ):
         errordata = error
     else:
@@ -2093,11 +2258,13 @@ async def on_command_error(
         if str(ctx.author.id) in tempbotowners:
             view = Confirm()
             embed = discord.Embed(title="Command sent", description=ctx.message.content)
-            view.set_message(statmsg:=await client.get_channel(CHANNEL_DEV_ID).send(
-                f"(Missing perms) Temporary bot staff ({ctx.author.id}) : {ctx.author.mention} wrote *MESSAGE BELOW* ({ctx.command}) in {ctx.guild}.",
-                view=view,
-                embed=embed,
-            ))
+            view.set_message(
+                statmsg := await client.get_channel(CHANNEL_DEV_ID).send(
+                    f"(Missing perms) Temporary bot staff ({ctx.author.id}) : {ctx.author.mention} wrote *MESSAGE BELOW* ({ctx.command}) in {ctx.guild}.",
+                    view=view,
+                    embed=embed,
+                )
+            )
             # Wait for the View to stop listening for input...
             await view.wait()
             if view.value is None:
@@ -2117,11 +2284,11 @@ async def on_command_error(
         exampleLine = example[0]
         if example[1]:
             exampleLine = (
-                    exampleLine
-                    + "\n\nNote: (OPT.) means that argument in the command is optional."
+                exampleLine
+                + "\n\nNote: (OPT.) means that argument in the command is optional."
             )
         errordata = (
-                errordata + f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
+            errordata + f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
         )
     if isinstance(error, commands.BadArgument):
         errordata = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
@@ -2129,11 +2296,11 @@ async def on_command_error(
         exampleLine = example[0]
         if example[1]:
             exampleLine = (
-                    exampleLine
-                    + "\n\nNote: (OPT.) means that argument in the command is optional."
+                exampleLine
+                + "\n\nNote: (OPT.) means that argument in the command is optional."
             )
         errordata = (
-                errordata + f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
+            errordata + f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
         )
     if isinstance(error, commands.CommandOnCooldown):
         sendTimer = error.retry_after
@@ -2142,8 +2309,8 @@ async def on_command_error(
         else:
             sendTimer = int(sendTimer)
         if (
-                commands.BucketType.user == error.type
-                or commands.BucketType.member == error.type
+            commands.BucketType.user == error.type
+            or commands.BucketType.member == error.type
         ):
             errordata = f"You tried doing {ctx.command} , you can use this command in {sendTimer}s."
         elif commands.BucketType.guild == error.type:
@@ -2222,7 +2389,7 @@ async def on_command_error(
         verifylist = await con.fetchrow(
             f"SELECT * FROM verifychannels WHERE channelid = {ctx.channel.id}"
         )
-    if verifylist is not None:
+    if verifylist:
         verifyDelete = True
         try:
             await ctx.message.delete()
@@ -2239,15 +2406,25 @@ async def on_command_error(
                     ),
                 )
         except:
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"Command : {ctx.command}.")
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"🚫 Error occured ({type(error)})")
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
+                f"Command : {ctx.command}."
+            )
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
+                f"🚫 Error occured ({type(error)})"
+            )
             await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"**{error}**")
             await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
                 f"Member: {ctx.author.mention} ({ctx.author.name})"
             )
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"Message: ({messageid})")
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"Guild : {ctx.guild}")
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"Traceback: {traceback_text}")
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
+                f"Message: ({messageid})"
+            )
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
+                f"Guild : {ctx.guild}"
+            )
+            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
+                f"Traceback: {traceback_text}"
+            )
     try:
         if not isSlashCmd:
             if userlog:
@@ -2274,9 +2451,9 @@ async def on_command_error(
                 pass
     except Exception as ex:
         if (
-                isinstance(ex, discord.Forbidden)
-                or isinstance(ex, commands.MissingPermissions)
-                or isinstance(ex, commands.BotMissingPermissions)
+            isinstance(ex, discord.Forbidden)
+            or isinstance(ex, commands.MissingPermissions)
+            or isinstance(ex, commands.BotMissingPermissions)
         ):
             if userlog:
                 await ctx.send(
@@ -2353,11 +2530,11 @@ async def loginfo(logguild, title, description, changes):
         logchannellist = await con.fetchrow(
             f"SELECT * FROM logchannels WHERE guildid = {logguild.id}"
         )
-    if not logchannellist is None:
-        channelid = logchannellist[1]
+    if logchannellist:
+        channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
     msgsent = None
-    if not logchannel is None:
+    if logchannel:
         embed = discord.Embed(title=title, description=description, color=Color.blue())
         embed.add_field(name="** **", value=changes)
         msgsent = await logchannel.send(embed=embed)
@@ -2508,9 +2685,9 @@ def buySequence(items, bal, result):
         for itemA in items:
             if itemA.cost <= bal:
                 if isinstance(itemA, Armor) and (
-                        Armor("No shields", 0) in items
-                        or Armor("Heavy shields", 1000) in items
-                        or Armor("Light shields", 400) in items
+                    Armor("No shields", 0) in items
+                    or Armor("Heavy shields", 1000) in items
+                    or Armor("Light shields", 400) in items
                 ):
                     continue
                 result = result + itemA.name + ","
@@ -2747,7 +2924,9 @@ async def valorantSeasonCheck():
         async with pool.acquire() as con:
             results = f"UPDATE riotseason SET act = $1 , episode = $2 WHERE act = $3 AND episode = $4"
             await con.execute(results, currentAct, currentEpisode, oldAct, oldEpisode)
-        await client.get_channel(CHANNEL_DEV_ID).send("Season update detected, resetting data!")
+        await client.get_channel(CHANNEL_DEV_ID).send(
+            "Season update detected, resetting data!"
+        )
         async with pool.acquire() as con:
             await con.execute(f"DELETE FROM riotmatches")
 
@@ -2813,7 +2992,7 @@ def check_ensure_permissions(ctx, member, perms):
 @tasks.loop(seconds=15)
 async def gitcommitcheck():
     global firstgithubcheck
-    if(firstgithubcheck):
+    if firstgithubcheck:
         await asyncio.sleep(15)
         firstgithubcheck = False
         print(f"Github checks started!")
@@ -2822,12 +3001,12 @@ async def gitcommitcheck():
 
     session = client.github_session
     async with session.get(
-            f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/commits",
-            headers={
-                "Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-            },
+        f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/commits",
+        headers={
+            "Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
     ) as response:
         if response.status == 200:
             response_json = await response.json()
@@ -2837,17 +3016,29 @@ async def gitcommitcheck():
                 githubcommitinfo = await con.fetchrow(
                     f"SELECT * FROM githubcommits WHERE userid = '{client.user.id}'"
                 )
-            if githubcommitinfo is None or githubcommitinfo["latestcommitsha"] != commitsha:
+            if (
+                githubcommitinfo is None
+                or githubcommitinfo["latestcommitsha"] != commitsha
+            ):
                 results = f"INSERT INTO githubcommits (userid, latestcommitsha) VALUES($1, $2) ON CONFLICT (userid) DO UPDATE SET latestcommitsha = EXCLUDED.latestcommitsha;"
                 async with pool.acquire() as con:
                     await con.execute(results, str(client.user.id), commitsha)
                 await client.get_channel(CHANNEL_DEV_ID).send(
                     f"New commit detected! {commiturl}, restarting..."
                 )
-                files = ["main.py","requirements.txt","cookies.txt",".env","github.env","database.env"]
+                files = [
+                    "main.py",
+                    "requirements.txt",
+                    "cookies.txt",
+                    ".env",
+                    "github.env",
+                    "database.env",
+                ]
                 changed_files = compare_local_remote_git_repo(files)
                 if len(changed_files) == 0:
-                    await client.get_channel(CHANNEL_DEV_ID).send("No file changes detected.")
+                    await client.get_channel(CHANNEL_DEV_ID).send(
+                        "No file changes detected."
+                    )
                 else:
                     await client.get_channel(CHANNEL_DEV_ID).send(
                         f"Files changed: {', '.join(map(lambda x: x[0], changed_files))}"
@@ -2862,7 +3053,7 @@ async def gitcommitcheck():
                 for view in sync_views:
                     viewobj = sync_views[view]
                     if viewobj._message:
-                        viewobj.disable_all_items()
+                        await viewobj.on_timeout()
                         try:
                             await viewobj._message.edit(view=viewobj)
                         except:
@@ -2875,10 +3066,12 @@ async def gitcommitcheck():
                 await asyncio.sleep(3)
                 os._exit(1)
 
+
 def convertSec(seconds):
     min, sec = divmod(seconds, 60)
     hour, min = divmod(min, 60)
     return "%dh %02dm %02ds" % (hour, min, sec)
+
 
 async def mutetimer(ctx, timecount, mutedmember, reason=None):
     await asyncio.sleep(timecount)
@@ -2906,8 +3099,8 @@ async def mutetimer(ctx, timecount, mutedmember, reason=None):
             mutedlist = await con.fetchrow(
                 f"SELECT * FROM mutedusers where userid = {mutedmember.id} AND guildid = {mutedmember.guild.id}"
             )
-    if not mutedlist == None:
-        for roleid in mutedlist[2]:
+    if mutedlist:
+        for roleid in mutedlist["roleslist"]:
             roleobj = ctx.guild.get_role(roleid)
             try:
                 await mutedmember.add_roles(roleobj)
@@ -2967,8 +3160,8 @@ async def blacklisttimer(ctx, timecount, blacklistedmember, reason=None):
         mutedlist = await con.fetchrow(
             f"SELECT * FROM blacklistedusers where userid = {blacklistedmember.id} AND guildid = {blacklistedmember.guild.id}"
         )
-    if not mutedlist == None:
-        for roleid in mutedlist[2]:
+    if mutedlist:
+        for roleid in mutedlist["roleslist"]:
             roleobj = ctx.guild.get_role(roleid)
             try:
                 await blacklistedmember.add_roles(roleobj)
@@ -3016,7 +3209,7 @@ async def shutdown(ctx):
     for view in sync_views:
         viewobj = sync_views[view]
         if viewobj._message:
-            viewobj.disable_all_items()
+            await viewobj.on_timeout()
             try:
                 await viewobj._message.edit(view=viewobj)
             except:
@@ -3068,7 +3261,14 @@ def compare_local_remote_git_repo(files):
 @is_bot_staff()
 async def restartlatestcommit(ctx, *, files=None):
     if files is None:
-        files = ["main.py","requirements.txt","cookies.txt",".env","github.env","database.env"]
+        files = [
+            "main.py",
+            "requirements.txt",
+            "cookies.txt",
+            ".env",
+            "github.env",
+            "database.env",
+        ]
     else:
         files = files.split(",")
     await ctx.send("Restarting to latest commit...")
@@ -3089,7 +3289,7 @@ async def restartlatestcommit(ctx, *, files=None):
     for view in sync_views:
         viewobj = sync_views[view]
         if viewobj._message:
-            viewobj.disable_all_items()
+            await viewobj.on_timeout()
             try:
                 await viewobj._message.edit(view=viewobj)
             except:
@@ -3113,7 +3313,7 @@ async def restart(ctx):
     for view in sync_views:
         viewobj = sync_views[view]
         if viewobj._message:
-            viewobj.disable_all_items()
+            await viewobj.on_timeout()
             try:
                 await viewobj._message.edit(view=viewobj)
             except:
@@ -3147,9 +3347,9 @@ class AestronInfo(commands.Cog):
             commandUsages = []
             for i in range(9):
                 if i != 0:
-                    currentPath = f"./commandusages/{command}_{i}.gif"
+                    currentPath = f"./resources/command_usages/{command}_{i}.gif"
                 else:
-                    currentPath = f"./commandusages/{command}.gif"
+                    currentPath = f"./resources/command_usages/{command}.gif"
                 if os.path.exists(currentPath):
                     commandUsages.append(currentPath)
             embeds = []
@@ -3162,8 +3362,8 @@ class AestronInfo(commands.Cog):
                 exampleLine = example[0]
                 if example[1]:
                     exampleLine = (
-                            exampleLine
-                            + "\n\nNote: (OPT.) means that argument in the command is optional."
+                        exampleLine
+                        + "\n\nNote: (OPT.) means that argument in the command is optional."
                     )
                 try:
                     prefix = ctx.prefix
@@ -3176,9 +3376,11 @@ class AestronInfo(commands.Cog):
                 embeds.append(embedVar)
                 files.append(discord.File(commandUsage, filename=f"{commandUsage}.gif"))
             pagview = PaginateFileEmbed(embeds, files)
-            pagview.set_message(await ctx.send(
-                embed=embeds[0], file=files[0], view=pagview, ephemeral=True
-            ))
+            pagview.set_message(
+                await ctx.send(
+                    embed=embeds[0], file=files[0], view=pagview, ephemeral=True
+                )
+            )
 
         else:
             await on_command_error(
@@ -3242,6 +3444,7 @@ class AestronInfo(commands.Cog):
         except:
             pass
 
+
 def ismuted(ctx, member):
     muterole = discord.utils.get(ctx.guild.roles, name="muted")
     if muterole is None:
@@ -3257,6 +3460,7 @@ class Moderation(commands.Cog):
     """Moderation commands."""
 
     async def cog_load(self):
+        await client.wait_until_ready()
         async with pool.acquire() as con:
             restricts = await con.fetch(f"SELECT * FROM restrictedUsers")
             for res in restricts:
@@ -3316,7 +3520,9 @@ class Moderation(commands.Cog):
                 asyncio.ensure_future(mutetimer(ctx, 0, member, reason=reason))
             else:
                 asyncio.ensure_future(
-                    mutetimer(ctx, (epochtime - currentepochtime), member, reason=reason)
+                    mutetimer(
+                        ctx, (epochtime - currentepochtime), member, reason=reason
+                    )
                 )
         async with pool.acquire() as con:
             pendingunblacklists = await con.fetch(f"SELECT * FROM pendingunblacklist")
@@ -3378,14 +3584,14 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_guild=True))
     async def lock(
-            self,
-            ctx,
-            channel: typing.Union[
-                discord.VoiceChannel, discord.TextChannel, discord.StageChannel
-            ],
-            reason: str = "no reason provided",
-            role: discord.Role = None,
-            duration: str = None,
+        self,
+        ctx,
+        channel: typing.Union[
+            discord.VoiceChannel, discord.TextChannel, discord.StageChannel
+        ],
+        reason: str = "no reason provided",
+        role: discord.Role = None,
+        duration: str = None,
     ):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         if channel.guild != ctx.guild:
@@ -3473,13 +3679,13 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_guild=True))
     async def unlock(
-            self,
-            ctx,
-            channel: typing.Union[
-                discord.VoiceChannel, discord.TextChannel, discord.StageChannel
-            ],
-            reason: str = "no reason provided",
-            role: discord.Role = None,
+        self,
+        ctx,
+        channel: typing.Union[
+            discord.VoiceChannel, discord.TextChannel, discord.StageChannel
+        ],
+        reason: str = "no reason provided",
+        role: discord.Role = None,
     ):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_guild"])
         if channel.guild != ctx.guild:
@@ -3529,11 +3735,11 @@ class Moderation(commands.Cog):
                 f"SELECT * FROM snipelog where channelid = {ctx.channel.id}"
             )
         if snipelist is not None:
-            username = snipelist[1]
-            content = snipelist[2]
-            jsonembeds = snipelist[3]
+            username = snipelist["username"]
+            content = snipelist["content"]
+            jsonembeds = snipelist["embeds"]
             jsonembeds = json.loads(jsonembeds)
-            timeembed = snipelist[4]
+            timeembed = snipelist["timedeletion"]
             if not "1" in jsonembeds:
                 embedDeleted = discord.Embed.from_dict(jsonembeds)
             listofsentence = [content]
@@ -3657,7 +3863,7 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_messages=True))
     async def purge(
-            self, ctx, numberstr: int, list_members: str = None, *, reason: str = None
+        self, ctx, numberstr: int, list_members: str = None, *, reason: str = None
     ):
         check_ensure_permissions(
             ctx, ctx.guild.me, ["manage_messages", "read_message_history"]
@@ -3741,7 +3947,7 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_roles=True))
     async def blacklist(
-            self, ctx, list_members: str, timenum: str = None, *, reason: str = None
+        self, ctx, list_members: str, timenum: str = None, *, reason: str = None
     ):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
         global currentlyblacklisting
@@ -3759,11 +3965,11 @@ class Moderation(commands.Cog):
                 continue
             currentlyblacklisting.append(member.id)
             if (
-                    ctx.author.top_role <= member.top_role
-                    and not checkstaff(ctx.author)
-                    and not ctx.author.bot
-                    and not ctx.author == member
-                    and not ctx.author.id == ctx.guild.owner.id
+                ctx.author.top_role <= member.top_role
+                and not checkstaff(ctx.author)
+                and not ctx.author.bot
+                and not ctx.author == member
+                and not ctx.author.id == ctx.guild.owner.id
             ):
                 await on_command_error(
                     ctx,
@@ -3965,11 +4171,11 @@ class Moderation(commands.Cog):
                 continue
             currentlyunblacklisting.append(blacklistedmember.id)
             if (
-                    ctx.author.top_role <= blacklistedmember.top_role
-                    and not checkstaff(ctx.author)
-                    and not ctx.author.bot
-                    and not ctx.author == blacklistedmember
-                    and not ctx.author.id == ctx.guild.owner.id
+                ctx.author.top_role <= blacklistedmember.top_role
+                and not checkstaff(ctx.author)
+                and not ctx.author.bot
+                and not ctx.author == blacklistedmember
+                and not ctx.author.id == ctx.guild.owner.id
             ):
                 await on_command_error(
                     ctx,
@@ -4012,8 +4218,8 @@ class Moderation(commands.Cog):
                 mutedlist = await con.fetchrow(
                     f"SELECT * FROM blacklistedusers where userid = {blacklistedmember.id} AND guildid = {blacklistedmember.guild.id}"
                 )
-            if not mutedlist == None:
-                for roleid in mutedlist[2]:
+            if mutedlist:
+                for roleid in mutedlist["roleslist"]:
                     roleobj = ctx.guild.get_role(roleid)
                     try:
                         await blacklistedmember.add_roles(roleobj)
@@ -4087,11 +4293,11 @@ class Moderation(commands.Cog):
             raise commands.BadArgument("Nothing")
         for member in members:
             if (
-                    ctx.author.top_role <= member.top_role
-                    and not checkstaff(ctx.author)
-                    and not ctx.author.bot
-                    and not ctx.author == member
-                    and not ctx.author.id == ctx.guild.owner.id
+                ctx.author.top_role <= member.top_role
+                and not checkstaff(ctx.author)
+                and not ctx.author.bot
+                and not ctx.author == member
+                and not ctx.author.id == ctx.guild.owner.id
             ):
                 await on_command_error(
                     ctx,
@@ -4166,7 +4372,9 @@ class Moderation(commands.Cog):
             if not loopexited:
                 embedlist.append(embed)
             pagview = PaginateEmbed(embedlist)
-            pagview.set_message(await ctx.send(view=pagview, embed=embedlist[0], ephemeral=True))
+            pagview.set_message(
+                await ctx.send(view=pagview, embed=embedlist[0], ephemeral=True)
+            )
 
     @commands.hybrid_command(
         brief="This command (mutes)prevents user from sending messages in any channel.",
@@ -4175,7 +4383,7 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_roles=True))
     async def mute(
-            self, ctx, list_members: str, timenum: str = None, *, reason: str = None
+        self, ctx, list_members: str, timenum: str = None, *, reason: str = None
     ):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
         global currentlymuting
@@ -4195,11 +4403,11 @@ class Moderation(commands.Cog):
                 continue
             currentlymuting.append(member.id)
             if (
-                    ctx.author.top_role <= member.top_role
-                    and not checkstaff(ctx.author)
-                    and not ctx.author.bot
-                    and not ctx.author == member
-                    and not ctx.author.id == ctx.guild.owner.id
+                ctx.author.top_role <= member.top_role
+                and not checkstaff(ctx.author)
+                and not ctx.author.bot
+                and not ctx.author == member
+                and not ctx.author.id == ctx.guild.owner.id
             ):
                 await on_command_error(
                     ctx,
@@ -4424,11 +4632,11 @@ class Moderation(commands.Cog):
                 continue
             currentlyunmuting.append(mutedmember.id)
             if (
-                    ctx.author.top_role <= mutedmember.top_role
-                    and not checkstaff(ctx.author)
-                    and not ctx.author.bot
-                    and not ctx.author == mutedmember
-                    and not ctx.author.id == ctx.guild.owner.id
+                ctx.author.top_role <= mutedmember.top_role
+                and not checkstaff(ctx.author)
+                and not ctx.author.bot
+                and not ctx.author == mutedmember
+                and not ctx.author.id == ctx.guild.owner.id
             ):
                 await on_command_error(
                     ctx,
@@ -4476,8 +4684,8 @@ class Moderation(commands.Cog):
                 mutedlist = await con.fetchrow(
                     f"SELECT * FROM mutedusers where userid = {mutedmember.id} AND guildid = {mutedmember.guild.id}"
                 )
-            if not mutedlist == None:
-                for roleid in mutedlist[2]:
+            if mutedlist:
+                for roleid in mutedlist["roleslist"]:
                     roleobj = ctx.guild.get_role(roleid)
                     try:
                         await mutedmember.add_roles(roleobj)
@@ -4638,10 +4846,10 @@ class Moderation(commands.Cog):
         bannedmembers = await ctx.guild.bans(limit=None).flatten()
         for member in members:
             if (
-                    ctx.author.top_role <= member.top_role
-                    and not checkstaff(ctx.author)
-                    and not ctx.author.bot
-                    and not ctx.author.id == ctx.guild.owner.id
+                ctx.author.top_role <= member.top_role
+                and not checkstaff(ctx.author)
+                and not ctx.author.bot
+                and not ctx.author.id == ctx.guild.owner.id
             ):
                 await on_command_error(
                     ctx,
@@ -4722,10 +4930,10 @@ class Moderation(commands.Cog):
             raise commands.BadArgument("Nothing")
         for member in members:
             if (
-                    ctx.author.top_role <= member.top_role
-                    and not checkstaff(ctx.author)
-                    and not ctx.author.bot
-                    and not ctx.author.id == ctx.guild.owner.id
+                ctx.author.top_role <= member.top_role
+                and not checkstaff(ctx.author)
+                and not ctx.author.bot
+                and not ctx.author.id == ctx.guild.owner.id
             ):
                 await on_command_error(
                     ctx,
@@ -4777,6 +4985,7 @@ class Moderation(commands.Cog):
             embed.add_field(name="Reason", value=reason)
             await ctx.send(embed=embed, ephemeral=True)
 
+
 class Logging(commands.Cog):
     """Logs guild events such as channel/guild/role creation , deletion , edit ."""
 
@@ -4785,6 +4994,7 @@ class Logging(commands.Cog):
             guilds = await con.fetch(f"SELECT * FROM cautionraid")
         for guild in guilds:
             await removeguildcaution(guild["guildid"])
+
     @commands.hybrid_command(
         brief="This command removes the logging channel in a guild.",
         description="This command removes the logging channel in a guild(requires manage guild).",
@@ -4928,6 +5138,7 @@ class Logging(commands.Cog):
             f"Successfully set logging channel of {ctx.guild} to {channel.mention}.",
             ephemeral=True,
         )
+
 
 class AutoMod(commands.Cog):
     """Auto moderation settings for various purposes."""
@@ -5297,6 +5508,7 @@ class AutoMod(commands.Cog):
         if not loopexited:
             await ctx.send(embed=embed, ephemeral=True)
 
+
 def gencharstr(N, ch):
     res = ""
     for i in range(N):
@@ -5307,7 +5519,7 @@ def gencharstr(N, ch):
 def genvalidatecode(code):
     import hashlib
 
-    codehash = int(hashlib.sha256(code.encode("utf-8")).hexdigest(), 16) % 10 ** 8
+    codehash = int(hashlib.sha256(code.encode("utf-8")).hexdigest(), 16) % 10**8
     epochhash = int(time.time()) // 30
     random.seed(codehash + epochhash)
     return random.random()
@@ -5360,7 +5572,7 @@ class Templates(commands.Cog):
         try:
             await ctx.author.send(embed=embed)
         except:
-            f = discord.File("./dmEnable.png", filename="dmEnable.png")
+            f = discord.File("./resources/common/dmEnable.jpg", filename="dmEnable.jpg")
             e = discord.Embed(
                 title=f"Dms disabled",
                 description="Kindly enable your dms for sending the template.",
@@ -5368,7 +5580,7 @@ class Templates(commands.Cog):
             e.add_field(
                 name="Command author", value=f"{ctx.author.mention}", inline=False
             )
-            e.set_image(url="attachment://dmEnable.png")
+            e.set_image(url="attachment://dmEnable.jpg")
             mentionMes = await ctx.send(ctx.author.mention, ephemeral=True)
             await asyncio.sleep(1)
             await mentionMes.delete()
@@ -5396,7 +5608,7 @@ class Templates(commands.Cog):
         except:
             try:
                 lastindex = copytemplate.rindex("/")
-                thecode = copytemplate[lastindex + 1:]
+                thecode = copytemplate[lastindex + 1 :]
             except:
                 thecode = copytemplate
             if thecode is None:
@@ -5460,7 +5672,7 @@ class Templates(commands.Cog):
                         f"(Role) {role.name} was not deleted as its punishment role.\n"
                     )
                 elif (not role in ctx.guild.me.roles) and (
-                        not ctx.guild.default_role == role
+                    not ctx.guild.default_role == role
                 ):
                     await role.delete()
                     changesstrDel = changesstrDel + (f"(Role) {role.name} deleted.\n")
@@ -5655,6 +5867,7 @@ class Templates(commands.Cog):
             for channelloop in guild.channels:
                 await channelloop.set_permissions(blacklistrole, view_channel=False)
 
+
 class SupportTicket(commands.Cog):
     """Creates a support ticket for a member and can be customized ."""
 
@@ -5667,13 +5880,13 @@ class SupportTicket(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_guild=True))
     async def createticketpanel(
-            self,
-            ctx,
-            channelname: discord.TextChannel,
-            supportrole: discord.Role = None,
-            reaction: str = None,
-            *,
-            supportmessage: str = None,
+        self,
+        ctx,
+        channelname: discord.TextChannel,
+        supportrole: discord.Role = None,
+        reaction: str = None,
+        *,
+        supportmessage: str = None,
     ):
         check_ensure_permissions(
             ctx,
@@ -5713,7 +5926,7 @@ class SupportTicket(commands.Cog):
             ticketlist = await con.fetchrow(
                 f"SELECT * FROM ticketchannels WHERE channelid = {channel.id}"
             )
-        if not ticketlist == None:
+        if ticketlist:
             async with pool.acquire() as con:
                 await con.execute(
                     f"DELETE FROM ticketchannels WHERE channelid = {channel.id}"
@@ -5727,6 +5940,7 @@ class SupportTicket(commands.Cog):
             f"The channel ({channel.mention}) was successfully created as a ticket panel.",
             ephemeral=True,
         )
+
 
 async def lockticket(user, userone, supportchannel):
     overw = supportchannel.overwrites
@@ -5883,8 +6097,14 @@ class Verification(discord.ui.View):
             return
         captchaMessage = randStr()
         image = ImageCaptcha()
-        image.write(captchaMessage, "captcha.png")
-        f = discord.File("./captcha.png", filename="captcha.png")
+        image.write(
+            captchaMessage,
+            f"./resources/temp/captcha_{interaction.user.id}_{interaction.guild.id}.jpg",
+        )
+        f = discord.File(
+            f"./resources/temp/captcha_{interaction.user.id}_{interaction.guild.id}.jpg",
+            filename=f"captcha_{interaction.user.id}_{interaction.guild.id}.jpg",
+        )
         e = discord.Embed(
             title=f"{interaction.guild} Verification",
             description="""Hello! You are required to complete a captcha before entering the server.
@@ -5895,16 +6115,18 @@ This is to protect the server against
 targeted attacks using automated user accounts.""",
         )
         e.add_field(name="Your captcha :", value="** **")
-        e.set_image(url="attachment://captcha.png")
+        e.set_image(
+            url=f"attachment://captcha_{interaction.user.id}_{interaction.guild.id}.jpg"
+        )
         try:
             await interaction.user.send(file=f, embed=e)
         except:
-            f = discord.File("./dmEnable.png", filename="dmEnable.png")
+            f = discord.File("./resources/common/dmEnable.jpg", filename="dmEnable.jpg")
             e = discord.Embed(title=f"Dms disabled")
             e.add_field(
                 name="Command author", value=f"{interaction.user.mention}", inline=False
             )
-            e.set_image(url="attachment://dmEnable.png")
+            e.set_image(url="attachment://dmEnable.jpg")
             dmWarnings = await interaction.response.send_message(
                 file=f, embed=e, ephemeral=True
             )
@@ -5987,6 +6209,7 @@ class Captcha(commands.Cog):
     """Captcha verification commands"""
 
     async def cog_load(self):
+        await client.wait_until_ready()
         async with pool.acquire() as con:
             msgs = await con.fetch(f"SELECT * FROM verifymsg")
             for msg in msgs:
@@ -6006,6 +6229,7 @@ class Captcha(commands.Cog):
                         await con.execute(
                             f"DELETE FROM verifymsg WHERE guildid = {guildid} AND channelid = {channelid} AND messageid = {msgid}"
                         )
+
     @commands.hybrid_command(
         brief="This command adds the channels from the verification role.",
         description="This command adds the channels from the verification role(requires manage guild).",
@@ -6013,7 +6237,7 @@ class Captcha(commands.Cog):
     )
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_channels=True))
-    async def verifyreadadd(self, ctx, *, list_textstagevoicechannels : str):
+    async def verifyreadadd(self, ctx, *, list_textstagevoicechannels: str):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
@@ -6321,9 +6545,7 @@ class Captcha(commands.Cog):
         statement = """DELETE FROM verifymsg WHERE guildid = $1"""
         async with pool.acquire() as con:
             await con.execute(statement, ctx.guild.id)
-        await ctx.send(
-            "Successfully removed the verification channel.", ephemeral=True
-        )
+        await ctx.send("Successfully removed the verification channel.", ephemeral=True)
 
     @commands.hybrid_command(
         aliases=["setverificationchannel"],
@@ -6416,9 +6638,9 @@ class Captcha(commands.Cog):
 
             def check(reaction, user):
                 return (
-                        user == ctx.author
-                        and str(reaction.emoji) == "👍"
-                        and reaction.message == messagetwo
+                    user == ctx.author
+                    and str(reaction.emoji) == "👍"
+                    and reaction.message == messagetwo
                 )
 
             try:
@@ -6505,8 +6727,14 @@ targeted attacks using automated user accounts.""",
             return
         captchaMessage = randStr()
         image = ImageCaptcha()
-        image.write(captchaMessage, "captcha.png")
-        f = discord.File("./captcha.png", filename="captcha.png")
+        image.write(
+            captchaMessage,
+            f"./resources/temp/captcha_{ctx.author.id}_{ctx.guild.id}.jpg",
+        )
+        f = discord.File(
+            f"./resources/temp/captcha_{ctx.author.id}_{ctx.guild.id}.jpg",
+            filename=f"captcha_{ctx.author.id}_{ctx.guild.id}.jpg",
+        )
         e = discord.Embed(
             title=f"{ctx.guild} Verification",
             description="""Hello! You are required to complete a captcha before entering the server.
@@ -6521,12 +6749,12 @@ targeted attacks using automated user accounts.""",
         try:
             await ctx.author.send(file=f, embed=e)
         except:
-            f = discord.File("./dmEnable.png", filename="dmEnable.png")
+            f = discord.File("./resources/common/dmEnable.jpg", filename="dmEnable.jpg")
             e = discord.Embed(title=f"Dms disabled")
             e.add_field(
                 name="Command author", value=f"{ctx.author.mention}", inline=False
             )
-            e.set_image(url="attachment://dmEnable.png")
+            e.set_image(url="attachment://dmEnable.jpg")
             mentionMes = await ctx.send(ctx.author.mention, ephemeral=True)
             await asyncio.sleep(1)
             await mentionMes.delete()
@@ -6599,6 +6827,7 @@ targeted attacks using automated user accounts.""",
             await ctx.author.send(
                 f"The captcha entered is invalid , regenerate a new captcha for verification."
             )
+
 
 class MinecraftFun(commands.Cog):
     """Minecraft game related fun commands"""
@@ -6896,7 +7125,9 @@ class MinecraftFun(commands.Cog):
                 url="https://cdn.discordapp.com/avatars/841268437824045096/2197577ab3bcee324b2e58bd3a1e3248.png?size=1024"
             )
             view = Confirmpvp(member=membertwo.id)
-            view.set_message(statmsg:=await ctx.send(embed=embed, view=view, ephemeral=True))
+            view.set_message(
+                statmsg := await ctx.send(embed=embed, view=view, ephemeral=True)
+            )
             await view.wait()
             if view.value is None:
                 try:
@@ -6965,7 +7196,7 @@ class MinecraftFun(commands.Cog):
         try:
             if vc.is_playing():
                 vc.stop()
-            vc.play(discord.FFmpegPCMAudio("Firework_twinkle_far.ogg"))
+            vc.play(discord.FFmpegPCMAudio("./resources/pvp/Firework_twinkle_far.ogg"))
         except:
             pass
         await ctx.send(
@@ -7072,6 +7303,7 @@ class MinecraftFun(commands.Cog):
             name="Players Online ", value=status.players.online, inline=True
         )
         ipmessagesent = await ctx.send(embed=embedOne, ephemeral=True)
+
 
 def listToString(s):
     # initialize an empty string
@@ -7335,6 +7567,7 @@ async def take_screenshot(ctx, url, save_fn="capture.png"):
     my_file = discord.File(save_fn)
     return my_file
 
+
 class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
     def __init__(self, embeds):
         super().__init__(timeout=120)
@@ -7354,7 +7587,7 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
 
     @discord.ui.button(emoji="⏪", style=discord.ButtonStyle.green)
     async def firstmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         self.count = 0
@@ -7371,7 +7604,7 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
 
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.count == 0:
@@ -7389,7 +7622,7 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
 
     @discord.ui.button(emoji="🛑", style=discord.ButtonStyle.green)
     async def stopmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if isinstance(self._message, discord.InteractionResponse):
@@ -7405,7 +7638,7 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
     async def rightmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.count == self.limit:
@@ -7423,7 +7656,7 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
 
     @discord.ui.button(emoji="⏩", style=discord.ButtonStyle.green)
     async def lastmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         self.count = self.limit
@@ -7449,10 +7682,10 @@ class PaginateFileEmbed(discord.ui.View):
         self.file = files[self.count]
         self.files = files
         self._message = None
-    
+
     def set_message(self, _message):
         self._message = _message
-    
+
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
@@ -7460,7 +7693,7 @@ class PaginateFileEmbed(discord.ui.View):
 
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.count == 0:
@@ -7475,7 +7708,7 @@ class PaginateFileEmbed(discord.ui.View):
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
     async def rightmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.count == self.limit:
@@ -7501,7 +7734,7 @@ class Leveling(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_guild=True))
     async def setlevelmessage(
-            self, ctx, messagecount: int, channels: discord.TextChannel = None
+        self, ctx, messagecount: int, channels: discord.TextChannel = None
     ):
         try:
             messagecount = int(messagecount)
@@ -7572,7 +7805,7 @@ class Leveling(commands.Cog):
                 f"Alert: leveling was automatically enabled in this channel, do {prefix}leveltoggle to turn off leveling!",
                 ephemeral=True,
             )
-        if not warninglist[1]:
+        if not warninglist["setting"]:
             raise commands.CommandError(
                 f"The leveling setting has been disabled in this channel , do {prefix}leveltoggle to turn on leveling."
             )
@@ -7584,8 +7817,8 @@ class Leveling(commands.Cog):
         memberlist = []
         for memberloop in levellist:
             jsonmember = {}
-            jsonmember["name"] = memberloop[1]
-            jsonmember["count"] = memberloop[2]
+            jsonmember["name"] = memberloop["memberid"]
+            jsonmember["count"] = memberloop["messagecount"]
             memberlist.append(jsonmember)
         memberlist.sort(key=getCount, reverse=True)
         count = 0
@@ -7605,7 +7838,7 @@ class Leveling(commands.Cog):
                 levelconfiglist = await con.fetchrow(
                     f"SELECT * FROM levelconfig WHERE channelid = {ctx.channel.id}"
                 )
-        levelmsgcount = levelconfiglist[1]
+        levelmsgcount = levelconfiglist["messagecount"]
         for memberloop in memberlist:
             jsonmember = {}
             try:
@@ -7654,9 +7887,9 @@ class Leveling(commands.Cog):
             3: (723, 241),
             4: (954, 237),
         }
-        imgbackground = Image.open("./levelleaderboard.png")
+        imgbackground = Image.open("./resources/levelrank/background.jpg")
         draw = ImageDraw.Draw(imgbackground)
-        font = ImageFont.truetype("./consolasbold.ttf", 20)
+        font = ImageFont.truetype("./resources/common/consolasbold.ttf", 20)
         for i in range(5):
             draw.text(
                 levelcoords[i], str(topmember[i]["level"]), (0, 125, 232), font=font
@@ -7666,10 +7899,10 @@ class Leveling(commands.Cog):
                 namecoords[i], str(topmember[i]["name"]), (255, 255, 255), font=font
             )
             imgbackground.paste(topmember[i]["avatar"], coords[i])
-        imgbackground.save("./levelleaderboardresult.png")
-        file = discord.File("./levelleaderboardresult.png")
+        imgbackground.save(f"./resources/temp/levelrank_{ctx.guild.id}.jpg")
+        file = discord.File(f"./resources/temp/levelrank_{ctx.guild.id}.jpg")
         embed = discord.Embed()
-        embed.set_image(url="attachment://levelleaderboardresult.png")
+        embed.set_image(url=f"attachment://levelrank_{ctx.guild.id}.jpg")
         await ctx.send(file=file, embed=embed, ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
@@ -7706,7 +7939,7 @@ class Leveling(commands.Cog):
                 f"Alert: leveling was automatically enabled in this channel, do {prefix}leveltoggle to turn off leveling!",
                 ephemeral=True,
             )
-        if not warninglist[1]:
+        if not warninglist["setting"]:
             raise commands.CommandError(
                 f"The leveling setting has been disabled in this channel , do {prefix}leveltoggle to turn on leveling."
             )
@@ -7718,8 +7951,8 @@ class Leveling(commands.Cog):
         memberlist = []
         for memberloop in levellist:
             jsonmember = {}
-            jsonmember["name"] = memberloop[1]
-            jsonmember["count"] = memberloop[2]
+            jsonmember["name"] = memberloop["memberid"]
+            jsonmember["count"] = memberloop["messagecount"]
             memberlist.append(jsonmember)
         memberlist.sort(key=getCount, reverse=True)
         count = 1
@@ -7750,15 +7983,15 @@ class Leveling(commands.Cog):
                 levelconfiglist = await con.fetchrow(
                     f"SELECT * FROM levelconfig WHERE channelid = {ctx.channel.id}"
                 )
-        levelmsgcount = levelconfiglist[1]
-        imgbackground = Image.open("./levelimage.png")
+        levelmsgcount = levelconfiglist["messagecount"]
+        imgbackground = Image.open("./resources/level/background.jpg")
         asset = member.display_avatar
         data = BytesIO(await asset.read())
         pfp = Image.open(data)
         pfp = pfp.resize((239, 222))
         imgbackground.paste(pfp, (71, 43))
         draw = ImageDraw.Draw(imgbackground)
-        font = ImageFont.truetype("./consolasbold.ttf", 30)
+        font = ImageFont.truetype("./resources/common/consolasbold.ttf", 30)
         draw.text((402, 123), member.name, (255, 255, 255), font=font)
         draw.text((796, 29), str(rank), (255, 255, 255), font=font)
         draw.text((1067, 25), str(msgcount // levelmsgcount), (0, 125, 232), font=font)
@@ -7769,10 +8002,12 @@ class Leveling(commands.Cog):
         )
         percentcomplete = currentlevel / totallevel
         draw = drawProgressBar(draw, 401, 161, 737, 50, percentcomplete)
-        imgbackground.save("./levelresult.png")
-        file = discord.File("./levelresult.png")
+        imgbackground.save(f"./resources/temp/level_{ctx.author.id}_{ctx.guild.id}.jpg")
+        file = discord.File(
+            f"./resources/temp/level_{ctx.author.id}_{ctx.guild.id}.jpg"
+        )
         embed = discord.Embed()
-        embed.set_image(url="attachment://levelresult.png")
+        embed.set_image(url=f"attachment://level_{ctx.author.id}_{ctx.guild.id}.jpg")
         await ctx.send(file=file, embed=embed, ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
@@ -7805,7 +8040,7 @@ class Leveling(commands.Cog):
                     name="** **",
                 )
             else:
-                currentSet = warninglist[1]
+                currentSet = warninglist["setting"]
                 newSet = not currentSet
                 embed.add_field(
                     value=f"The levels setting for {channel.mention} was successfully set to {checkEmoji(newSet)}.",
@@ -7816,6 +8051,7 @@ class Leveling(commands.Cog):
                         f"UPDATE levelsettings VALUES SET setting = {newSet} WHERE channelid = {channel.id}"
                     )
         await ctx.send(embed=embed, ephemeral=True)
+
 
 class Agent:
     def __init__(self, name):
@@ -7855,7 +8091,7 @@ class Weapon:
 
 class ValorantAPI:
     def get_card_icon(self, cardId):
-        with open("./playercardinfo.json") as data_file:
+        with open("./resources/valorant/player_card_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if i["uuid"] == cardId:
@@ -7878,7 +8114,7 @@ class ValorantAPI:
         return validQueueNames[queueId]
 
     def get_map_name_from_url(self, mapurl):
-        with open("./mapinfo.json") as data_file:
+        with open("./resources/valorant/map_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapurl == i["mapUrl"]:
@@ -7886,7 +8122,7 @@ class ValorantAPI:
         return None
 
     def get_map_thumbnail(self, mapname):
-        with open("./mapinfo.json") as data_file:
+        with open("./resources/valorant/map_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapname == i["displayName"]:
@@ -7894,7 +8130,7 @@ class ValorantAPI:
         return None
 
     def get_map_display_icon(self, mapname):
-        with open("./mapinfo.json") as data_file:
+        with open("./resources/valorant/map_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapname == i["displayName"]:
@@ -7902,7 +8138,7 @@ class ValorantAPI:
         return None
 
     def get_map_mini_icon(self, mapname):
-        with open("./mapinfo.json") as data_file:
+        with open("./resources/valorant/map_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapname == i["displayName"]:
@@ -7910,7 +8146,7 @@ class ValorantAPI:
         return None
 
     def get_name_from_id(self, id):
-        with open("./valorantids.json") as data_file:
+        with open("./resources/valorant/valorant_ids.json") as data_file:
             datajson = json.load(data_file)
             for category in datajson.keys():
                 for item in datajson[category]:
@@ -7919,7 +8155,7 @@ class ValorantAPI:
             return None
 
     def get_map_x_multiplier(self, mapname):
-        with open("./mapinfo.json") as data_file:
+        with open("./resources/valorant/map_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapname == i["displayName"]:
@@ -7927,7 +8163,7 @@ class ValorantAPI:
         return None
 
     def get_map_y_multiplier(self, mapname):
-        with open("./mapinfo.json") as data_file:
+        with open("./resources/valorant/map_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapname == i["displayName"]:
@@ -7935,7 +8171,7 @@ class ValorantAPI:
         return None
 
     def get_map_x_scalar(self, mapname):
-        with open("./mapinfo.json") as data_file:
+        with open("./resources/valorant/map_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapname == i["displayName"]:
@@ -7943,7 +8179,7 @@ class ValorantAPI:
         return None
 
     def get_map_y_scalar(self, mapname):
-        with open("./mapinfo.json") as data_file:
+        with open("./resources/valorant/map_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if mapname == i["displayName"]:
@@ -7952,7 +8188,7 @@ class ValorantAPI:
 
     def get_agent_abilities(self, agentname):
         jsongot = []
-        with open("./agentinfo.json") as data_file:
+        with open("./resources/valorant/agent_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if agentname == i["displayName"]:
@@ -7970,14 +8206,14 @@ class ValorantAPI:
         return newjson
 
     def get_agent_thumbnail(self, agentname):
-        with open("./agentinfo.json") as data_file:
+        with open("./resources/valorant/agent_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if agentname == i["displayName"]:
                     return i["displayIconSmall"]
 
     def get_agent_from_id(self, id):
-        with open("./agentinfo.json") as data_file:
+        with open("./resources/valorant/agent_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if id == i["uuid"]:
@@ -7985,7 +8221,7 @@ class ValorantAPI:
 
     def get_agents_abilities(self):
         agents = []
-        with open("./agentinfo.json") as data_file:
+        with open("./resources/valorant/agent_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 currentagent = Agent(i["displayName"])
@@ -7999,7 +8235,7 @@ class ValorantAPI:
         return agents
 
     def get_agent_ability(self, agentname):
-        with open("./agentinfo.json") as data_file:
+        with open("./resources/valorant/agent_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if i["displayName"] == agentname:
@@ -8017,7 +8253,7 @@ class ValorantAPI:
 
     def get_weapon_prices(self):
         weapons = []
-        with open("./weaponinfo.json") as data_file:
+        with open("./resources/valorant/weapon_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if i["displayName"] == "Melee":
@@ -8028,7 +8264,7 @@ class ValorantAPI:
         return weapons
 
     def get_weapon_price(self, weaponname):
-        with open("./weaponinfo.json") as data_file:
+        with open("./resources/valorant/weapon_info.json") as data_file:
             datajson = json.load(data_file)
             for i in datajson["data"]:
                 if i["displayName"] == weaponname:
@@ -8756,7 +8992,7 @@ class ValorantLink(discord.ui.View):
         super().__init__(timeout=600)
         self.ctx = ctx
         self._message = None
-    
+
     def set_message(self, _message):
         self._message = _message
 
@@ -8818,7 +9054,7 @@ class Valorant(commands.Cog):
         usage="@member",
     )
     async def vstats(
-            self, ctx, member: typing.Union[discord.Member, discord.User] = None
+        self, ctx, member: typing.Union[discord.Member, discord.User] = None
     ):
         if member is None:
             member = ctx.author
@@ -8843,7 +9079,7 @@ class Valorant(commands.Cog):
             try:
                 return "%d%s" % (
                     n,
-                    "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10:: 4],
+                    "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10 :: 4],
                 )
             except:
                 return ""
@@ -8912,11 +9148,14 @@ class Valorant(commands.Cog):
         except:
             pass
         view = ValorantControls(matchesinfo, currentpuuid, ctx)
-        view.set_message(await ctx.send(
-            embed=embed,
-            view=view,
-            ephemeral=True,
-        ))
+        view.set_message(
+            await ctx.send(
+                embed=embed,
+                view=view,
+                ephemeral=True,
+            )
+        )
+
 
 class Misc(commands.Cog):
     """Misc commands."""
@@ -9067,7 +9306,9 @@ class Misc(commands.Cog):
         except:
             pass
         pagview = PaginateFileEmbed(listOfEmbeds, listOfFiles)
-        pagview.set_message(await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview))
+        pagview.set_message(
+            await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview)
+        )
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(
@@ -9126,7 +9367,9 @@ class Misc(commands.Cog):
         except:
             pass
         pagview = PaginateFileEmbed(listOfEmbeds, listOfFiles)
-        pagview.set_message(await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview))
+        pagview.set_message(
+            await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview)
+        )
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(
@@ -9185,7 +9428,9 @@ class Misc(commands.Cog):
         except:
             pass
         pagview = PaginateFileEmbed(listOfEmbeds, listOfFiles)
-        pagview.set_message(await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview))
+        pagview.set_message(
+            await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview)
+        )
 
     @commands.cooldown(1, 60, BucketType.member)
     @commands.hybrid_command(
@@ -9340,9 +9585,9 @@ class Misc(commands.Cog):
 
                 def check(reaction, user):
                     return (
-                            user == ctx.author
-                            and str(reaction.emoji) == "👍"
-                            and reaction.message == msg
+                        user == ctx.author
+                        and str(reaction.emoji) == "👍"
+                        and reaction.message == msg
                     )
 
                 try:
@@ -9350,7 +9595,9 @@ class Misc(commands.Cog):
                         "reaction_add", timeout=5.0, check=check
                     )
                 except asyncio.TimeoutError:
-                    await ctx.channel.send(f"Ok I won't change the prefix to `{prefix}`")
+                    await ctx.channel.send(
+                        f"Ok I won't change the prefix to `{prefix}`"
+                    )
                     return
                 else:
                     pass
@@ -9374,10 +9621,17 @@ class Misc(commands.Cog):
             except:
                 pass
 
+
 @commands.cooldown(1, 45, BucketType.member)
-@client.tree.command(description="This command can be used to translate text into another language.")
-@app_commands.describe(text="Text to translate to language.", language="Destination language.")
-async def translatetext(interaction: discord.Interaction, text: str, language: str = "en"):
+@client.tree.command(
+    description="This command can be used to translate text into another language."
+)
+@app_commands.describe(
+    text="Text to translate to language.", language="Destination language."
+)
+async def translatetext(
+    interaction: discord.Interaction, text: str, language: str = "en"
+):
     origmessage = text
     origlanguage = detect(text)
     translator = Translator(to_lang=language, from_lang=origlanguage)
@@ -9386,6 +9640,7 @@ async def translatetext(interaction: discord.Interaction, text: str, language: s
         title="Language : " + language, description=translatedmessage
     )
     await interaction.response.send_message(embed=embedOne, ephemeral=True)
+
 
 class Call(commands.Cog):
     """Call commands."""
@@ -9418,7 +9673,7 @@ class Call(commands.Cog):
                 ephemeral=True,
             )
         else:
-            currentSet = warninglist[1]
+            currentSet = warninglist["settingbool"]
             newSet = not currentSet
             await ctx.send(
                 f"{ctx.author.mention} Your call settings was successfully set to {checkEmoji(newSet)}.",
@@ -9459,12 +9714,14 @@ class Call(commands.Cog):
             messageonesent = await ctx.author.send(embed=embed)
         except:
             if ctx.channel.permissions_for(ctx.guild.me).attach_files:
-                f = discord.File("./dmEnable.png", filename="dmEnable.png")
+                f = discord.File(
+                    "./resources/common/dmEnable.jpg", filename="dmEnable.jpg"
+                )
                 e = discord.Embed(title=f"Dms disabled")
                 e.add_field(
                     name="Command author", value=f"{ctx.author.mention}", inline=False
                 )
-                e.set_image(url="attachment://dmEnable.png")
+                e.set_image(url="attachment://dmEnable.jpg")
                 mentionMes = await ctx.send(ctx.author.mention, ephemeral=True)
                 await asyncio.sleep(1)
                 await mentionMes.delete()
@@ -9503,7 +9760,7 @@ class Call(commands.Cog):
                 await con.execute(statement, member.id, False)
             memberSettings = False
         else:
-            memberSettings = calllist[1]
+            memberSettings = calllist["settingbool"]
         if memberSettings:
             try:
                 messagesent = await member.send(embed=embedOne)
@@ -9523,12 +9780,12 @@ class Call(commands.Cog):
                     return False
                 reactionadded = str(payload.emoji)
                 return (
-                        payload.user_id == member.id
-                        and payload.message_id == messagesent.id
-                        and (
-                                str(payload.emoji) == "<:acceptcall:874979115533484043>"
-                                or str(payload.emoji) == "<:declinecall:874982302789300267>"
-                        )
+                    payload.user_id == member.id
+                    and payload.message_id == messagesent.id
+                    and (
+                        str(payload.emoji) == "<:acceptcall:874979115533484043>"
+                        or str(payload.emoji) == "<:declinecall:874982302789300267>"
+                    )
                 )
 
             try:
@@ -9574,8 +9831,8 @@ class Call(commands.Cog):
                     if _message.author == member:
                         theMessage = _message.content
                         if (
-                                theMessage == f"{prefix}end"
-                                or theMessage == f"{prefix}hangup"
+                            theMessage == f"{prefix}end"
+                            or theMessage == f"{prefix}hangup"
                         ):
                             return True
                         if checkProfane(theMessage):
@@ -9618,8 +9875,8 @@ class Call(commands.Cog):
                     elif _message.author == ctx.author:
                         theMessage = _message.content
                         if (
-                                theMessage == f"{prefix}end"
-                                or theMessage == f"{prefix}hangup"
+                            theMessage == f"{prefix}end"
+                            or theMessage == f"{prefix}hangup"
                         ):
                             return False
                         if checkProfane(theMessage):
@@ -9689,6 +9946,7 @@ class Call(commands.Cog):
             await ctx.author.send(
                 f"Your call to {member.mention} was declined because of no response."
             )
+
 
 class Fun(commands.Cog):
     """General fun commands"""
@@ -9839,19 +10097,19 @@ class Fun(commands.Cog):
             guilddescription = guilddescription + "\n"
         if "COMMUNITY" in guild.features:
             guilddescription = (
-                    guilddescription + "Community server <a:verified:875327156572532736> \n"
+                guilddescription + "Community server <a:verified:875327156572532736> \n"
             )
         if "VANITY_URL" in guild.features:
             guilddescription = (
-                    guilddescription + "Vanity url <a:verified:875327156572532736> \n"
+                guilddescription + "Vanity url <a:verified:875327156572532736> \n"
             )
         if "VERIFIED" in guild.features:
             guilddescription = (
-                    guilddescription + "Verified server <a:verified:875327156572532736> \n"
+                guilddescription + "Verified server <a:verified:875327156572532736> \n"
             )
         if "PARTNERED" in guild.features:
             guilddescription = (
-                    guilddescription + "Partnered server <a:verified:875327156572532736> \n"
+                guilddescription + "Partnered server <a:verified:875327156572532736> \n"
             )
         if len(guilddescription) == 0:
             guilddescription = "** **"
@@ -9931,7 +10189,7 @@ class Fun(commands.Cog):
     )
     @commands.guild_only()
     async def profile(
-            self, ctx, *, member: typing.Union[discord.Member, discord.User] = None
+        self, ctx, *, member: typing.Union[discord.Member, discord.User] = None
     ):
         if member is None:
             member = ctx.author
@@ -10042,51 +10300,9 @@ class Fun(commands.Cog):
         except:
             pass
 
+
 class Social(commands.Cog):
     """Social commands."""
-
-    @commands.cooldown(1, 30, BucketType.member)
-    @commands.hybrid_command(
-        brief="This command can be used to get the user liking percentage for fun.",
-        description="This command can be used to get the user liking percentage for fun.",
-        usage="@member",
-        aliases=["userliking", "memberliking", "ship", "shipuser", "shipmember"],
-    )
-    @commands.guild_only()
-    async def likinguser(self, ctx, member: discord.User = None):
-        check_ensure_permissions(ctx, ctx.guild.me, ["attach_files"])
-        if member is None:
-            member = ctx.author
-        imgbackground = Image.open("./testingimage.jpg")
-        assetAuth = ctx.author.display_avatar.with_size(512)
-        dataAuth = BytesIO(await assetAuth.read())
-        pfpAuth = Image.open(dataAuth)
-        imgbackground.paste(pfpAuth, (102, 360))
-        draw = ImageDraw.Draw(imgbackground)
-        assetMember = member.display_avatar.with_size(512)
-        dataMember = BytesIO(await assetMember.read())
-        pfpMember = Image.open(dataMember)
-        imgbackground.paste(pfpMember, (892, 360))
-        draw = ImageDraw.Draw(imgbackground)
-        # font = ImageFont.truetype(<font-file>, <font-size>)
-        font = ImageFont.truetype("./consolasbold.ttf", 51)
-        # draw.text((x, y),"Sample Text",(r,g,b))
-        idOne = ctx.author.id
-        idTwo = member.id
-        if idOne > idTwo:
-            diff = idTwo - idOne
-        else:
-            diff = idOne - idTwo
-        random.seed(diff)
-        randompercent = int(random.random() * 100)
-        draw.text((723, 273), f"{randompercent}%", (255, 255, 255), font=font)
-        draw.text((210, 927), f"{ctx.author.name}", (255, 255, 255), font=font)
-        draw.text((960, 927), f"{member.name}", (255, 255, 255), font=font)
-        imgbackground.save("./testingresult.jpg")
-        file = discord.File("./testingresult.jpg")
-        embed = discord.Embed()
-        embed.set_image(url="attachment://testingresult.jpg")
-        await ctx.send(file=file, embed=embed, ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.hybrid_command(
@@ -10099,7 +10315,7 @@ class Social(commands.Cog):
         check_ensure_permissions(ctx, ctx.guild.me, ["attach_files"])
         if member is None:
             member = ctx.author
-        imgbackground = Image.open("./background.jpg")
+        imgbackground = Image.open("./resources/welcomeuser/background.jpg")
         asset = member.display_avatar
         data = BytesIO(await asset.read())
         pfp = Image.open(data)
@@ -10116,10 +10332,10 @@ class Social(commands.Cog):
             font=font,
         )
 
-        imgbackground.save("./backgroundone.jpg")
-        file = discord.File("./backgroundone.jpg")
+        imgbackground.save(f"./resources/temp/welcome_{ctx.author.id}.jpg")
+        file = discord.File(f"./resources/temp/welcome_{ctx.author.id}.jpg")
         embed = discord.Embed()
-        embed.set_image(url="attachment://backgroundone.jpg")
+        embed.set_image(url=f"attachment://welcome_{ctx.author.id}.jpg")
         await ctx.send(file=file, embed=embed, ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
@@ -10133,20 +10349,21 @@ class Social(commands.Cog):
         check_ensure_permissions(ctx, ctx.guild.me, ["attach_files"])
         if member is None:
             member = ctx.author
-        wanted = Image.open("./wanted.png")
+        wanted = Image.open("./resources/wanteduser/background.jpg")
         asset = member.display_avatar
         data = BytesIO(await asset.read())
         pfp = Image.open(data)
         pfp = pfp.resize((139, 172))
         wanted.paste(pfp, (114, 153))
-        wanted.save("./backgroundone.png")
-        file = discord.File("./backgroundone.png")
+        wanted.save(f"./resources/temp/wanted_{ctx.author.id}.jpg")
+        file = discord.File(f"./resources/temp/wanted_{ctx.author.id}.jpg")
         embed = discord.Embed()
-        embed.set_image(url="attachment://backgroundone.png")
+        embed.set_image(url=f"attachment://wanted_{ctx.author.id}.jpg")
         try:
             await ctx.send(file=file, embed=embed, ephemeral=True)
         except:
             pass
+
 
 def constructslashephemeralctx(ctx):
     async def fakerespond(*args, **kwargs):
@@ -10157,7 +10374,7 @@ def constructslashephemeralctx(ctx):
 
 
 def message_probability(
-        user_message, recognised_words, single_response=False, required_words=[]
+    user_message, recognised_words, single_response=False, required_words=[]
 ):
     message_certainty = 0
     has_required_words = True
@@ -10181,49 +10398,6 @@ def message_probability(
         return int(percentage * 100)
     else:
         return 0
-
-
-def check_all_messages(_message):
-    highest_prob_list = {}
-
-    # Simplifies response creation / adds it to the dict
-    def response(bot_response, list_of_words, single_response=False, required_words=[]):
-        nonlocal highest_prob_list
-        highest_prob_list[bot_response] = message_probability(
-            _message, list_of_words, single_response, required_words
-        )
-
-    # Responses -------------------------------------------------------------------------------------------------------
-    response("Hello!", ["hello", "hi", "hey", "sup", "heyo"], single_response=True)
-    response("See you!", ["bye", "goodbye"], single_response=True)
-    response("I'm good", ["what's", "up"], single_response=True)
-    response(
-        "I'm doing fine, and you?",
-        ["how", "are", "you", "doing"],
-        required_words=["how"],
-    )
-    response("You're welcome!", ["thank", "thanks"], single_response=True)
-    response(
-        "Thank you!", ["i", "love", "code", "palace"], required_words=["code", "palace"]
-    )
-    response("I'm a robot", ["who", "you", "bot"], single_response=True)
-
-    # Longer responses
-    response(long.R_ADVICE, ["give", "advice"], required_words=["advice"])
-    response(long.R_EATING, ["what", "you", "eat"], required_words=["eat"])
-
-    best_match = max(highest_prob_list, key=highest_prob_list.get)
-    # print(highest_prob_list)
-    # print(f'Best match = {best_match} | Score: {highest_prob_list[best_match]}')
-
-    return long.unknown() if highest_prob_list[best_match] < 1 else best_match
-
-
-# Used to get the response
-def get_response(user_input):
-    split_message = re.split(r"\s+|[,;?!.-]\s*", user_input.lower())
-    response = check_all_messages(split_message)
-    return response
 
 
 class Giveaways(commands.Cog):
@@ -10551,12 +10725,12 @@ class Giveaways(commands.Cog):
     @commands.guild_only()
     @commands.check_any(is_bot_staff(), commands.has_permissions(manage_guild=True))
     async def selectroll(
-            self,
-            ctx,
-            channel: discord.TextChannel,
-            winner: discord.Member,
-            id_: int,
-            prize: str,
+        self,
+        ctx,
+        channel: discord.TextChannel,
+        winner: discord.Member,
+        id_: int,
+        prize: str,
     ):
         await ctx.interaction.response.defer()
         if channel.guild != ctx.guild:
@@ -10620,6 +10794,7 @@ class Giveaways(commands.Cog):
             f"Congratulations {winner.mention} won the (reroll) giveaway of **{prize}** ({msgurl})"
         )
 
+
 class Support(commands.Cog):
     """Support related commands"""
 
@@ -10633,7 +10808,7 @@ class Support(commands.Cog):
     @is_bot_staff()
     @commands.guild_only()
     async def addreaction(
-            self, ctx, emoji: discord.Emoji, messageid: int, channel: discord.TextChannel
+        self, ctx, emoji: discord.Emoji, messageid: int, channel: discord.TextChannel
     ):
         if isinstance(messageid, int):
             _message = await channel.fetch_message(messageid)
@@ -10653,10 +10828,10 @@ class Support(commands.Cog):
     async def disableall(self, ctx):
         for command in client.commands:
             if (
-                    command.name == "disableall"
-                    or command.name == "enableall"
-                    or command.name == "disable"
-                    or command.name == "enable"
+                command.name == "disableall"
+                or command.name == "enableall"
+                or command.name == "disable"
+                or command.name == "enable"
             ):
                 continue
             async with pool.acquire() as con:
@@ -10685,10 +10860,10 @@ class Support(commands.Cog):
     async def enableall(self, ctx):
         for command in client.commands:
             if (
-                    command.name == "disableall"
-                    or command.name == "enableall"
-                    or command.name == "disable"
-                    or command.name == "enable"
+                command.name == "disableall"
+                or command.name == "enableall"
+                or command.name == "disable"
+                or command.name == "enable"
             ):
                 continue
             async with pool.acquire() as con:
@@ -10723,10 +10898,10 @@ class Support(commands.Cog):
             )
             return
         if (
-                commandobj.name == "disableall"
-                or commandobj.name == "enableall"
-                or commandobj.name == "disable"
-                or commandobj.name == "enable"
+            commandobj.name == "disableall"
+            or commandobj.name == "enableall"
+            or commandobj.name == "disable"
+            or commandobj.name == "enable"
         ):
             raise commands.CommandError(
                 "You cannot disable that command without explicit permission from bot staff!"
@@ -10745,9 +10920,7 @@ class Support(commands.Cog):
                 await con.execute(statement, ctx.guild.id, command)
         except:
             pass
-        await ctx.send(
-            f"Successfully disabled the command {command}.", ephemeral=True
-        )
+        await ctx.send(f"Successfully disabled the command {command}.", ephemeral=True)
 
     @commands.hybrid_command(
         brief="This command can be used for enabling a command by admin per guild.",
@@ -10765,10 +10938,10 @@ class Support(commands.Cog):
             )
             return
         if (
-                commandobj.name == "disableall"
-                or commandobj.name == "enableall"
-                or commandobj.name == "disable"
-                or commandobj.name == "enable"
+            commandobj.name == "disableall"
+            or commandobj.name == "enableall"
+            or commandobj.name == "disable"
+            or commandobj.name == "enable"
         ):
             raise commands.CommandError(
                 "The command you mentioned is always enabled and cannot be disabled!"
@@ -10786,9 +10959,7 @@ class Support(commands.Cog):
                 )
         except:
             pass
-        await ctx.send(
-            f"Successfully enabled the command {command}.", ephemeral=True
-        )
+        await ctx.send(f"Successfully enabled the command {command}.", ephemeral=True)
 
     @commands.command(
         brief="This command can be used for disabling a command by bot staff.",
@@ -10843,12 +11014,12 @@ class Support(commands.Cog):
     @commands.guild_only()
     @is_bot_staff()
     async def sendwebhook(
-            self,
-            ctx,
-            text: str,
-            hookurl: str,
-            userprovided: discord.Member = None,
-            avatarprovided: str = None,
+        self,
+        ctx,
+        text: str,
+        hookurl: str,
+        userprovided: discord.Member = None,
+        avatarprovided: str = None,
     ):
         if text is None:
             text = "Hi this is webhook testing."
@@ -11001,7 +11172,9 @@ class Support(commands.Cog):
     @is_bot_staff()
     async def solvebug(self, ctx, bugid: int, *, solution: str):
         await ctx.interaction.response.defer()
-        theBugMessage = await client.get_channel(CHANNEL_BUG_LOGGING_ID).fetch_message(int(bugid))
+        theBugMessage = await client.get_channel(CHANNEL_BUG_LOGGING_ID).fetch_message(
+            int(bugid)
+        )
 
         embedtwo = discord.Embed(
             title=f"Bug patched",
@@ -11052,7 +11225,9 @@ class Support(commands.Cog):
     @is_bot_staff()
     async def seenbug(self, ctx, bugid: int):
         await ctx.interaction.response.defer()
-        theBugMessage = await client.get_channel(CHANNEL_BUG_LOGGING_ID).fetch_message(int(bugid))
+        theBugMessage = await client.get_channel(CHANNEL_BUG_LOGGING_ID).fetch_message(
+            int(bugid)
+        )
         listEmbeds = theBugMessage.embeds
         for embedOne in listEmbeds:
             embedOne.set_field_at(
@@ -11106,7 +11281,9 @@ class Support(commands.Cog):
             inline=False,
         )
         embedtwo.add_field(name="Command ", value=commandname)
-        messageSent = await client.get_channel(CHANNEL_BUG_LOGGING_ID).send(embed=embedtwo)
+        messageSent = await client.get_channel(CHANNEL_BUG_LOGGING_ID).send(
+            embed=embedtwo
+        )
         await asyncio.sleep(1)
         embedtwo = discord.Embed(title=f"Bug report", color=Color.red())
         embedtwo.add_field(name="Report id ", value=str(messageSent.id), inline=False)
@@ -11317,9 +11494,9 @@ class Support(commands.Cog):
         original_string = strflag
         last_char_index = original_string.rfind(",")
         new_string = (
-                original_string[:last_char_index]
-                + "."
-                + original_string[last_char_index + 1:]
+            original_string[:last_char_index]
+            + "."
+            + original_string[last_char_index + 1 :]
         )
         embed.add_field(name="User-flags", value=new_string)
         embed.set_author(name=user.name, icon_url=asset)
@@ -11413,9 +11590,7 @@ class Support(commands.Cog):
         try:
             await ctx.send(embed=embed, ephemeral=True)
         except:
-            await ctx.send(
-                f"Invite {client.user.name} by this {link}.", ephemeral=True
-            )
+            await ctx.send(f"Invite {client.user.name} by this {link}.", ephemeral=True)
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.hybrid_command(
@@ -11509,11 +11684,13 @@ class Support(commands.Cog):
         codeblock = getcodeblock(code)
         code = codeblock[1]
         view = CodingLanguageView(code, ctx.author, ctx.channel)
-        view.set_message(await ctx.send(
-            embed=embed,
-            view=view,
-            ephemeral=True,
-        ))
+        view.set_message(
+            await ctx.send(
+                embed=embed,
+                view=view,
+                ephemeral=True,
+            )
+        )
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(
@@ -11699,7 +11876,8 @@ class Support(commands.Cog):
         )
         await client.change_presence(activity=activity)
         # print(f"Status was changed to visible in {ctx.guild}")
-        
+
+
 async def currentlyplayingslider(_message, player):
     embed = _message.embeds[0]
     pbar = ""
@@ -11707,8 +11885,8 @@ async def currentlyplayingslider(_message, player):
     try:
         while cplayingmusic.identifier == player.current.identifier:
             pbar = ""
-            tlpbar = round(((player.current.length//1000)+1) // 15)
-            pppbar = round((player.position//1000) // tlpbar)
+            tlpbar = round(((player.current.length // 1000) + 1) // 15)
+            pppbar = round((player.position // 1000) // tlpbar)
 
             for i in range(15):
                 if i == pppbar:
@@ -11716,8 +11894,8 @@ async def currentlyplayingslider(_message, player):
                 else:
                     pbar += "▬"
             pbar = (
-                    pbar
-                    + f" [`{timedelta(seconds=((player.current.length//1000)+1))}`/`{timedelta(seconds=(player.position//1000))}`]"
+                pbar
+                + f" [`{timedelta(seconds=((player.current.length//1000)+1))}`/`{timedelta(seconds=(player.position//1000))}`]"
             )
             embed.add_field(name=cplayingmusic.title, value=pbar)
             try:
@@ -11727,6 +11905,8 @@ async def currentlyplayingslider(_message, player):
             await asyncio.sleep(5)
     except:
         pass
+
+
 class Music(commands.Cog):
     """YouTube music commands"""
 
@@ -11750,19 +11930,18 @@ class Music(commands.Cog):
 
         member = player.guild.get_member(player.current.extras.requester_id)
         if (
-                    member.id != ctx.author.id
-                    and not ctx.channel.permissions_for(ctx.author).manage_channels
-                    and not checkstaff(ctx.author)
-            ):
-                await on_command_error(
-                    ctx,
-                    f"You cannot skip the song played by {member.mention}.",
-                )
-                return
+            member.id != ctx.author.id
+            and not ctx.channel.permissions_for(ctx.author).manage_channels
+            and not checkstaff(ctx.author)
+        ):
+            await on_command_error(
+                ctx,
+                f"You cannot skip the song played by {member.mention}.",
+            )
+            return
         await ctx.send(
-                        f"{player.current} was skipped by {ctx.author.mention} .",
-                        ephemeral=True
-                    )
+            f"{player.current} was skipped by {ctx.author.mention} .", ephemeral=True
+        )
         await player.skip(force=True)
 
     @commands.cooldown(1, 15, BucketType.member)
@@ -11778,7 +11957,7 @@ class Music(commands.Cog):
         if not player:
             await on_command_error(ctx, "I could not find any playing song.")
             return
-        
+
         member = player.guild.get_member(player.current.extras.requester_id)
         playingmusic = player.current.title
         embedVar = discord.Embed(
@@ -11788,8 +11967,8 @@ class Music(commands.Cog):
         )
         pbar = ""
 
-        tlpbar = round(((player.current.length//1000)+1) // 15)
-        pppbar = round((player.position//1000) // tlpbar)
+        tlpbar = round(((player.current.length // 1000) + 1) // 15)
+        pppbar = round((player.position // 1000) // tlpbar)
 
         for i in range(15):
             if i == pppbar:
@@ -11797,14 +11976,12 @@ class Music(commands.Cog):
             else:
                 pbar += "▬"
         pbar = (
-                pbar
-                + f" [`{timedelta(seconds=((player.current.length//1000)+1))}`/`{timedelta(seconds=(player.position//1000))}`]"
+            pbar
+            + f" [`{timedelta(seconds=((player.current.length//1000)+1))}`/`{timedelta(seconds=(player.position//1000))}`]"
         )
         embedVar.add_field(name=playingmusic, value=pbar)
         _message = await ctx.send(embed=embedVar, ephemeral=True)
-        await currentlyplayingslider(
-            _message, player
-        )
+        await currentlyplayingslider(_message, player)
 
     @commands.cooldown(1, 45, BucketType.member)
     @commands.hybrid_command(
@@ -11817,6 +11994,7 @@ class Music(commands.Cog):
     async def play(self, ctx, *, songname: str):
         """Streams from an url (same as yt, but doesn't predownload)"""
         await playmusic(ctx, songname)
+
 
 class YoutubeTogether(commands.Cog):
     """This YouTube command can play a video"""
@@ -11862,6 +12040,7 @@ class YoutubeTogether(commands.Cog):
                 return
         elif ctx.voice_client.is_playing():
             ctx.voice_client.stop()
+
 
 def getIntPortion(string):
     intportion = ""
@@ -11918,6 +12097,7 @@ def constructmsg(guild, member):
 
     constructedctx = defcontext(guild, member)
     return constructedctx
+
 
 class channelNotProvided(Exception):
     pass
@@ -11977,19 +12157,19 @@ def constructsafeclient(member):
 
 async def constructmember(id, guild):
     async def defsend(
-            content="** **",
-            tts=None,
-            embed=None,
-            embeds=None,
-            file=None,
-            files=None,
-            stickers=None,
-            delete_after=None,
-            nonce=None,
-            allowed_mentions=None,
-            reference=None,
-            mention_author=None,
-            view=None,
+        content="** **",
+        tts=None,
+        embed=None,
+        embeds=None,
+        file=None,
+        files=None,
+        stickers=None,
+        delete_after=None,
+        nonce=None,
+        allowed_mentions=None,
+        reference=None,
+        mention_author=None,
+        view=None,
     ):
         if user is None:
             raise userNotProvided("No users found to send a message to!")
@@ -12070,19 +12250,19 @@ async def constructmember(id, guild):
 
 def constructctx(guild, member, channel=None):
     async def defsend(
-            content="** **",
-            tts=None,
-            embed=None,
-            embeds=None,
-            file=None,
-            files=None,
-            stickers=None,
-            delete_after=None,
-            nonce=None,
-            allowed_mentions=None,
-            reference=None,
-            mention_author=None,
-            view=None,
+        content="** **",
+        tts=None,
+        embed=None,
+        embeds=None,
+        file=None,
+        files=None,
+        stickers=None,
+        delete_after=None,
+        nonce=None,
+        allowed_mentions=None,
+        reference=None,
+        mention_author=None,
+        view=None,
     ):
         if channel is None:
             raise channelNotProvided("No channels found to send a message to!")
@@ -12103,20 +12283,20 @@ def constructctx(guild, member, channel=None):
         )
 
     async def defrespond(
-            content="** **",
-            tts=None,
-            embed=None,
-            embeds=None,
-            file=None,
-            files=None,
-            stickers=None,
-            delete_after=None,
-            nonce=None,
-            allowed_mentions=None,
-            reference=None,
-            mention_author=None,
-            view=None,
-            ephemeral=None,
+        content="** **",
+        tts=None,
+        embed=None,
+        embeds=None,
+        file=None,
+        files=None,
+        stickers=None,
+        delete_after=None,
+        nonce=None,
+        allowed_mentions=None,
+        reference=None,
+        mention_author=None,
+        view=None,
+        ephemeral=None,
     ):
         if channel is None:
             raise channelNotProvided("No channels found to send a message to!")
@@ -12327,7 +12507,7 @@ async def messagestats(ctx, _message: discord.Message):
 
 @client.tree.context_menu()  # creates a global message command. use guild_ids=[] to create guild-specific commands.
 async def translate(
-        ctx, _message: discord.Message
+    ctx, _message: discord.Message
 ):  # message commands return the message
     text = _message.content
     origmessage = text
@@ -12463,7 +12643,7 @@ class ValorantRoundStats(discord.ui.View):
         self.round = self.rounds.roundlist[self.currentround]
         self.limit = len(self.embeds) - 1
         self._message = None
-    
+
     def set_message(self, _message):
         self._message = _message
 
@@ -12482,7 +12662,7 @@ class ValorantRoundStats(discord.ui.View):
 
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.currentround == 0:
@@ -12501,7 +12681,7 @@ class ValorantRoundStats(discord.ui.View):
 
     @discord.ui.button(emoji="🛑", style=discord.ButtonStyle.green)
     async def stopmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if isinstance(self._message, discord.InteractionResponse):
@@ -12517,7 +12697,7 @@ class ValorantRoundStats(discord.ui.View):
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
     async def rightmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.currentround == self.limit:
@@ -12588,10 +12768,10 @@ class ValorantStats(discord.ui.View):
         self.match = self.matches.matchlist[self.currentmatch]
         self.limit = len(self.embeds) - 1
         self._message = None
-    
+
     def set_message(self, _message):
         self._message = _message
-    
+
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
@@ -12599,7 +12779,7 @@ class ValorantStats(discord.ui.View):
 
     @discord.ui.button(emoji="🙌", style=discord.ButtonStyle.green)
     async def playerinfostats(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.send_message(
             embed=self.playerinfoembed, ephemeral=True
@@ -12607,19 +12787,21 @@ class ValorantStats(discord.ui.View):
 
     @discord.ui.button(emoji="📄", style=discord.ButtonStyle.green)
     async def roundstats(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         currentmatch = self.match
         valoview = ValorantRoundStats(
             currentmatch.rounds, self.currentplayerid, self.currentcharactername
         )
-        valoview.set_message(await interaction.response.send_message(
-            view=valoview, embed=valoview.embeds[0], ephemeral=True
-        ))
+        valoview.set_message(
+            await interaction.response.send_message(
+                view=valoview, embed=valoview.embeds[0], ephemeral=True
+            )
+        )
 
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.currentmatch == 0:
@@ -12642,7 +12824,7 @@ class ValorantStats(discord.ui.View):
 
     @discord.ui.button(emoji="🛑", style=discord.ButtonStyle.green)
     async def stopmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if isinstance(self._message, discord.InteractionResponse):
@@ -12658,7 +12840,7 @@ class ValorantStats(discord.ui.View):
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
     async def rightmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.currentmatch == self.limit:
@@ -12687,7 +12869,7 @@ class ValorantControls(discord.ui.View):
         self.currentplayerid = currentplayerid
         self.ctx = ctx
         self._message = None
-    
+
     def set_message(self, _message):
         self._message = _message
 
@@ -12698,19 +12880,19 @@ class ValorantControls(discord.ui.View):
 
     @discord.ui.button(label="View recent matches", style=discord.ButtonStyle.green)
     async def roundstats(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         valoview = ValorantStats(self.matches, self.currentplayerid)
-        valoview.set_message(await self.ctx.send(
-            embed=valoview.embeds[0], view=valoview, ephemeral=True
-        ))
+        valoview.set_message(
+            await self.ctx.send(embed=valoview.embeds[0], view=valoview, ephemeral=True)
+        )
         button.disabled = True
         await interaction.response.edit_message(view=self)
 
     @discord.ui.button(label="View detailed stats", style=discord.ButtonStyle.green)
     async def completestats(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         embed = discord.Embed(
@@ -12722,11 +12904,13 @@ class ValorantControls(discord.ui.View):
         """,
         )
         view = ValorantDetailedStats(self.matches, self.currentplayerid)
-        view.set_message(await self.ctx.send(
-            embed=embed,
-            view=view,
-            ephemeral=True,
-        ))
+        view.set_message(
+            await self.ctx.send(
+                embed=embed,
+                view=view,
+                ephemeral=True,
+            )
+        )
         button.disabled = True
         await interaction.response.edit_message(view=self)
 
@@ -12737,7 +12921,7 @@ class ValorantDetailedStats(discord.ui.View):
         self.matches = matches
         self.currentplayerid = currentplayerid
         self._message = None
-    
+
     def set_message(self, _message):
         self._message = _message
 
@@ -12748,7 +12932,7 @@ class ValorantDetailedStats(discord.ui.View):
 
     @discord.ui.button(emoji="1️⃣", style=discord.ButtonStyle.green)
     async def mostusedweapons(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         embed = discord.Embed(title="Most Used Weapons", description="")
@@ -12761,7 +12945,7 @@ class ValorantDetailedStats(discord.ui.View):
 
     @discord.ui.button(emoji="2️⃣", style=discord.ButtonStyle.green)
     async def mostkillswithweapon(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         embed = discord.Embed(title="Most Kills With Weapon", description="")
@@ -12775,7 +12959,7 @@ class ValorantDetailedStats(discord.ui.View):
 
     @discord.ui.button(emoji="3️⃣", style=discord.ButtonStyle.green)
     async def roundlosingreasons(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         embed = discord.Embed(title="Common Round Losing Reasons", description="")
@@ -12788,7 +12972,7 @@ class ValorantDetailedStats(discord.ui.View):
             try:
                 return "%d%s" % (
                     n,
-                    "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10:: 4],
+                    "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10 :: 4],
                 )
             except:
                 return ""
@@ -12801,18 +12985,18 @@ class ValorantDetailedStats(discord.ui.View):
 
 class Minecraftpvp(discord.ui.View):
     def __init__(
-            self,
-            memberoneid,
-            membertwoid,
-            memberonename,
-            membertwoname,
-            memberonehealth,
-            membertwohealth,
-            memberonearmor,
-            membertwoarmor,
-            memberonesword,
-            membertwosword,
-            vc,
+        self,
+        memberoneid,
+        membertwoid,
+        memberonename,
+        membertwoname,
+        memberonehealth,
+        membertwohealth,
+        memberonearmor,
+        membertwoarmor,
+        memberonesword,
+        membertwosword,
+        vc,
     ):
         self.moveturn = memberoneid
         self.memberoneid = memberoneid
@@ -12841,7 +13025,7 @@ class Minecraftpvp(discord.ui.View):
         custom_id="minecraftpvp:surrender",
     )
     async def surrender(
-            self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         if not interaction.user.id in self.memberids:
             await interaction.response.send_message(
@@ -12887,7 +13071,9 @@ class Minecraftpvp(discord.ui.View):
             try:
                 if self.vc.is_playing():
                     self.vc.stop()
-                self.vc.play(discord.FFmpegPCMAudio("Event_raidhorn4.ogg"))
+                self.vc.play(
+                    discord.FFmpegPCMAudio("./resources/pvp/Event_raidhorn4.ogg")
+                )
             except:
                 pass
             self.stop()
@@ -12939,7 +13125,9 @@ class Minecraftpvp(discord.ui.View):
                 try:
                     if self.vc.is_playing():
                         self.vc.stop()
-                    self.vc.play(discord.FFmpegPCMAudio("Equip_netherite4.ogg"))
+                    self.vc.play(
+                        discord.FFmpegPCMAudio("./resources/pvp/Equip_netherite4.ogg")
+                    )
                 except:
                     pass
                 embed.description = f"`{interaction.user.name} has equipped the shields and its on cooldown for the next move!`"
@@ -13003,7 +13191,7 @@ class Minecraftpvp(discord.ui.View):
                 attackvalue = attackdamage[attack.index(attackchoice)]
                 armorresistvalue = 100.0 - self.membertwo_armor_resist
                 damagevalue = (armorresistvalue / 100.0) * (
-                        self.memberone_sword_attack * attackvalue
+                    self.memberone_sword_attack * attackvalue
                 )
                 shielddisabled = self.membertwo_resistance
                 if self.membertwo_resistance:
@@ -13018,11 +13206,19 @@ class Minecraftpvp(discord.ui.View):
                     if self.vc.is_playing():
                         self.vc.stop()
                     if attackchoice == "weak":
-                        self.vc.play(discord.FFmpegPCMAudio("Weak_attack1.ogg"))
+                        self.vc.play(
+                            discord.FFmpegPCMAudio("./resources/pvp/Weak_attack1.ogg")
+                        )
                     if attackchoice == "strong":
-                        self.vc.play(discord.FFmpegPCMAudio("Strong_attack1.ogg"))
+                        self.vc.play(
+                            discord.FFmpegPCMAudio("./resources/pvp/Strong_attack1.ogg")
+                        )
                     if attackchoice == "critical":
-                        self.vc.play(discord.FFmpegPCMAudio("Critical_attack1.ogg"))
+                        self.vc.play(
+                            discord.FFmpegPCMAudio(
+                                "./resources/pvp/Critical_attack1.ogg"
+                            )
+                        )
                 except:
                     pass
                 _message = interaction.message
@@ -13038,7 +13234,11 @@ class Minecraftpvp(discord.ui.View):
                         try:
                             if self.vc.is_playing():
                                 self.vc.stop()
-                            self.vc.play(discord.FFmpegPCMAudio("Player_hurt1.ogg"))
+                            self.vc.play(
+                                discord.FFmpegPCMAudio(
+                                    "./resources/pvp/Player_hurt1.ogg"
+                                )
+                            )
                         except:
                             pass
                         await addmoney(self.memberoneid, 50)
@@ -13060,7 +13260,11 @@ class Minecraftpvp(discord.ui.View):
                         try:
                             if self.vc.is_playing():
                                 self.vc.stop()
-                            self.vc.play(discord.FFmpegPCMAudio("Shield_block5.ogg"))
+                            self.vc.play(
+                                discord.FFmpegPCMAudio(
+                                    "./resources/pvp/Shield_block5.ogg"
+                                )
+                            )
                         except:
                             pass
                         lastmessage = " and disabled the shields!"
@@ -13072,8 +13276,8 @@ class Minecraftpvp(discord.ui.View):
                         value=getProgress(
                             int(
                                 (
-                                        self.membertwo_healthpoint
-                                        / self.total_membertwo_healthpoint
+                                    self.membertwo_healthpoint
+                                    / self.total_membertwo_healthpoint
                                 )
                                 * 100
                             )
@@ -13095,7 +13299,7 @@ class Minecraftpvp(discord.ui.View):
                 attackvalue = attackdamage[attack.index(attackchoice)]
                 armorresistvalue = 100.0 - self.memberone_armor_resist
                 damagevalue = (armorresistvalue / 100.0) * (
-                        self.membertwo_sword_attack * attackvalue
+                    self.membertwo_sword_attack * attackvalue
                 )
                 shielddisabled = self.memberone_resistance
                 if self.memberone_resistance:
@@ -13110,11 +13314,19 @@ class Minecraftpvp(discord.ui.View):
                     if self.vc.is_playing():
                         self.vc.stop()
                     if attackchoice == "weak":
-                        self.vc.play(discord.FFmpegPCMAudio("Weak_attack1.ogg"))
+                        self.vc.play(
+                            discord.FFmpegPCMAudio("./resources/pvp/Weak_attack1.ogg")
+                        )
                     if attackchoice == "strong":
-                        self.vc.play(discord.FFmpegPCMAudio("Strong_attack1.ogg"))
+                        self.vc.play(
+                            discord.FFmpegPCMAudio("./resources/pvp/Strong_attack1.ogg")
+                        )
                     if attackchoice == "critical":
-                        self.vc.play(discord.FFmpegPCMAudio("Critical_attack1.ogg"))
+                        self.vc.play(
+                            discord.FFmpegPCMAudio(
+                                "./resources/pvp/Critical_attack1.ogg"
+                            )
+                        )
                 except:
                     pass
                 _message = interaction.message
@@ -13136,7 +13348,11 @@ class Minecraftpvp(discord.ui.View):
                         try:
                             if self.vc.is_playing():
                                 self.vc.stop()
-                            self.vc.play(discord.FFmpegPCMAudio("Player_hurt1.ogg"))
+                            self.vc.play(
+                                discord.FFmpegPCMAudio(
+                                    "./resources/pvp/Player_hurt1.ogg"
+                                )
+                            )
                         except:
                             pass
                         statement = """INSERT INTO leaderboard (mention) VALUES($1);"""
@@ -13152,7 +13368,11 @@ class Minecraftpvp(discord.ui.View):
                         try:
                             if self.vc.is_playing():
                                 self.vc.stop()
-                            self.vc.play(discord.FFmpegPCMAudio("Shield_block5.ogg"))
+                            self.vc.play(
+                                discord.FFmpegPCMAudio(
+                                    "./resources/pvp/Shield_block5.ogg"
+                                )
+                            )
                         except:
                             pass
                         lastmessage = " and disabled the shields!"
@@ -13164,8 +13384,8 @@ class Minecraftpvp(discord.ui.View):
                         value=getProgress(
                             int(
                                 (
-                                        self.memberone_healthpoint
-                                        / self.total_memberone_healthpoint
+                                    self.memberone_healthpoint
+                                    / self.total_memberone_healthpoint
                                 )
                                 * 100
                             )
@@ -13194,7 +13414,7 @@ class ConfirmPrivate(discord.ui.View):
     )
     async def green(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.user.id in self.memberids and not checkstaff(
-                interaction.user
+            interaction.user
         ):
             await interaction.response.send_message(
                 "You do not have permissions to access that private message.",
@@ -13228,6 +13448,9 @@ class CustomCommands(commands.Cog):
     """Guild custom commands"""
 
     async def cog_load(self):
+        await client.wait_until_ready()
+        global customCog
+        customCog = self
         for guild in client.guilds:
             async with pool.acquire() as con:
                 customlist = await con.fetch(
@@ -13256,7 +13479,9 @@ class CustomCommands(commands.Cog):
                             output = customlist[2]
                             output = output.replace("{user}", str(ctx.author.mention))
                             output = output.replace("{member}", str(ctx.author.mention))
-                            output = output.replace("{channel}", str(ctx.channel.mention))
+                            output = output.replace(
+                                "{channel}", str(ctx.channel.mention)
+                            )
                             output = output.replace("{guild}", str(ctx.guild))
                             embed = discord.Embed(
                                 title=f"{ctx.command.name} command", description=output
@@ -13268,7 +13493,9 @@ class CustomCommands(commands.Cog):
                             embed = discord.Embed(
                                 title=f"{ctx.command.name} command", description=output
                             )
-                            embed.set_footer(text=f"{ctx.guild}'s custom command (ERASED)")
+                            embed.set_footer(
+                                text=f"{ctx.guild}'s custom command (ERASED)"
+                            )
                             await ctx.send(embed=embed)
 
                     cmd.cog = self
@@ -13409,6 +13636,7 @@ class CustomCommands(commands.Cog):
             )
         await ctx.send(f"Successfully removed a command called {cmdname}")
 
+
 @client.event
 async def on_raw_reaction_add(payload):
     global maintenancemodestatus
@@ -13512,7 +13740,7 @@ async def on_raw_reaction_add(payload):
                 f"SELECT * FROM ticketchannels WHERE messageid = {payload.message_id}"
             )
         if not ticketlist == None:
-            supportroleid = ticketlist[2]
+            supportroleid = ticketlist["roleid"]
             guild = client.get_guild(payload.guild_id)
             channel = guild.get_channel(payload.channel_id)
             _message = channel.get_partial_message(payload.message_id)
@@ -13564,8 +13792,8 @@ async def on_guild_join(guild):
         )
         for channel in guild.channels:
             if (
-                    channel.type == discord.ChannelType.text
-                    and channel.permissions_for(guild.me).send_messages
+                channel.type == discord.ChannelType.text
+                and channel.permissions_for(guild.me).send_messages
             ):
                 embedOne.add_field(
                     name=f"Invoke our bot by sending {prefix}help in a channel in which bot has permissions to read.",
@@ -13575,9 +13803,9 @@ async def on_guild_join(guild):
 
                 embedOne.add_field(
                     name="Thanks for inviting "
-                         + client.user.name
-                         + " to "
-                         + str(guild.name),
+                    + client.user.name
+                    + " to "
+                    + str(guild.name),
                     value="** **",
                     inline=False,
                 )
@@ -13610,9 +13838,9 @@ async def on_raw_message_delete(payload):
         channelid = payload.channel_id
         if payload.cached_message is not None:
             authorname = (
-                    str(payload.cached_message.author.name)
-                    + "#"
-                    + str(payload.cached_message.author.discriminator)
+                str(payload.cached_message.author.name)
+                + "#"
+                + str(payload.cached_message.author.discriminator)
             )
             messagecontent = str(payload.cached_message.content)
             if len(payload.cached_message.embeds) != 0:
@@ -13769,10 +13997,10 @@ async def on_message_edit(before, _message):
                     f"SELECT * FROM linkchannels WHERE channelid = {_message.channel.id}"
                 )
             if (
-                    linklist is not None
-                    and not _message.channel.permissions_for(_message.author).manage_guild
-                    and not checkstaff(_message.author)
-                    and not ismuted(_message, _message.author)
+                linklist is not None
+                and not _message.channel.permissions_for(_message.author).manage_guild
+                and not checkstaff(_message.author)
+                and not ismuted(_message, _message.author)
             ):
                 listofsentence = [origmessage]
                 listofwords = convertwords(listofsentence)
@@ -13802,7 +14030,9 @@ async def on_message_edit(before, _message):
                             name="** **",
                         )
                         if not _message.channel.id in disabledChannels:
-                            messagesent = await _message.channel.send(embed=automodembed)
+                            messagesent = await _message.channel.send(
+                                embed=automodembed
+                            )
                             await asyncio.sleep(2)
                             await messagesent.delete()
                         return
@@ -13874,10 +14104,10 @@ async def on_message_edit(before, _message):
                     f"SELECT * FROM profanechannels WHERE channelid = {_message.channel.id}"
                 )
             if (
-                    profanelist is not None
-                    and not _message.channel.permissions_for(_message.author).manage_guild
-                    and not checkstaff(_message.author)
-                    and not ismuted(_message, _message.author)
+                profanelist is not None
+                and not _message.channel.permissions_for(_message.author).manage_guild
+                and not checkstaff(_message.author)
+                and not ismuted(_message, _message.author)
             ):
                 if checkProfane(origmessage):
                     if not _message.channel.id in disabledChannels:
@@ -13902,7 +14132,9 @@ async def on_message_edit(before, _message):
                             name="** **",
                         )
                         if not _message.channel.id in disabledChannels:
-                            messagesent = await _message.channel.send(embed=automodembed)
+                            messagesent = await _message.channel.send(
+                                embed=automodembed
+                            )
                             await asyncio.sleep(2)
                             await messagesent.delete()
                 elif checkCaps(origmessage):
@@ -13928,7 +14160,9 @@ async def on_message_edit(before, _message):
                             name="** **",
                         )
                         if not _message.channel.id in disabledChannels:
-                            messagesent = await _message.channel.send(embed=automodembed)
+                            messagesent = await _message.channel.send(
+                                embed=automodembed
+                            )
                             await asyncio.sleep(2)
                             await messagesent.delete()
     except Exception as error:
@@ -13988,7 +14222,7 @@ async def on_message(_message):
             return
         if maintenancemodestatus and not onlystaffaccess:
             if ("<@!1061480715172200498>" in _message.content) or (
-                    "<@1061480715172200498>" in _message.content
+                "<@1061480715172200498>" in _message.content
             ):
                 await _message.reply(
                     f"The bot is currently in maintainence , {maintenancemodereason}"
@@ -14002,9 +14236,9 @@ async def on_message(_message):
             print(f" {_message.author} sent {_message.content} in {_message.channel} .")
         ctx = await client.get_context(_message)
         if (
-                _message.channel.id == 846696676214308904
-                and not _message.author == ctx.guild.me
-                and _message.author.bot
+            _message.channel.id == 846696676214308904
+            and not _message.author == ctx.guild.me
+            and _message.author.bot
         ):
             dashboardtype = "NA"
             codeexec = False
@@ -14035,7 +14269,11 @@ async def on_message(_message):
                 reqid = str(_message.content)
                 game = discord.Game(reqid)
                 await client.change_presence(status=discord.Status.idle, activity=game)
-                messages = await client.get_channel(CHANNEL_GIT_LOGGING_ID).history(limit=1).flatten()
+                messages = (
+                    await client.get_channel(CHANNEL_GIT_LOGGING_ID)
+                    .history(limit=1)
+                    .flatten()
+                )
                 bottommessage = messages[0]
                 embed = bottommessage.embeds[0]
                 if reqid.split()[1] in embed.description:
@@ -14053,8 +14291,8 @@ async def on_message(_message):
                 authheader = {"Authorization": f"Bearer  {access_token}"}
                 session = client.session
                 async with session.get(
-                        "https://asia.api.riotgames.com/riot/account/v1/accounts/me",
-                        headers=authheader,
+                    "https://asia.api.riotgames.com/riot/account/v1/accounts/me",
+                    headers=authheader,
                 ) as resp:
                     if resp.status == 200:
                         jsonGot = await resp.json()
@@ -14100,9 +14338,9 @@ async def on_message(_message):
         if restrictlist is not None and ctx.valid:
             return
         if (
-                ctx.author.id == 270904126974590976
-                and _message.type == discord.MessageType.application_command
-                and _message.interaction.name == "trivia"
+            ctx.author.id == 270904126974590976
+            and _message.type == discord.MessageType.application_command
+            and _message.interaction.name == "trivia"
         ):
             try:
                 embed = _message.embeds[0]
@@ -14147,7 +14385,7 @@ async def on_message(_message):
                     )
                 if commandlist is not None:
                     if not _message.channel.permissions_for(
-                            _message.author
+                        _message.author
                     ).administrator and not checkstaff(_message.author):
                         await on_command_error(
                             ctx,
@@ -14192,7 +14430,7 @@ async def on_message(_message):
                 #    f"Alert: leveling was automatically disabled in this channel, do {_message.guild.me.mention}leveltoggle to turn on leveling!",
                 #    delete_after=5,
                 # )
-            if warninglist[1]:
+            if warninglist["setting"]:
                 async with pool.acquire() as con:
                     levelconfiglist = await con.fetchrow(
                         f"SELECT * FROM levelconfig WHERE channelid = {_message.channel.id}"
@@ -14205,13 +14443,13 @@ async def on_message(_message):
                         levelconfiglist = await con.fetchrow(
                             f"SELECT * FROM levelconfig WHERE channelid = {_message.channel.id}"
                         )
-                levelmsgcount = levelconfiglist[1]
+                levelmsgcount = levelconfiglist["messagecount"]
                 async with pool.acquire() as con:
                     levellist = await con.fetchrow(
                         f"SELECT * FROM leveling WHERE guildid = {_message.guild.id} AND memberid = {_message.author.id}"
                     )
                 if levellist is not None:
-                    messageNew = levellist[2] + 1
+                    messageNew = levellist["messagecount"] + 1
                     currentLevel = messageNew // levelmsgcount
                     if messageNew % levelmsgcount == 0:
                         try:
@@ -14236,10 +14474,10 @@ async def on_message(_message):
                     f"SELECT * FROM linkchannels WHERE channelid = {_message.channel.id}"
                 )
             if (
-                    linklist is not None
-                    and not ctx.channel.permissions_for(_message.author).manage_guild
-                    and not checkstaff(ctx.author)
-                    and not ismuted(ctx, ctx.author)
+                linklist is not None
+                and not ctx.channel.permissions_for(_message.author).manage_guild
+                and not checkstaff(ctx.author)
+                and not ismuted(ctx, ctx.author)
             ):
                 listofsentence = [origmessage]
                 listofwords = convertwords(listofsentence)
@@ -14381,8 +14619,8 @@ async def on_message(_message):
                 )
 
         if (
-                ("<@!1061480715172200498>" in _message.content)
-                or ("<@1061480715172200498>" in _message.content)
+            ("<@!1061480715172200498>" in _message.content)
+            or ("<@1061480715172200498>" in _message.content)
         ) and not (ctx.valid):
             if _message.guild:
                 async with pool.acquire() as con:
@@ -14465,10 +14703,10 @@ async def on_message(_message):
                     f"SELECT * FROM spamchannels WHERE channelid = {_message.channel.id}"
                 )
             if (
-                    spamlist is not None
-                    and not ctx.channel.permissions_for(_message.author).manage_guild
-                    and not checkstaff(ctx.author)
-                    and not ismuted(ctx, ctx.author)
+                spamlist is not None
+                and not ctx.channel.permissions_for(_message.author).manage_guild
+                and not checkstaff(ctx.author)
+                and not ismuted(ctx, ctx.author)
             ):
                 try:
                     await _message.delete()
@@ -14508,10 +14746,10 @@ async def on_message(_message):
                     f"SELECT * FROM profanechannels WHERE channelid = {_message.channel.id}"
                 )
             if (
-                    profanelist is not None
-                    and not ctx.channel.permissions_for(_message.author).manage_guild
-                    and not checkstaff(ctx.author)
-                    and not ismuted(ctx, ctx.author)
+                profanelist is not None
+                and not ctx.channel.permissions_for(_message.author).manage_guild
+                and not checkstaff(ctx.author)
+                and not ismuted(ctx, ctx.author)
             ):
                 if checkProfane(origmessage):
                     warnbucket = bot.cooldowntwo.get_bucket(_message)
@@ -14622,17 +14860,17 @@ async def on_guild_channel_create(channel):
             f"SELECT * FROM antiraid WHERE guildid = {logguild.id}"
         )
     if logchannellist:
-        channelid = logchannellist[1]
+        channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
     if antiraidchannellist:
-        channelid = antiraidchannellist[1]
+        channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
     currententry = None
     async for entry in logguild.audit_logs(
-            limit=1, action=discord.AuditLogAction.channel_create
+        limit=1, action=discord.AuditLogAction.channel_create
     ):
         currententry = entry
     modid = currententry.user.id
@@ -14684,17 +14922,17 @@ async def on_guild_channel_delete(channel):
             f"SELECT * FROM antiraid WHERE guildid = {logguild.id}"
         )
     if logchannellist:
-        channelid = logchannellist[1]
+        channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
     if antiraidchannellist:
-        channelid = antiraidchannellist[1]
+        channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
     currententry = None
     async for entry in logguild.audit_logs(
-            limit=1, action=discord.AuditLogAction.channel_delete
+        limit=1, action=discord.AuditLogAction.channel_delete
     ):
         currententry = entry
     modid = currententry.user.id
@@ -14750,10 +14988,10 @@ async def on_guild_channel_update(before, after):
             f"SELECT * FROM antiraid WHERE guildid = {logguild.id}"
         )
     if logchannellist:
-        channelid = logchannellist[1]
+        channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
     if antiraidchannellist:
-        channelid = antiraidchannellist[1]
+        channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
@@ -14775,19 +15013,19 @@ async def on_guild_channel_update(before, after):
     currententry = None
     ut = []
     async for entry in logguild.audit_logs(
-            limit=1, action=discord.AuditLogAction.channel_update
+        limit=1, action=discord.AuditLogAction.channel_update
     ):
         ut.append(entry)
     async for entry in logguild.audit_logs(
-            limit=1, action=discord.AuditLogAction.overwrite_create
+        limit=1, action=discord.AuditLogAction.overwrite_create
     ):
         ut.append(entry)
     async for entry in logguild.audit_logs(
-            limit=1, action=discord.AuditLogAction.overwrite_update
+        limit=1, action=discord.AuditLogAction.overwrite_update
     ):
         ut.append(entry)
     async for entry in logguild.audit_logs(
-            limit=1, action=discord.AuditLogAction.overwrite_delete
+        limit=1, action=discord.AuditLogAction.overwrite_delete
     ):
         ut.append(entry)
     ut.sort(key=lambda x: x.created_at, reverse=True)
@@ -14821,12 +15059,12 @@ async def on_guild_channel_update(before, after):
         changes = ""
         if before.category != after.category:
             changes = (
-                    changes
-                    + f"The category changed from {before.category} to {after.category}.\n"
+                changes
+                + f"The category changed from {before.category} to {after.category}.\n"
             )
         if before.name != after.name:
             changes = (
-                    changes + f"The name changed from {before.name} to {after.name}.\n"
+                changes + f"The name changed from {before.name} to {after.name}.\n"
             )
         if before.overwrites != after.overwrites:
             beforePerms = before.overwrites
@@ -15115,29 +15353,29 @@ async def on_guild_channel_update(before, after):
                 for i in range(len(permOne)):
                     if permOne[i] != permTwo[i]:
                         roleChanges = (
-                                roleChanges
-                                + messageList[i]
-                                + " "
-                                + checkEmoji(permTwo[i])
-                                + "\n"
+                            roleChanges
+                            + messageList[i]
+                            + " "
+                            + checkEmoji(permTwo[i])
+                            + "\n"
                         )
 
                 if not roleChanges == "":
                     changes = (
-                            changes
-                            + f" The role {role.mention} permissions has changed **:**\n"
+                        changes
+                        + f" The role {role.mention} permissions has changed **:**\n"
                     )
                     changes = changes + roleChanges
         if before.permissions_synced != after.permissions_synced:
             if after.permissions_synced:
                 changes = (
-                        changes
-                        + f"The permissions of the channel are now synced with the channel category.\n"
+                    changes
+                    + f"The permissions of the channel are now synced with the channel category.\n"
                 )
             else:
                 changes = (
-                        changes
-                        + f"The permissions of the channel are now not synced with the channel category.\n"
+                    changes
+                    + f"The permissions of the channel are now not synced with the channel category.\n"
                 )
         if not changes == "":
             embed = discord.Embed(
@@ -15165,17 +15403,17 @@ async def on_guild_update(before, after):
             f"SELECT * FROM antiraid WHERE guildid = {logguild.id}"
         )
     if logchannellist:
-        channelid = logchannellist[1]
+        channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
     if antiraidchannellist:
-        channelid = antiraidchannellist[1]
+        channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
     currententry = None
     async for entry in logguild.audit_logs(
-            limit=1, action=discord.AuditLogAction.guild_update
+        limit=1, action=discord.AuditLogAction.guild_update
     ):
         currententry = entry
     modid = currententry.user.id
@@ -15206,7 +15444,7 @@ async def on_guild_update(before, after):
         changes = ""
         if before.name != after.name:
             changes = (
-                    changes + f" The name changed from {before.name} to {after.name}.\n"
+                changes + f" The name changed from {before.name} to {after.name}.\n"
             )
         if before.icon != after.icon:
             changes = changes + f" The icon changed to {after.icon.url}.\n"
@@ -15214,18 +15452,18 @@ async def on_guild_update(before, after):
             changes = changes + f" The banner changed to {after.banner_url}.\n"
         if before.region != after.region:
             changes = (
-                    changes
-                    + f" The region changed from {before.region} to {after.region}.\n"
+                changes
+                + f" The region changed from {before.region} to {after.region}.\n"
             )
         if before.afk_channel != after.afk_channel:
             changes = (
-                    changes
-                    + f" The afk channel changed from {before.afk_channel.mention} to {after.afk_channel.mention}.\n"
+                changes
+                + f" The afk channel changed from {before.afk_channel.mention} to {after.afk_channel.mention}.\n"
             )
         if before.afk_timeout != after.afk_timeout:
             changes = (
-                    changes
-                    + f" The afk timeout changed from {before.afk_timeout} to {after.afk_timeout}.\n"
+                changes
+                + f" The afk timeout changed from {before.afk_timeout} to {after.afk_timeout}.\n"
             )
         if before.mfa_level != after.mfa_level:
             beforeLevel = ""
@@ -15239,13 +15477,13 @@ async def on_guild_update(before, after):
             else:
                 afterLevel = "required"
             changes = (
-                    changes
-                    + f" The 2fa requirements changed from {beforeLevel} to {afterLevel}.\n"
+                changes
+                + f" The 2fa requirements changed from {beforeLevel} to {afterLevel}.\n"
             )
         if before.verification_level != after.verification_level:
             changes = (
-                    changes
-                    + f" The verification level changed from {before.verification_level} to {after.verification_level}.\n"
+                changes
+                + f" The verification level changed from {before.verification_level} to {after.verification_level}.\n"
             )
         if not changes == "":
             embed = discord.Embed(
@@ -15272,17 +15510,17 @@ async def on_guild_role_create(role):
             f"SELECT * FROM antiraid WHERE guildid = {logguild.id}"
         )
     if logchannellist:
-        channelid = logchannellist[1]
+        channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
     if antiraidchannellist:
-        channelid = antiraidchannellist[1]
+        channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
     currententry = None
     async for entry in logguild.audit_logs(
-            limit=1, action=discord.AuditLogAction.role_create
+        limit=1, action=discord.AuditLogAction.role_create
     ):
         currententry = entry
     modid = currententry.user.id
@@ -15342,17 +15580,17 @@ async def on_guild_role_delete(role):
             f"SELECT * FROM antiraid WHERE guildid = {logguild.id}"
         )
     if logchannellist:
-        channelid = logchannellist[1]
+        channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
     if antiraidchannellist:
-        channelid = antiraidchannellist[1]
+        channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
     currententry = None
     async for entry in logguild.audit_logs(
-            limit=1, action=discord.AuditLogAction.role_delete
+        limit=1, action=discord.AuditLogAction.role_delete
     ):
         currententry = entry
     modid = currententry.user.id
@@ -15403,17 +15641,17 @@ async def on_guild_role_update(before, after):
             f"SELECT * FROM antiraid WHERE guildid = {logguild.id}"
         )
     if logchannellist:
-        channelid = logchannellist[1]
+        channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
     if antiraidchannellist:
-        channelid = antiraidchannellist[1]
+        channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
     currententry = None
     async for entry in logguild.audit_logs(
-            limit=1, action=discord.AuditLogAction.role_update
+        limit=1, action=discord.AuditLogAction.role_update
     ):
         currententry = entry
     modid = currententry.user.id
@@ -15444,8 +15682,8 @@ async def on_guild_role_update(before, after):
         changes = ""
         if before.color != after.color:
             changes = (
-                    changes
-                    + f" The role color changed from (R,G,B) {before.color.r},{before.color.g},{before.color.b} to {after.color.r},{after.color.g},{after.color.b}.\n"
+                changes
+                + f" The role color changed from (R,G,B) {before.color.r},{before.color.g},{before.color.b} to {after.color.r},{after.color.g},{after.color.b}.\n"
             )
         if before.hoist != after.hoist:
             hoistmsg = ""
@@ -15719,19 +15957,19 @@ async def on_guild_role_update(before, after):
             for i in range(len(myList1)):
                 if myList[i] != myList1[i]:
                     roleChanges = (
-                            roleChanges
-                            + messageList[i]
-                            + " "
-                            + checkEmoji(myList1[i])
-                            + "\n"
+                        roleChanges
+                        + messageList[i]
+                        + " "
+                        + checkEmoji(myList1[i])
+                        + "\n"
                     )
             if not roleChanges == "":
                 changes = changes + f" The role permissions has changed **:**\n"
                 changes = changes + roleChanges
         if before.name != after.name:
             changes = (
-                    changes
-                    + f" The role name has changed from {before.name} to {after.name}.\n"
+                changes
+                + f" The role name has changed from {before.name} to {after.name}.\n"
             )
         if not changes == "":
             embed = discord.Embed(
@@ -15758,10 +15996,10 @@ async def on_member_ban(guild, member):
             f"SELECT * FROM antiraid WHERE guildid = {logguild.id}"
         )
     if logchannellist:
-        channelid = logchannellist[1]
+        channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
     if antiraidchannellist:
-        channelid = antiraidchannellist[1]
+        channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
@@ -15820,17 +16058,17 @@ async def on_member_unban(guild, member):
             f"SELECT * FROM antiraid WHERE guildid = {logguild.id}"
         )
     if logchannellist:
-        channelid = logchannellist[1]
+        channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
     if antiraidchannellist:
-        channelid = antiraidchannellist[1]
+        channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     currententry = None
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
     async for entry in logguild.audit_logs(
-            limit=1, action=discord.AuditLogAction.unban
+        limit=1, action=discord.AuditLogAction.unban
     ):
         currententry = entry
     modid = currententry.user.id
@@ -15879,7 +16117,7 @@ async def on_invite_create(invite):
             f"SELECT * FROM logchannels WHERE guildid = {logguild.id}"
         )
     if not logchannellist is None:
-        channelid = logchannellist[1]
+        channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
     else:
         return
@@ -15909,7 +16147,7 @@ async def on_invite_delete(invite):
             f"SELECT * FROM logchannels WHERE guildid = {logguild.id}"
         )
     if not logchannellist is None:
-        channelid = logchannellist[1]
+        channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
     else:
         return
@@ -15931,19 +16169,19 @@ async def on_voice_state_update(member, before, after):
             f"SELECT * FROM logchannels WHERE guildid = {logguild.id}"
         )
     if not logchannellist is None:
-        channelid = logchannellist[1]
+        channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
     try:
         changes = ""
         if before.channel == None:
             changes = (
-                    changes
-                    + f" The member {member.mention} connected to the voice channel {after.channel.mention}.\n"
+                changes
+                + f" The member {member.mention} connected to the voice channel {after.channel.mention}.\n"
             )
         if after.channel == None:
             changes = (
-                    changes
-                    + f" The member {member.mention} disconnected from the voice channel {before.channel.mention}.\n"
+                changes
+                + f" The member {member.mention} disconnected from the voice channel {before.channel.mention}.\n"
             )
             vc = before.channel
         if before.self_mute != after.self_mute:
@@ -16000,6 +16238,8 @@ async def on_voice_state_update(member, before, after):
                 await logchannel.send(embed=embed)
     except Exception as ex:
         print(f" on_voice_state_update Logging error {ex}")
+
+
 try:
     client.run(token)
     # REQUIRES API KEY(BOT TOKEN)
