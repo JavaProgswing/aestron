@@ -83,6 +83,7 @@ maintenancemodestatus = False
 onlystaffaccess = False
 maintenancemodereason = "fixing a bug"
 forcelogerrors = False
+firstgithubcheck = True
 async def chatbotfetch(session, url):
     try:
         headers = {
@@ -1182,7 +1183,6 @@ async def runBot():
         await channelmsg.send("Successfully Restarted!")
     valorantMatchSave.start()
     valorantSeasonCheck.start()
-    gitcommitcheck.start()
     await client.add_cog(AestronInfo(client))
     await client.add_cog(Moderation(client))
     await client.add_cog(Logging(client))
@@ -1205,6 +1205,7 @@ async def runBot():
     await client.load_extension("jishaku")
     for guild in client.guilds:
         guildids.append(guild.id)
+    gitcommitcheck.start()
     client.start_status = BotStartStatus.COMPLETED
 
 class MyBot(commands.Bot):
@@ -2811,6 +2812,11 @@ def check_ensure_permissions(ctx, member, perms):
 
 @tasks.loop(seconds=15)
 async def gitcommitcheck():
+    global firstgithubcheck
+    if(firstgithubcheck):
+        await asyncio.sleep(15)
+        firstgithubcheck = False
+        print(f"Github checks started!")
     GITHUB_OWNER = os.getenv("GITHUB_OWNER")
     GITHUB_REPO = os.getenv("GITHUB_REPO")
 
