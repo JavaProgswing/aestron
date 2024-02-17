@@ -1,4 +1,4 @@
-git+https://github.com/lepture/captcha/@d4e0c5bd0e9f1c1f81d44db6f3ae58cb88747d0f
+captcha >= 0.5.0
 wavelink >= 3.2.0
 langdetect >= 1.0.9
 python-dotenv >= 1.0.1

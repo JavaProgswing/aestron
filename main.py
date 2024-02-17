@@ -3,7 +3,6 @@ from youtubesearchpython.__future__ import *
 
 import asyncio
 import base64
-import collections
 import contextlib
 import datetime
 import io
@@ -850,7 +849,7 @@ class DefaultHelp(discord.ui.View):
     @discord.ui.button(
         label="⚪Click to toggle(Showing your commands)", style=discord.ButtonStyle.green
     )
-    async def toggle(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def toggle(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.showAll = not self.showAll
         if self.showAll:
             button.label = "🔵Click to toggle(Showing all commands)"
@@ -1166,7 +1165,26 @@ async def runBot():
     valorantMatchSave.start()
     valorantSeasonCheck.start()
     gitcommitcheck.start()
-
+    await client.add_cog(AestronInfo(client))
+    await client.add_cog(Moderation(client))
+    await client.add_cog(Logging(client))
+    await client.add_cog(AutoMod(client))
+    await client.add_cog(Templates(client))
+    await client.add_cog(SupportTicket(client))
+    await client.add_cog(Captcha(client))
+    await client.add_cog(MinecraftFun(client))
+    await client.add_cog(Leveling(client))
+    await client.add_cog(Valorant(client))
+    await client.add_cog(Misc(client))
+    await client.add_cog(Call(client))
+    await client.add_cog(Fun(client))
+    await client.add_cog(Social(client))
+    await client.add_cog(Giveaways(client))
+    await client.add_cog(Support(client))
+    await client.add_cog(Music(client))
+    await client.add_cog(YoutubeTogether(client))
+    await client.add_cog(CustomCommands(client))
+    await client.load_extension("jishaku")
     for guild in client.guilds:
         guildids.append(guild.id)
     client.start_status = BotStartStatus.COMPLETED
@@ -1180,26 +1198,6 @@ class MyBot(commands.Bot):
 
     async def setup_hook(self):
         self.loop.create_task(runBot())
-        await client.add_cog(AestronInfo(client))
-        await client.add_cog(Moderation(client))
-        await client.add_cog(Logging(client))
-        await client.add_cog(AutoMod(client))
-        await client.add_cog(Templates(client))
-        await client.add_cog(SupportTicket(client))
-        await client.add_cog(Captcha(client))
-        await client.add_cog(MinecraftFun(client))
-        await client.add_cog(Leveling(client))
-        await client.add_cog(Valorant(client))
-        await client.add_cog(Misc(client))
-        await client.add_cog(Call(client))
-        await client.add_cog(Fun(client))
-        await client.add_cog(Social(client))
-        await client.add_cog(Giveaways(client))
-        await client.add_cog(Support(client))
-        await client.add_cog(Music(client))
-        await client.add_cog(YoutubeTogether(client))
-        await client.add_cog(CustomCommands(client))
-        await client.load_extension("jishaku")
         
     async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None:
         player: wavelink.Player | None = payload.player
@@ -1210,25 +1208,25 @@ class MyBot(commands.Bot):
         original: wavelink.Playable | None = payload.original
         track: wavelink.Playable = payload.track
         embed = discord.Embed(
-            title=f"{track.title}",
+            title="",
             description=f"Feat {track.artist.url}",
             color=0x00FF00,
         )
         if track.source == "youtube":
             embed.set_author(
-            name="Youtube",
+            name=track.title,
             icon_url="https://cdn.discordapp.com/avatars/812967359312297994/2c234518e4889657d01fe7001cd52422.webp?size=128",
         )
             track.type_emoji = "<:youtube:947131039418052658>"
         elif track.source == "spotify":
             embed.set_author(
-            name="Spotify",
+            name=track.title,
             icon_url="https://cdn.discordapp.com/avatars/841279857879154689/0d77aa58a3f0a937f6c45b0305030562.png?size=128",
         )
             track.type_emoji = "<:spotify:947128614179205131>"
         else:
             embed.set_author(
-            name="Unrecognised",
+            name=track.title,
             icon_url="https://cdn.discordapp.com/avatars/879269940853612544/3b32d0d2b8eafc0d32cdeac99f9ece6f.png?size=128",
         )
             track.type_emoji = ":warning:"
@@ -1243,14 +1241,9 @@ class MyBot(commands.Bot):
             embed.description += f"(Recommended)"
 
         embed.set_footer(text=track.author)
-        class fakecontext:
-            def __init__(self, guild, bot):
-                self.guild = guild
-                self.bot = bot
-        member = await discord.ext.commands.MemberConverter().convert(ctx=fakecontext(player.home.guild, client), argument=track.author)
-        panel = Songpanel(player.home.guild, player.home, member)
+        panel = Songpanel(player.home.guild, player.home, player)
         panel.set_message(
-                await player.home.respond(embed=embed, view=panel, ephemeral=True)
+                await player.home.send(embed=embed, view=panel)
             )
         
 class BotStartStatus(enum.Enum):
@@ -1415,7 +1408,7 @@ async def playmusic(ctx, songname):
     # enabled = AutoPlay will play songs for us and fetch recommendations...
     # partial = AutoPlay will play songs for us, but WILL NOT fetch recommendations...
     # disabled = AutoPlay will do nothing...
-    player.autoplay = wavelink.AutoPlayMode.enabled
+    player.autoplay = wavelink.AutoPlayMode.disabled
 
     # Lock the player to this channel...
     if not hasattr(player, "home"):
@@ -1434,7 +1427,9 @@ async def playmusic(ctx, songname):
         return
 
     if isinstance(tracks, wavelink.Playlist):
-        # tracks is a playlist...
+        for track in tracks:
+            track.extras = {"requester_id": ctx.author.id}
+        
         added: int = await player.queue.put_wait(tracks)
         embedVar = discord.Embed(
                 title=f"Added **{tracks.name}**({added} songs) to the queue.",
@@ -1447,6 +1442,7 @@ async def playmusic(ctx, songname):
         await ctx.send(embed=embedVar, ephemeral=True)
     else:
         track: wavelink.Playable = tracks[0]
+        track.extras = {"requester_id": ctx.author.id}
         await player.queue.put_wait(track)
         embedVar = discord.Embed(
                 title=f"Added **{track}** to the queue.",
@@ -1460,7 +1456,8 @@ async def playmusic(ctx, songname):
 
     if not player.playing:
         # Play now since we aren't playing anything...
-        await player.play(player.queue.get())
+        latest_track = player.queue.get()
+        await player.play(latest_track)
         
 
 def songcheckperm(channel, member):
@@ -1470,10 +1467,9 @@ def songcheckperm(channel, member):
 
 
 class Songpanel(discord.ui.View):
-    def __init__(self, guild, channel, member):
+    def __init__(self, guild, channel, player):
         super().__init__(timeout=None)
-        self.member = member
-        self.memberid = member.id
+        self.player = player
         self.channel = channel
         self.guild = guild
         self.message = None
@@ -1485,9 +1481,10 @@ class Songpanel(discord.ui.View):
         label="⏸️", style=discord.ButtonStyle.green, custom_id="songpanel:playpause"
     )
     async def playpause(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
-        if not interaction.user.id == self.memberid and not songcheckperm(
+        member = self.player.guild.get_member(self.player.current.extras.requester_id)
+        if not interaction.user.id == member.id and not songcheckperm(
                 self.channel, interaction.user
         ):
             await interaction.response.send_message(
@@ -1496,7 +1493,7 @@ class Songpanel(discord.ui.View):
             return
         
         guild = self.guild
-        player: wavelink.Player = cast(wavelink.Player, guild.voice_client)
+        player = self.player
         if not player:
             await interaction.response.send_message(
                     "You didn't request a song to be played that can be paused.",
@@ -1511,14 +1508,12 @@ class Songpanel(discord.ui.View):
                 try:
                     await interaction.response.send_message(
                         f"The audio has been resumed by {interaction.user.mention}",
-                        delete_after=2,
                         allowed_mentions=discord.AllowedMentions.none(),
                     )
                     await self.message.edit(view=self)
                 except:
                     await interaction.followup.send(
                         f"The audio has been resumed by {interaction.user.mention}",
-                        delete_after=2,
                         allowed_mentions=discord.AllowedMentions.none(),
                     )
             else:
@@ -1527,14 +1522,12 @@ class Songpanel(discord.ui.View):
                 try:
                     await interaction.response.send_message(
                         f"The audio has been paused by {interaction.user.mention}",
-                        delete_after=2,
                         allowed_mentions=discord.AllowedMentions.none(),
                     )
                     await self.message.edit(view=self)
                 except:
                     await interaction.followup.send(
                         f"The audio has been paused by {interaction.user.mention}",
-                        delete_after=2,
                         allowed_mentions=discord.AllowedMentions.none(),
                     )
         except:
@@ -1546,9 +1539,10 @@ class Songpanel(discord.ui.View):
         label="⬆️", style=discord.ButtonStyle.green, custom_id="songpanel:volumeup"
     )
     async def volumeup(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
-        if not interaction.user.id == self.memberid and not songcheckperm(
+        member = self.player.guild.get_member(self.player.current.extras.requester_id)
+        if not interaction.user.id == member.id and not songcheckperm(
                 self.channel, interaction.user
         ):
             await interaction.response.send_message(
@@ -1557,7 +1551,7 @@ class Songpanel(discord.ui.View):
             return
         
         guild = self.guild
-        player: wavelink.Player = cast(wavelink.Player, guild.voice_client)
+        player = self.player
         if not player:
             await interaction.response.send_message(
                 "No music is being played currently.", ephemeral=True
@@ -1568,13 +1562,11 @@ class Songpanel(discord.ui.View):
             await player.set_volume(min(player.volume+5, 100))
             await interaction.response.send_message(
                 f"{interaction.user.mention} has changed 🔉 to {player.volume}.",
-                delete_after=2,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
         except:
             await interaction.followup.send(
                 f"{interaction.user.mention} has changed 🔉 to {player.volume}.",
-                delete_after=2,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
 
@@ -1582,9 +1574,10 @@ class Songpanel(discord.ui.View):
         label="⬇️", style=discord.ButtonStyle.green, custom_id="songpanel:volumedown"
     )
     async def volumedown(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
-        if not interaction.user.id == self.memberid and not songcheckperm(
+        member = self.player.guild.get_member(self.player.current.extras.requester_id)
+        if not interaction.user.id == member.id and not songcheckperm(
                 self.channel, interaction.user
         ):
             await interaction.response.send_message(
@@ -1593,7 +1586,7 @@ class Songpanel(discord.ui.View):
             return
         
         guild = self.guild
-        player: wavelink.Player = cast(wavelink.Player, guild.voice_client)
+        player = self.player
         if not player:
             await interaction.response.send_message(
                 "No music is being played currently.", ephemeral=True
@@ -1604,22 +1597,20 @@ class Songpanel(discord.ui.View):
             await player.set_volume(max(player.volume-5, 0))
             await interaction.response.send_message(
                 f"{interaction.user.mention} has changed 🔉 to {player.volume}.",
-                delete_after=2,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
         except:
             await interaction.followup.send(
                 f"{interaction.user.mention} has changed 🔉 to {player.volume}.",
-                delete_after=2,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
 
     @discord.ui.button(
         label="📖", style=discord.ButtonStyle.green, custom_id="songpanel:queue"
     )
-    async def queue(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def queue(self, interaction: discord.Interaction, button: discord.ui.Button):
         guild = self.guild
-        player: wavelink.Player = cast(wavelink.Player, guild.voice_client)
+        player = self.player
         if not player:
             await interaction.response.send_message(
                     "No songs are queued in this guild.", ephemeral=True
@@ -1637,7 +1628,7 @@ class Songpanel(discord.ui.View):
             song = player.queue.get_at(i)
             embedVar.description = (
                     embedVar.description
-                    + f"{i + 1}. {song.type_emoji} [`{timedelta(seconds=song.length)}`] [{song.title}]({song.uri}) : {song.author}\n"
+                    + f"{i + 1}. {song.type_emoji} [`{timedelta(seconds=song.length)}`] [{song.title}]({song.uri}) : <@{song.extras.requester_id}>\n"
             )
             if count == 10:
                 listOfEmbeds.append(embedVar)
@@ -1648,28 +1639,28 @@ class Songpanel(discord.ui.View):
         if length < 10:
             listOfEmbeds.append(embedVar)
         pagview = PaginateEmbed(listOfEmbeds)
-        await interaction.response.send_message(
+        pagview.set_message(await interaction.response.send_message(
             view=pagview, embed=listOfEmbeds[0], ephemeral=True
-        )
+        ))
+
 
     @discord.ui.button(
         label="🎶", style=discord.ButtonStyle.green, custom_id="songpanel:lyrics"
     )
-    async def lyrics(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def lyrics(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
         guild = self.guild
-        player: wavelink.Player = cast(wavelink.Player, guild.voice_client)
+        player = self.player
         if not player:
             return
 
-        song = player.queue.get()
+        song = player.current
         try:
-            songname = player.queue.get(song.info.title)
+            songname = song.title
         except:
             await interaction.followup.send(
                 "I could not find any playing song.",
                 ephemeral=True,
-                delete_after=2,
             )
             return
         try:
@@ -1678,14 +1669,12 @@ class Songpanel(discord.ui.View):
             await interaction.followup.send(
                 "No lyrics found for that song.",
                 ephemeral=True,
-                delete_after=2,
             )
             return
         if output.get("error"):
             await interaction.followup.send(
                 "No lyrics found for that song.",
                 ephemeral=True,
-                delete_after=2,
             )
             return
         try:
@@ -1699,32 +1688,26 @@ class Songpanel(discord.ui.View):
         except:
             pass
         try:
-            await interaction.edit_original_message(embed=embed)
+            await interaction.edit_original_response(embed=embed)
         except Exception as ex:
             pass
 
     @discord.ui.button(
         label="🛑", style=discord.ButtonStyle.red, custom_id="songpanel:stop"
     )
-    async def stop(self, button: discord.ui.Button, interaction: discord.Interaction):
-        if not interaction.user.id == self.memberid and not songcheckperm(
-                self.channel, interaction.user
-        ):
-            await interaction.response.send_message(
-                "You have not invoked this song.", ephemeral=True
-            )
-            return
+    async def stop(self, interaction: discord.Interaction, button: discord.ui.Button):
+        member = self.player.guild.get_member(self.player.current.extras.requester_id)
         channel = self.channel
         guild = self.guild
 
-        if not (channel.permissions_for(self.member).manage_channels or checkstaff(self.member)):
+        if not (channel.permissions_for(member).manage_channels or checkstaff(member)):
             await interaction.response.send_message(
                 f"I am already playing music in a channel , you must have `manage_channels` permissions to stop music.",
                 ephemeral=True,
             )
             return
         try:
-            player: wavelink.Player = cast(wavelink.Player, guild.voice_client)
+            player = self.player
             if not player:
                 return
 
@@ -1732,7 +1715,6 @@ class Songpanel(discord.ui.View):
             try:
                 await interaction.response.send_message(
                     f"The audio has been stopped by {interaction.user.mention}",
-                    delete_after=2,
                 )
             except:
                 pass
@@ -1759,7 +1741,7 @@ class Translatemessage(discord.ui.View):
 
     @discord.ui.button(label="Translate to EN", style=discord.ButtonStyle.green)
     async def confirm(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.send_message(self.translatedmessage, ephemeral=True)
 
@@ -1780,7 +1762,7 @@ class Confirmpvp(discord.ui.View):
     # We also send the user an ephemeral message that we're confirming their choice.
     @discord.ui.button(label="⚔️Confirm", style=discord.ButtonStyle.green)
     async def confirm(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         if not interaction.user.id == self.memberid:
             await interaction.response.send_message(
@@ -1796,7 +1778,7 @@ class Confirmpvp(discord.ui.View):
     # This one is similar to the confirmation button except sets the inner value to `False`
     @discord.ui.button(label="🎌Decline", style=discord.ButtonStyle.red)
     async def decline(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         if not interaction.user.id == self.memberid:
             await interaction.response.send_message(
@@ -1822,7 +1804,7 @@ class ConfirmDecline(discord.ui.View):
 
     @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
     async def confirm(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         # await interaction.response.send_message('Confirming', ephemeral=True)
         if not interaction.channel.permissions_for(interaction.user).manage_guild:
@@ -1850,7 +1832,7 @@ class Confirm(discord.ui.View):
     # We also send the user an ephemeral message that we're confirming their choice.
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
     async def confirm(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         # await interaction.response.send_message('Confirming', ephemeral=True)
         if not checkstaff(interaction.user):
@@ -1863,7 +1845,7 @@ class Confirm(discord.ui.View):
 
     # This one is similar to the confirmation button except sets the inner value to `False`
     @discord.ui.button(label="Deny", style=discord.ButtonStyle.grey)
-    async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         # await interaction.response.send_message('Cancelling', ephemeral=True)
         if not checkstaff(interaction.user):
             await interaction.response.send_message(
@@ -4175,7 +4157,7 @@ class Moderation(commands.Cog):
             if not loopexited:
                 embedlist.append(embed)
             pagview = PaginateEmbed(embedlist)
-            msg = await ctx.send(view=pagview, embed=embedlist[0], ephemeral=True)
+            pagview.set_message(await ctx.send(view=pagview, embed=embedlist[0], ephemeral=True))
 
     @commands.hybrid_command(
         brief="This command (mutes)prevents user from sending messages in any channel.",
@@ -5878,7 +5860,7 @@ class Verification(discord.ui.View):
     @discord.ui.button(
         label="Verify", style=discord.ButtonStyle.green, custom_id="verification:green"
     )
-    async def green(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def green(self, interaction: discord.Interaction, button: discord.ui.Button):
         verifyrole = discord.utils.get(interaction.guild.roles, name="Verified")
         if verifyrole is None:
             await interaction.response.send_message(
@@ -5887,7 +5869,7 @@ class Verification(discord.ui.View):
             return
         if verifyrole in interaction.user.roles:
             await interaction.response.send_message(
-                content="You are already verified.", ephemeral=True, delete_after=5
+                content="You are already verified.", ephemeral=True
             )
             return
         captchaMessage = randStr()
@@ -5915,7 +5897,7 @@ targeted attacks using automated user accounts.""",
             )
             e.set_image(url="attachment://dmEnable.png")
             dmWarnings = await interaction.response.send_message(
-                file=f, embed=e, ephemeral=True, delete_after=5
+                file=f, embed=e, ephemeral=True
             )
             return
         await interaction.response.send_message(
@@ -7361,7 +7343,7 @@ class PaginateSongEmbed(discord.ui.View):  # EMBED PAGINATOR
 
     @discord.ui.button(label="⏪", style=discord.ButtonStyle.green)
     async def firstmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         self.count = 0
@@ -7370,7 +7352,7 @@ class PaginateSongEmbed(discord.ui.View):  # EMBED PAGINATOR
             if isinstance(self.message, discord.InteractionResponse):
                 await self.message.edit_message(embed=self.embed)
             elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_message(embed=self.embed)
+                await self.message.edit_original_response(embed=self.embed)
             else:
                 await self.message.edit(embed=self.embed)
         except:
@@ -7378,7 +7360,7 @@ class PaginateSongEmbed(discord.ui.View):  # EMBED PAGINATOR
 
     @discord.ui.button(label="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.count == 0:
@@ -7388,7 +7370,7 @@ class PaginateSongEmbed(discord.ui.View):  # EMBED PAGINATOR
             if isinstance(self.message, discord.InteractionResponse):
                 await self.message.edit_message(embed=self.embed)
             elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_message(embed=self.embed)
+                await self.message.edit_original_response(embed=self.embed)
             else:
                 await self.message.edit(embed=self.embed)
         except:
@@ -7396,7 +7378,7 @@ class PaginateSongEmbed(discord.ui.View):  # EMBED PAGINATOR
 
     @discord.ui.button(label="▶️", style=discord.ButtonStyle.green)
     async def stopmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if isinstance(self.message, discord.InteractionResponse):
@@ -7413,7 +7395,7 @@ class PaginateSongEmbed(discord.ui.View):  # EMBED PAGINATOR
 
     @discord.ui.button(label="➡️", style=discord.ButtonStyle.green)
     async def rightmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.count == self.limit:
@@ -7423,7 +7405,7 @@ class PaginateSongEmbed(discord.ui.View):  # EMBED PAGINATOR
             if isinstance(self.message, discord.InteractionResponse):
                 await self.message.edit_message(embed=self.embed)
             elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_message(embed=self.embed)
+                await self.message.edit_original_response(embed=self.embed)
             else:
                 await self.message.edit(embed=self.embed)
         except:
@@ -7431,7 +7413,7 @@ class PaginateSongEmbed(discord.ui.View):  # EMBED PAGINATOR
 
     @discord.ui.button(label="⏩", style=discord.ButtonStyle.green)
     async def lastmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         self.count = self.limit
@@ -7440,7 +7422,7 @@ class PaginateSongEmbed(discord.ui.View):  # EMBED PAGINATOR
             if isinstance(self.message, discord.InteractionResponse):
                 await self.message.edit_message(embed=self.embed)
             elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_message(embed=self.embed)
+                await self.message.edit_original_response(embed=self.embed)
             else:
                 await self.message.edit(embed=self.embed)
         except:
@@ -7454,15 +7436,19 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
         self.embed = embeds[self.count]
         self.limit = len(embeds) - 1
         self.embeds = embeds
+        self.message = None
 
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
         await self.message.edit(view=self)
 
+    def set_message(self, message):
+        self.message = message
+
     @discord.ui.button(emoji="⏪", style=discord.ButtonStyle.green)
     async def firstmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         self.count = 0
@@ -7471,7 +7457,7 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
             if isinstance(self.message, discord.InteractionResponse):
                 await self.message.edit_message(embed=self.embed)
             elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_message(embed=self.embed)
+                await self.message.edit_original_response(embed=self.embed)
             else:
                 await self.message.edit(embed=self.embed)
         except:
@@ -7479,7 +7465,7 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
 
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.count == 0:
@@ -7489,7 +7475,7 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
             if isinstance(self.message, discord.InteractionResponse):
                 await self.message.edit_message(embed=self.embed)
             elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_message(embed=self.embed)
+                await self.message.edit_original_response(embed=self.embed)
             else:
                 await self.message.edit(embed=self.embed)
         except:
@@ -7497,7 +7483,7 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
 
     @discord.ui.button(emoji="🛑", style=discord.ButtonStyle.green)
     async def stopmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if isinstance(self.message, discord.InteractionResponse):
@@ -7513,7 +7499,7 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
     async def rightmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.count == self.limit:
@@ -7523,7 +7509,7 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
             if isinstance(self.message, discord.InteractionResponse):
                 await self.message.edit_message(embed=self.embed)
             elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_message(embed=self.embed)
+                await self.message.edit_original_response(embed=self.embed)
             else:
                 await self.message.edit(embed=self.embed)
         except:
@@ -7531,7 +7517,7 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
 
     @discord.ui.button(emoji="⏩", style=discord.ButtonStyle.green)
     async def lastmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         self.count = self.limit
@@ -7540,7 +7526,7 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
             if isinstance(self.message, discord.InteractionResponse):
                 await self.message.edit_message(embed=self.embed)
             elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_message(embed=self.embed)
+                await self.message.edit_original_response(embed=self.embed)
             else:
                 await self.message.edit(embed=self.embed)
         except:
@@ -7564,7 +7550,7 @@ class PaginateFileEmbed(discord.ui.View):
 
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.count == 0:
@@ -7579,7 +7565,7 @@ class PaginateFileEmbed(discord.ui.View):
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
     async def rightmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.count == self.limit:
@@ -8866,7 +8852,7 @@ class ValorantLink(discord.ui.View):
         await self.message.edit(view=self)
 
     @discord.ui.button(label="Login account", style=discord.ButtonStyle.green)
-    async def login(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def login(self, interaction: discord.Interaction, button: discord.ui.Button):
         embedOne = discord.Embed(
             title="Login Account",
             description=f"""Click the below link to link your valorant account.
@@ -11797,7 +11783,7 @@ class Support(commands.Cog):
         await client.change_presence(activity=activity)
         # print(f"Status was changed to visible in {ctx.guild}")
         
-async def currentlyplayingslider(message, guild, player):
+async def currentlyplayingslider(message, player):
     embed = message.embeds[0]
     pbar = ""
     cplayingmusic = player.current
@@ -11844,11 +11830,8 @@ class Music(commands.Cog):
         if not player:
             await on_command_error(ctx, "I could not find any playing song.")
             return
-        class fakecontext:
-            def __init__(self, guild, bot):
-                self.guild = guild
-                self.bot = bot
-        member = await discord.ext.commands.MemberConverter().convert(ctx=fakecontext(player.home.guild, client), argument=player.current.author)
+
+        member = player.guild.get_member(player.current.extras.requester_id)
         if (
                     member.id != ctx.author.id
                     and not ctx.channel.permissions_for(ctx.author).manage_channels
@@ -11878,11 +11861,8 @@ class Music(commands.Cog):
         if not player:
             await on_command_error(ctx, "I could not find any playing song.")
             return
-        class fakecontext:
-            def __init__(self, guild, bot):
-                self.guild = guild
-                self.bot = bot
-        member = await discord.ext.commands.MemberConverter().convert(ctx=fakecontext(player.home.guild, client), argument=player.current.author)
+        
+        member = player.guild.get_member(player.current.extras.requester_id)
         playingmusic = player.current.title
         embedVar = discord.Embed(
             title=f"Now playing 🎶",
@@ -11906,7 +11886,7 @@ class Music(commands.Cog):
         embedVar.add_field(name=playingmusic, value=pbar)
         message = await ctx.send(embed=embedVar, ephemeral=True)
         await currentlyplayingslider(
-            message, ctx.guild, player
+            message, player
         )
 
     @commands.cooldown(1, 45, BucketType.member)
@@ -12581,7 +12561,7 @@ class ValorantRoundStats(discord.ui.View):
 
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.currentround == 0:
@@ -12592,7 +12572,7 @@ class ValorantRoundStats(discord.ui.View):
             if isinstance(self.message, discord.InteractionResponse):
                 await self.message.edit_message(embed=self.embed)
             elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_message(embed=self.embed)
+                await self.message.edit_original_response(embed=self.embed)
             else:
                 await self.message.edit(embed=self.embed)
         except:
@@ -12600,7 +12580,7 @@ class ValorantRoundStats(discord.ui.View):
 
     @discord.ui.button(emoji="🛑", style=discord.ButtonStyle.green)
     async def stopmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if isinstance(self.message, discord.InteractionResponse):
@@ -12616,7 +12596,7 @@ class ValorantRoundStats(discord.ui.View):
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
     async def rightmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.currentround == self.limit:
@@ -12627,7 +12607,7 @@ class ValorantRoundStats(discord.ui.View):
             if isinstance(self.message, discord.InteractionResponse):
                 await self.message.edit_message(embed=self.embed)
             elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_message(embed=self.embed)
+                await self.message.edit_original_response(embed=self.embed)
             else:
                 await self.message.edit(embed=self.embed)
         except Exception as ex:
@@ -12694,7 +12674,7 @@ class ValorantStats(discord.ui.View):
 
     @discord.ui.button(emoji="🙌", style=discord.ButtonStyle.green)
     async def playerinfostats(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.send_message(
             embed=self.playerinfoembed, ephemeral=True
@@ -12702,7 +12682,7 @@ class ValorantStats(discord.ui.View):
 
     @discord.ui.button(emoji="📄", style=discord.ButtonStyle.green)
     async def roundstats(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         currentmatch = self.match
         valoview = ValorantRoundStats(
@@ -12714,7 +12694,7 @@ class ValorantStats(discord.ui.View):
 
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.currentmatch == 0:
@@ -12729,7 +12709,7 @@ class ValorantStats(discord.ui.View):
             if isinstance(self.message, discord.InteractionResponse):
                 await self.message.edit_message(embed=self.embed)
             elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_message(embed=self.embed)
+                await self.message.edit_original_response(embed=self.embed)
             else:
                 await self.message.edit(embed=self.embed)
         except:
@@ -12737,7 +12717,7 @@ class ValorantStats(discord.ui.View):
 
     @discord.ui.button(emoji="🛑", style=discord.ButtonStyle.green)
     async def stopmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if isinstance(self.message, discord.InteractionResponse):
@@ -12753,7 +12733,7 @@ class ValorantStats(discord.ui.View):
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
     async def rightmove(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         if not self.currentmatch == self.limit:
@@ -12768,7 +12748,7 @@ class ValorantStats(discord.ui.View):
             if isinstance(self.message, discord.InteractionResponse):
                 await self.message.edit_message(embed=self.embed)
             elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_message(embed=self.embed)
+                await self.message.edit_original_response(embed=self.embed)
             else:
                 await self.message.edit(embed=self.embed)
         except:
@@ -12789,7 +12769,7 @@ class ValorantControls(discord.ui.View):
 
     @discord.ui.button(label="View recent matches", style=discord.ButtonStyle.green)
     async def roundstats(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         valoview = ValorantStats(self.matches, self.currentplayerid)
@@ -12802,7 +12782,7 @@ class ValorantControls(discord.ui.View):
 
     @discord.ui.button(label="View detailed stats", style=discord.ButtonStyle.green)
     async def completestats(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         embed = discord.Embed(
@@ -12835,7 +12815,7 @@ class ValorantDetailedStats(discord.ui.View):
 
     @discord.ui.button(emoji="1️⃣", style=discord.ButtonStyle.green)
     async def mostusedweapons(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         embed = discord.Embed(title="Most Used Weapons", description="")
@@ -12848,7 +12828,7 @@ class ValorantDetailedStats(discord.ui.View):
 
     @discord.ui.button(emoji="2️⃣", style=discord.ButtonStyle.green)
     async def mostkillswithweapon(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         embed = discord.Embed(title="Most Kills With Weapon", description="")
@@ -12862,7 +12842,7 @@ class ValorantDetailedStats(discord.ui.View):
 
     @discord.ui.button(emoji="3️⃣", style=discord.ButtonStyle.green)
     async def roundlosingreasons(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
         embed = discord.Embed(title="Common Round Losing Reasons", description="")
@@ -12928,13 +12908,12 @@ class Minecraftpvp(discord.ui.View):
         custom_id="minecraftpvp:surrender",
     )
     async def surrender(
-            self, button: discord.ui.Button, interaction: discord.Interaction
+            self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         if not interaction.user.id in self.memberids:
             await interaction.response.send_message(
                 "You are not participating in this pvp fight!",
                 ephemeral=True,
-                delete_after=2,
             )
             return
         else:
@@ -12985,12 +12964,11 @@ class Minecraftpvp(discord.ui.View):
         style=discord.ButtonStyle.green,
         custom_id="minecraftpvp:defend",
     )
-    async def defend(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def defend(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.user.id in self.memberids:
             await interaction.response.send_message(
                 "You are not participating in this pvp fight!",
                 ephemeral=True,
-                delete_after=2,
             )
             return
         else:
@@ -12998,7 +12976,6 @@ class Minecraftpvp(discord.ui.View):
                 await interaction.response.send_message(
                     "Its not your turn in this pvp fight!",
                     ephemeral=True,
-                    delete_after=2,
                 )
                 return
             if interaction.user.id == self.memberoneid:
@@ -13010,7 +12987,6 @@ class Minecraftpvp(discord.ui.View):
                     await interaction.response.send_message(
                         "You cannot lift your shield , its on cooldown!",
                         ephemeral=True,
-                        delete_after=2,
                     )
                     return
             elif interaction.user.id == self.membertwoid:
@@ -13022,7 +12998,6 @@ class Minecraftpvp(discord.ui.View):
                     await interaction.response.send_message(
                         "You cannot lift your shield , its on cooldown!",
                         ephemeral=True,
-                        delete_after=2,
                     )
                     return
             message = interaction.message
@@ -13039,7 +13014,7 @@ class Minecraftpvp(discord.ui.View):
                     content=f"<@{self.moveturn}> 's turn to fight!", embed=embed
                 )
             await interaction.response.send_message(
-                "You have equipped your shields.", ephemeral=True, delete_after=2
+                "You have equipped your shields.", ephemeral=True
             )
 
     @discord.ui.button(
@@ -13047,7 +13022,7 @@ class Minecraftpvp(discord.ui.View):
         style=discord.ButtonStyle.green,
         custom_id="minecraftpvp:attack",
     )
-    async def attack(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def attack(self, interaction: discord.Interaction, button: discord.ui.Button):
         attack = ["weak", "strong", "critical"]
         attackdamage = [0.5, 1.5, 2.0]
         winmessage = [
@@ -13079,7 +13054,6 @@ class Minecraftpvp(discord.ui.View):
             await interaction.response.send_message(
                 "You are not participating in this pvp fight!",
                 ephemeral=True,
-                delete_after=2,
             )
             return
         else:
@@ -13088,7 +13062,6 @@ class Minecraftpvp(discord.ui.View):
                     await interaction.response.send_message(
                         "Its not your turn in this pvp fight!",
                         ephemeral=True,
-                        delete_after=2,
                     )
                     return
                 self.memberone_resiscooldown = False
@@ -13107,7 +13080,6 @@ class Minecraftpvp(discord.ui.View):
                 await interaction.response.send_message(
                     f"You dealt {damagevalue} to {self.membertwoname}.",
                     ephemeral=True,
-                    delete_after=2,
                 )
                 try:
                     if self.vc.is_playing():
@@ -13182,7 +13154,6 @@ class Minecraftpvp(discord.ui.View):
                     await interaction.response.send_message(
                         "Its not your turn in this pvp fight!",
                         ephemeral=True,
-                        delete_after=2,
                     )
                     return
                 self.membertwo_resiscooldown = False
@@ -13201,7 +13172,6 @@ class Minecraftpvp(discord.ui.View):
                 await interaction.response.send_message(
                     f"You dealt {damagevalue} to {self.memberonename}.",
                     ephemeral=True,
-                    delete_after=2,
                 )
                 try:
                     if self.vc.is_playing():
@@ -13289,7 +13259,7 @@ class ConfirmPrivate(discord.ui.View):
         style=discord.ButtonStyle.green,
         custom_id="confirmprivate:green",
     )
-    async def green(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def green(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.user.id in self.memberids and not checkstaff(
                 interaction.user
         ):
@@ -14280,11 +14250,11 @@ async def on_message(message):
                 )
                 async with pool.acquire() as con:
                     await con.execute(statement, message.channel.id, False)
+
                 async with pool.acquire() as con:
                     warninglist = await con.fetchrow(
                         f"SELECT * FROM levelsettings WHERE channelid = {message.channel.id}"
                     )
-                prefix = await get_prefix(client, message)
                 # await ctx.send(
                 #    f"Alert: leveling was automatically disabled in this channel, do {message.guild.me.mention}leveltoggle to turn on leveling!",
                 #    delete_after=5,
@@ -16101,7 +16071,7 @@ try:
     client.run(token)
     # REQUIRES API KEY(BOT TOKEN)
 except Exception as ex:
-    print(ex)
+    print(get_traceback(ex))
     print(f"Client session {client}")
     if isinstance(ex, discord.LoginFailure):
         print(
