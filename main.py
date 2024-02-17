@@ -111,19 +111,19 @@ class ChatExtractor:
     def __init__(self):
         pass
 
-    async def aget_response(self, message, author):
-        message = message.replace(" ", "%20")
+    async def aget_response(self, _message, author):
+        _message = _message.replace(" ", "%20")
         session = client.session
-        url = f"http://api.brainshop.ai/get?bid={CHATBOT_ID}&key={CHATBOT_TOKEN}&uid={author.id}&msg={message}"
+        url = f"http://api.brainshop.ai/get?bid={CHATBOT_ID}&key={CHATBOT_TOKEN}&uid={author.id}&msg={_message}"
         resp = await chatbotfetch(session, url)
         return resp
 
-    def get_response(self, message, author):
-        message = message.replace(" ", "%20")
+    def get_response(self, _message, author):
+        _message = _message.replace(" ", "%20")
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36"
         }
-        url = f"http://api.brainshop.ai/get?bid={CHATBOT_ID}&key={CHATBOT_TOKEN}&uid={author.id}&msg={message}"
+        url = f"http://api.brainshop.ai/get?bid={CHATBOT_ID}&key={CHATBOT_TOKEN}&uid={author.id}&msg={_message}"
         f = requests.get(url, headers=headers)
         assert f.status_code == 200, f"{f.status_code}"
         respjson = f.json()
@@ -449,10 +449,11 @@ class MyHelp(commands.HelpCommand):
             text="Want support? Join here: https://discord.gg/TZDYSHSZgg",
             icon_url=self.context.author.display_avatar,
         )
-        await self.context.send(
+        view = DefaultHelp(filteredcmds, allcommands, self.context.author)
+        view.set_message(await self.context.send(
             embed=embed,
-            view=DefaultHelp(filteredcmds, allcommands, self.context.author),
-        )
+            view=view,
+        ))
 
     # !help <command>
     async def send_command_help(self, commandname):
@@ -528,7 +529,8 @@ class MyHelp(commands.HelpCommand):
             text="Want support? Join here: https://discord.gg/TZDYSHSZgg",
             icon_url=self.context.author.display_avatar,
         )
-        await self.context.send(embed=embed, view=CommandHelp(cog, self.context.author))
+        view = CommandHelp(cog, self.context.author)
+        view.set_message(await self.context.send(embed=embed, view=view))
 
 
 class CommandHelpSelect(discord.ui.Select):
@@ -593,22 +595,30 @@ class CommandHelp(discord.ui.View):
     def __init__(self, cog, author):
         super().__init__(timeout=65)
         self.add_item(CommandHelpSelect(cog, author))
+        self._message = None
+    
+    def set_message(self, _message):
+        self._message = _message
 
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
-        await self.message.edit(view=self)
+        await self._message.edit(view=self)
 
 
 class CodingLanguageView(discord.ui.View):
     def __init__(self, code, author, channel):
         super().__init__(timeout=60)
         self.add_item(CodingLanguageSelect(code, author, channel))
+        self._message = None
+    
+    def set_message(self, _message):
+        self._message = _message
 
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
-        await self.message.edit(view=self)
+        await self._message.edit(view=self)
 
 
 class CodingLanguageSelect(discord.ui.Select):
@@ -845,6 +855,10 @@ class DefaultHelp(discord.ui.View):
             filteredcmds, self.author, self.showAll
         )
         self.add_item(self.currentSelectMenu)
+        self._message = None
+    
+    def set_message(self, _message):
+        self._message = _message
 
     @discord.ui.button(
         label="⚪Click to toggle(Showing your commands)", style=discord.ButtonStyle.green
@@ -865,16 +879,16 @@ class DefaultHelp(discord.ui.View):
             )
             cmds = self.filteredcmds
 
-        await self.message.edit(view=self)
+        await self._message.edit(view=self)
         self.remove_item(self.currentSelectMenu)
         self.currentSelectMenu = DefaultHelpSelect(cmds, self.author, self.showAll)
         self.add_item(self.currentSelectMenu)
-        await self.message.edit(view=self)
+        await self._message.edit(view=self)
 
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
-        await self.message.edit(view=self)
+        await self._message.edit(view=self)
 
 
 async def addmoney(userid, money):
@@ -1082,30 +1096,34 @@ class MCShop(discord.ui.View):
     def __init__(self, author):
         super().__init__(timeout=120)
         self.add_item(MCShopSelect(author))
+        self._message = None
+    
+    def set_message(self, _message):
+        self._message = _message
 
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
-        await self.message.edit(view=self)
+        await self._message.edit(view=self)
 
 
-async def get_prefix(client, message):
+async def get_prefix(client, _message):
     if not onlystaffaccess:
-        if message.guild:
+        if _message.guild:
             try:
                 async with pool.acquire() as con:
                     prefixeslist = await con.fetchrow(
-                        f"SELECT * FROM prefixes WHERE guildid = {message.guild.id}"
+                        f"SELECT * FROM prefixes WHERE guildid = {_message.guild.id}"
                     )
                 if prefixeslist is None:
                     statement = """INSERT INTO prefixes (guildid,
                                         prefix) VALUES($1, $2);"""
                     async with pool.acquire() as con:
-                        await con.execute(statement, message.guild.id, "a!")
+                        await con.execute(statement, _message.guild.id, "a!")
                     async with pool.acquire() as con:
                         await con.execute(
                             f"INSERT INTO prefixes VALUES (%s,%s)",
-                            (message.guild.id, "a!"),
+                            (_message.guild.id, "a!"),
                         )
                     chars = "a!"
                 else:
@@ -1113,19 +1131,19 @@ async def get_prefix(client, message):
                 results = list(
                     map("".join, itertools.product(*zip(chars.upper(), chars.lower())))
                 )
-                return commands.when_mentioned_or(*results)(client, message)
+                return commands.when_mentioned_or(*results)(client, _message)
             except:
                 chars = "a!"
                 results = list(
                     map("".join, itertools.product(*zip(chars.upper(), chars.lower())))
                 )
-                return commands.when_mentioned_or(*results)(client, message)
+                return commands.when_mentioned_or(*results)(client, _message)
         else:
             chars = "a!"
             results = list(
                 map("".join, itertools.product(*zip(chars.upper(), chars.lower())))
             )
-            return commands.when_mentioned_or(*results)(client, message)
+            return commands.when_mentioned_or(*results)(client, _message)
     else:
         return "sa!"
 
@@ -1472,10 +1490,10 @@ class Songpanel(discord.ui.View):
         self.player = player
         self.channel = channel
         self.guild = guild
-        self.message = None
+        self._message = None
 
-    def set_message(self, message):
-        self.message = message
+    def set_message(self, _message):
+        self._message = _message
 
     @discord.ui.button(
         label="⏸️", style=discord.ButtonStyle.green, custom_id="songpanel:playpause"
@@ -1510,7 +1528,7 @@ class Songpanel(discord.ui.View):
                         f"The audio has been resumed by {interaction.user.mention}",
                         allowed_mentions=discord.AllowedMentions.none(),
                     )
-                    await self.message.edit(view=self)
+                    await self._message.edit(view=self)
                 except:
                     await interaction.followup.send(
                         f"The audio has been resumed by {interaction.user.mention}",
@@ -1524,7 +1542,7 @@ class Songpanel(discord.ui.View):
                         f"The audio has been paused by {interaction.user.mention}",
                         allowed_mentions=discord.AllowedMentions.none(),
                     )
-                    await self.message.edit(view=self)
+                    await self._message.edit(view=self)
                 except:
                     await interaction.followup.send(
                         f"The audio has been paused by {interaction.user.mention}",
@@ -1723,43 +1741,24 @@ class Songpanel(discord.ui.View):
                 "I am not connected to any voice channel.", ephemeral=True
             )
 
-
-class Translatemessage(discord.ui.View):
-    def __init__(self, message):
-        super().__init__(timeout=60)
-        self.message = message
-        origmessage = message.content
-        origlanguage = detect(origmessage)
-        translator = Translator(to_lang="en", from_lang=origlanguage)
-        translatedmessage = translator.translate(origmessage)
-        self.translatedmessage = translatedmessage
-
-    async def on_timeout(self):
-        for child in self.children:
-            child.disabled = True
-        await self.message.edit(view=self)
-
-    @discord.ui.button(label="Translate to EN", style=discord.ButtonStyle.green)
-    async def confirm(
-            self, interaction: discord.Interaction, button: discord.ui.Button
-    ):
-        await interaction.response.send_message(self.translatedmessage, ephemeral=True)
-
-
 class Confirmpvp(discord.ui.View):
     def __init__(self, member):
         super().__init__(timeout=30)
         self.memberid = member
         self.value = None
+        self._message = None
+    
+    def set_message(self, _message):
+        self._message = _message
 
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
-        await self.message.edit(view=self)
+        await self._message.edit(view=self)
 
     # When the confirm button is pressed, set the inner value to `True` and
     # stop the View from listening to more input.
-    # We also send the user an ephemeral message that we're confirming their choice.
+    # We also send the user an ephemeral _message that we're confirming their choice.
     @discord.ui.button(label="⚔️Confirm", style=discord.ButtonStyle.green)
     async def confirm(
             self, interaction: discord.Interaction, button: discord.ui.Button
@@ -1821,11 +1820,15 @@ class Confirm(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=60)
         self.value = None
+        self._message = None
+    
+    def set_message(self, _message):
+        self._message = _message
 
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
-        await self.message.edit(view=self)
+        await self._message.edit(view=self)
 
     # When the confirm button is pressed, set the inner value to `True` and
     # stop the View from listening to more input.
@@ -2045,11 +2048,11 @@ async def on_command_error(
         if str(ctx.author.id) in tempbotowners:
             view = Confirm()
             embed = discord.Embed(title="Command sent", description=ctx.message.content)
-            statmsg = await client.get_channel(CHANNEL_DEV_ID).send(
+            view.set_message(statmsg:=await client.get_channel(CHANNEL_DEV_ID).send(
                 f"(Missing perms) Temporary bot staff ({ctx.author.id}) : {ctx.author.mention} wrote *MESSAGE BELOW* ({ctx.command}) in {ctx.guild}.",
                 view=view,
                 embed=embed,
-            )
+            ))
             # Wait for the View to stop listening for input...
             await view.wait()
             if view.value is None:
@@ -2089,11 +2092,11 @@ async def on_command_error(
         if str(ctx.author.id) in tempbotowners:
             view = Confirm()
             embed = discord.Embed(title="Command sent", description=ctx.message.content)
-            statmsg = await client.get_channel(CHANNEL_DEV_ID).send(
+            view.set_message(statmsg:=await client.get_channel(CHANNEL_DEV_ID).send(
                 f"(Missing perms) Temporary bot staff ({ctx.author.id}) : {ctx.author.mention} wrote *MESSAGE BELOW* ({ctx.command}) in {ctx.guild}.",
                 view=view,
                 embed=embed,
-            )
+            ))
             # Wait for the View to stop listening for input...
             await view.wait()
             if view.value is None:
@@ -2473,9 +2476,9 @@ def getProgress(value, divisions=10):
     return progressstr
 
 
-def checkProfane(message):
+def checkProfane(_message):
     analyze_request = {
-        "comment": {"text": message},
+        "comment": {"text": _message},
         "requestedAttributes": {"PROFANITY": {}},
     }
     attributes = ["PROFANITY"]
@@ -2544,9 +2547,9 @@ def getLoadoutPermutation(abilities, weapons, spenteco):
             buySequence(items, spenteco, item.name + ",")
 
 
-def checkSpam(message):
+def checkSpam(_message):
     analyze_request = {
-        "comment": {"text": message},
+        "comment": {"text": _message},
         "requestedAttributes": {"SPAM": {}},
     }
     attributes = ["SPAM"]
@@ -2560,9 +2563,9 @@ def checkSpam(message):
         return True
 
 
-def checkIncoherent(message):
+def checkIncoherent(_message):
     analyze_request = {
-        "comment": {"text": message},
+        "comment": {"text": _message},
         "requestedAttributes": {"INCOHERENT": {}},
     }
     attributes = ["INCOHERENT"]
@@ -3167,9 +3170,9 @@ class AestronInfo(commands.Cog):
                 embeds.append(embedVar)
                 files.append(discord.File(commandUsage, filename=f"{commandUsage}.gif"))
             pagview = PaginateFileEmbed(embeds, files)
-            msg = await ctx.send(
+            pagview.set_message(await ctx.send(
                 embed=embeds[0], file=files[0], view=pagview, ephemeral=True
-            )
+            ))
 
         else:
             await on_command_error(
@@ -4545,7 +4548,7 @@ class Moderation(commands.Cog):
                 continue
             if reason is None:
                 reason = "being forgiven."
-            message = f"You have been unbanned from {ctx.guild.name} for {reason}"
+            _message = f"You have been unbanned from {ctx.guild.name} for {reason}"
             # print(f"Unsuccessfully DMed users, try again later.")
             try:
                 await ctx.guild.unban(member, reason=reason)
@@ -4556,7 +4559,7 @@ class Moderation(commands.Cog):
                 )
                 continue
             try:
-                await member.send(message)
+                await member.send(_message)
                 # print(f"Successfully dmed users!")
             except:
                 await ctx.send(
@@ -4656,7 +4659,7 @@ class Moderation(commands.Cog):
                 continue
             if reason is None:
                 reason = "being a jerk!"
-            message = f"You have been banned from {ctx.guild.name} for {reason}"
+            _message = f"You have been banned from {ctx.guild.name} for {reason}"
 
             # print(f"Unsuccessfully DMed users, try again later.")
             try:
@@ -4668,7 +4671,7 @@ class Moderation(commands.Cog):
                 )
                 continue
             try:
-                await member.send(message)
+                await member.send(_message)
                 # print(f"Successfully dmed users!")
             except:
                 await ctx.send(
@@ -4731,7 +4734,7 @@ class Moderation(commands.Cog):
 
             if reason is None:
                 reason = "being a jerk!"
-            message = f"You have been kicked from {ctx.guild.name} for {reason}"
+            _message = f"You have been kicked from {ctx.guild.name} for {reason}"
 
             # print(f"Unsuccessfully DMed users, try again later.")
             try:
@@ -4743,7 +4746,7 @@ class Moderation(commands.Cog):
                 )
                 continue
             try:
-                await member.send(message)
+                await member.send(_message)
                 # print(f"Successfully dmed users!")
             except:
                 await ctx.send(
@@ -5907,7 +5910,7 @@ targeted attacks using automated user accounts.""",
         def check(m):
             return interaction.user.id == m.author.id and not m.guild
 
-        msg = await client.wait_for("message", check=check)
+        msg = await client.wait_for("_message", check=check)
         if msg.content == captchaMessage:
             ea = discord.Embed(
                 title="Thank you for verifying!",
@@ -5987,8 +5990,8 @@ class Captcha(commands.Cog):
                 try:
                     guild = client.get_guild(guildid)
                     channel = guild.get_channel(channelid)
-                    message = await channel.fetch_message(msgid)
-                    await message.edit(view=Verification())
+                    _message = await channel.fetch_message(msgid)
+                    await _message.edit(view=Verification())
                 except Exception as e:
                     print(
                         f"{e} Failed to edit message {msgid} in channel {channelid} in guild {guildid}."
@@ -6396,7 +6399,7 @@ class Captcha(commands.Cog):
             )
             return
         historyexists = False
-        async for message in verifychannel.history():
+        async for _ in verifychannel.history(limit=1):
             historyexists = True
             break
         if historyexists:
@@ -6785,7 +6788,8 @@ class MinecraftFun(commands.Cog):
             title="Minecraft shop",
             description="Click on dropdown to view items and buy them!",
         )
-        await ctx.send(embed=embed, view=MCShop(ctx.author), ephemeral=True)
+        view = MCShop(ctx.author)
+        view.set_message(await ctx.send(embed=embed, view=view, ephemeral=True))
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.hybrid_command(
@@ -6886,7 +6890,7 @@ class MinecraftFun(commands.Cog):
                 url="https://cdn.discordapp.com/avatars/841268437824045096/2197577ab3bcee324b2e58bd3a1e3248.png?size=1024"
             )
             view = Confirmpvp(member=membertwo.id)
-            statmsg = await ctx.send(embed=embed, view=view, ephemeral=True)
+            view.set_message(statmsg:=await ctx.send(embed=embed, view=view, ephemeral=True))
             await view.wait()
             if view.value is None:
                 try:
@@ -7325,110 +7329,6 @@ async def take_screenshot(ctx, url, save_fn="capture.png"):
     my_file = discord.File(save_fn)
     return my_file
 
-
-class PaginateSongEmbed(discord.ui.View):  # EMBED PAGINATOR
-    def __init__(self, embeds, players):
-        super().__init__(timeout=120)
-        self.count = 0
-        self.players = players
-        self.embed = embeds[self.count]
-        self.limit = len(embeds) - 1
-        self.embeds = embeds
-        self.value = None
-
-    async def on_timeout(self):
-        for child in self.children:
-            child.disabled = True
-        await self.message.edit(view=self)
-
-    @discord.ui.button(label="⏪", style=discord.ButtonStyle.green)
-    async def firstmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
-    ):
-        await interaction.response.defer()
-        self.count = 0
-        self.embed = self.embeds[self.count]
-        try:
-            if isinstance(self.message, discord.InteractionResponse):
-                await self.message.edit_message(embed=self.embed)
-            elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_response(embed=self.embed)
-            else:
-                await self.message.edit(embed=self.embed)
-        except:
-            pass
-
-    @discord.ui.button(label="⬅️", style=discord.ButtonStyle.green)
-    async def leftmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
-    ):
-        await interaction.response.defer()
-        if not self.count == 0:
-            self.count = self.count - 1
-        self.embed = self.embeds[self.count]
-        try:
-            if isinstance(self.message, discord.InteractionResponse):
-                await self.message.edit_message(embed=self.embed)
-            elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_response(embed=self.embed)
-            else:
-                await self.message.edit(embed=self.embed)
-        except:
-            pass
-
-    @discord.ui.button(label="▶️", style=discord.ButtonStyle.green)
-    async def stopmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
-    ):
-        await interaction.response.defer()
-        if isinstance(self.message, discord.InteractionResponse):
-            try:
-                await self.message.edit_message(view=None)
-            except:
-                pass
-        elif isinstance(self.message, discord.Interaction):
-            await self.message.delete_original_message()
-        else:
-            await self.message.edit(view=None)
-        self.value = self.players[self.count]
-        self.stop()
-
-    @discord.ui.button(label="➡️", style=discord.ButtonStyle.green)
-    async def rightmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
-    ):
-        await interaction.response.defer()
-        if not self.count == self.limit:
-            self.count = self.count + 1
-        self.embed = self.embeds[self.count]
-        try:
-            if isinstance(self.message, discord.InteractionResponse):
-                await self.message.edit_message(embed=self.embed)
-            elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_response(embed=self.embed)
-            else:
-                await self.message.edit(embed=self.embed)
-        except:
-            pass
-
-    @discord.ui.button(label="⏩", style=discord.ButtonStyle.green)
-    async def lastmove(
-            self, interaction: discord.Interaction, button: discord.ui.Button
-    ):
-        await interaction.response.defer()
-        self.count = self.limit
-        self.embed = self.embeds[self.count]
-        try:
-            if isinstance(self.message, discord.InteractionResponse):
-                await self.message.edit_message(embed=self.embed)
-            elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_response(embed=self.embed)
-            else:
-                await self.message.edit(embed=self.embed)
-        except:
-            pass
-
-
 class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
     def __init__(self, embeds):
         super().__init__(timeout=120)
@@ -7436,15 +7336,15 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
         self.embed = embeds[self.count]
         self.limit = len(embeds) - 1
         self.embeds = embeds
-        self.message = None
+        self._message = None
+
+    def set_message(self, _message):
+        self._message = _message
 
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
-        await self.message.edit(view=self)
-
-    def set_message(self, message):
-        self.message = message
+        await self._message.edit(view=self)
 
     @discord.ui.button(emoji="⏪", style=discord.ButtonStyle.green)
     async def firstmove(
@@ -7454,12 +7354,12 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
         self.count = 0
         self.embed = self.embeds[self.count]
         try:
-            if isinstance(self.message, discord.InteractionResponse):
-                await self.message.edit_message(embed=self.embed)
-            elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_response(embed=self.embed)
+            if isinstance(self._message, discord.InteractionResponse):
+                await self._message.edit_message(embed=self.embed)
+            elif isinstance(self._message, discord.Interaction):
+                await self._message.edit_original_response(embed=self.embed)
             else:
-                await self.message.edit(embed=self.embed)
+                await self._message.edit(embed=self.embed)
         except:
             pass
 
@@ -7472,12 +7372,12 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
             self.count = self.count - 1
         self.embed = self.embeds[self.count]
         try:
-            if isinstance(self.message, discord.InteractionResponse):
-                await self.message.edit_message(embed=self.embed)
-            elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_response(embed=self.embed)
+            if isinstance(self._message, discord.InteractionResponse):
+                await self._message.edit_message(embed=self.embed)
+            elif isinstance(self._message, discord.Interaction):
+                await self._message.edit_original_response(embed=self.embed)
             else:
-                await self.message.edit(embed=self.embed)
+                await self._message.edit(embed=self.embed)
         except:
             pass
 
@@ -7486,15 +7386,15 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
             self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
-        if isinstance(self.message, discord.InteractionResponse):
+        if isinstance(self._message, discord.InteractionResponse):
             try:
-                await self.message.edit_message(view=None)
+                await self._message.edit_message(view=None)
             except:
                 pass
-        elif isinstance(self.message, discord.Interaction):
-            await self.message.delete_original_message()
+        elif isinstance(self._message, discord.Interaction):
+            await self._message.delete_original_message()
         else:
-            await self.message.edit(view=None)
+            await self._message.edit(view=None)
         self.stop()
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
@@ -7506,12 +7406,12 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
             self.count = self.count + 1
         self.embed = self.embeds[self.count]
         try:
-            if isinstance(self.message, discord.InteractionResponse):
-                await self.message.edit_message(embed=self.embed)
-            elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_response(embed=self.embed)
+            if isinstance(self._message, discord.InteractionResponse):
+                await self._message.edit_message(embed=self.embed)
+            elif isinstance(self._message, discord.Interaction):
+                await self._message.edit_original_response(embed=self.embed)
             else:
-                await self.message.edit(embed=self.embed)
+                await self._message.edit(embed=self.embed)
         except:
             pass
 
@@ -7523,12 +7423,12 @@ class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
         self.count = self.limit
         self.embed = self.embeds[self.count]
         try:
-            if isinstance(self.message, discord.InteractionResponse):
-                await self.message.edit_message(embed=self.embed)
-            elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_response(embed=self.embed)
+            if isinstance(self._message, discord.InteractionResponse):
+                await self._message.edit_message(embed=self.embed)
+            elif isinstance(self._message, discord.Interaction):
+                await self._message.edit_original_response(embed=self.embed)
             else:
-                await self.message.edit(embed=self.embed)
+                await self._message.edit(embed=self.embed)
         except:
             pass
 
@@ -7542,11 +7442,15 @@ class PaginateFileEmbed(discord.ui.View):
         self.embeds = embeds
         self.file = files[self.count]
         self.files = files
-
+        self._message = None
+    
+    def set_message(self, _message):
+        self._message = _message
+    
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
-        await self.message.edit(view=self)
+        await self._message.edit(view=self)
 
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(
@@ -7558,7 +7462,7 @@ class PaginateFileEmbed(discord.ui.View):
         self.embed = self.embeds[self.count]
         self.file = self.files[self.count]
         try:
-            await self.message.edit(embed=self.embed, attachments=[], file=self.file)
+            await self._message.edit(embed=self.embed, attachments=[], file=self.file)
         except:
             pass
         self.files[self.count] = discord.File(self.files[self.count].filename)
@@ -7573,7 +7477,7 @@ class PaginateFileEmbed(discord.ui.View):
         self.embed = self.embeds[self.count]
         self.file = self.files[self.count]
         try:
-            await self.message.edit(embed=self.embed, attachments=[], file=self.file)
+            await self._message.edit(embed=self.embed, attachments=[], file=self.file)
         except:
             pass
         self.files[self.count] = discord.File(self.files[self.count].filename)
@@ -8843,13 +8747,17 @@ class FormatData:
 
 class ValorantLink(discord.ui.View):
     def __init__(self, ctx):
-        self.ctx = ctx
         super().__init__(timeout=600)
+        self.ctx = ctx
+        self._message = None
+    
+    def set_message(self, _message):
+        self._message = _message
 
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
-        await self.message.edit(view=self)
+        await self._message.edit(view=self)
 
     @discord.ui.button(label="Login account", style=discord.ButtonStyle.green)
     async def login(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -8893,7 +8801,8 @@ class Valorant(commands.Cog):
             title="Link Valorant",
             description="To link your discord account with your valorant account, click on the button below.",
         )
-        await ctx.send(embed=embedOne, view=ValorantLink(ctx), ephemeral=True)
+        view = ValorantLink(ctx)
+        view.set_message(await ctx.send(embed=embedOne, view=view, ephemeral=True))
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.hybrid_command(
@@ -8996,11 +8905,12 @@ class Valorant(commands.Cog):
             )
         except:
             pass
-        await ctx.send(
+        view = ValorantControls(matchesinfo, currentpuuid, ctx)
+        view.set_message(await ctx.send(
             embed=embed,
-            view=ValorantControls(matchesinfo, currentpuuid, ctx),
+            view=view,
             ephemeral=True,
-        )
+        ))
 
 class Misc(commands.Cog):
     """Misc commands."""
@@ -9151,7 +9061,7 @@ class Misc(commands.Cog):
         except:
             pass
         pagview = PaginateFileEmbed(listOfEmbeds, listOfFiles)
-        msg = await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview)
+        pagview.set_message(await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview))
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(
@@ -9210,7 +9120,7 @@ class Misc(commands.Cog):
         except:
             pass
         pagview = PaginateFileEmbed(listOfEmbeds, listOfFiles)
-        msg = await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview)
+        pagview.set_message(await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview))
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(
@@ -9269,7 +9179,7 @@ class Misc(commands.Cog):
         except:
             pass
         pagview = PaginateFileEmbed(listOfEmbeds, listOfFiles)
-        msg = await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview)
+        pagview.set_message(await ctx.send(embed=listOfEmbeds[0], file=listOfFiles[0], view=pagview))
 
     @commands.cooldown(1, 60, BucketType.member)
     @commands.hybrid_command(
@@ -9653,10 +9563,10 @@ class Call(commands.Cog):
                     )
                     return
 
-                def check(message: discord.Message) -> bool:
+                def check(_message: discord.Message) -> bool:
                     nonlocal member
-                    if message.author == member:
-                        theMessage = message.content
+                    if _message.author == member:
+                        theMessage = _message.content
                         if (
                                 theMessage == f"{prefix}end"
                                 or theMessage == f"{prefix}hangup"
@@ -9674,20 +9584,20 @@ class Call(commands.Cog):
                             try:
                                 asyncio.create_task(
                                     member.send(
-                                        f"Your message (`{message.content}`) couldn't be sent to **{ctx.author.name}#{ctx.author.discriminator}**"
+                                        f"Your message (`{_message.content}`) couldn't be sent to **{ctx.author.name}#{ctx.author.discriminator}**"
                                     )
                                 )
                             except:
                                 pass
-                        if len(message.attachments) > 0:
+                        if len(_message.attachments) > 0:
                             try:
                                 readfile = asyncio.create_task(
-                                    message.attachments[0].read()
+                                    _message.attachments[0].read()
                                 )
                                 asyncio.create_task(asyncio.sleep(1))
                                 newfile = discord.File(
                                     BytesIO(readfile),
-                                    filename=message.attachments[0].filename,
+                                    filename=_message.attachments[0].filename,
                                 )
                                 asyncio.create_task(ctx.author.send(file=newfile))
                             except Exception as ex:
@@ -9699,8 +9609,8 @@ class Call(commands.Cog):
                                     )
                                 except:
                                     pass
-                    elif message.author == ctx.author:
-                        theMessage = message.content
+                    elif _message.author == ctx.author:
+                        theMessage = _message.content
                         if (
                                 theMessage == f"{prefix}end"
                                 or theMessage == f"{prefix}hangup"
@@ -9718,20 +9628,20 @@ class Call(commands.Cog):
                             try:
                                 asyncio.create_task(
                                     ctx.author.send(
-                                        f"Your message (`{message.content}`) couldn't be sent to **{member.name}#{member.discriminator}**"
+                                        f"Your _message (`{_message.content}`) couldn't be sent to **{member.name}#{member.discriminator}**"
                                     )
                                 )
                             except:
                                 pass
-                        if len(message.attachments) > 0:
+                        if len(_message.attachments) > 0:
                             try:
                                 readfile = asyncio.create_task(
-                                    message.attachments[0].read()
+                                    _message.attachments[0].read()
                                 )
                                 asyncio.create_task(asyncio.sleep(1))
                                 newfile = discord.File(
                                     BytesIO(readfile),
-                                    filename=message.attachments[0].filename,
+                                    filename=_message.attachments[0].filename,
                                 )
                                 asyncio.create_task(member.send(file=newfile))
                             except Exception as ex:
@@ -9783,9 +9693,9 @@ class Fun(commands.Cog):
         brief=" This command can be used to talk to chatbot.",
         description=" This command can be used to talk to chatbot.",
     )
-    async def communicate(self, ctx, *, message):
+    async def communicate(self, ctx, *, _message):
         chatextract = ChatExtractor()
-        response = await chatextract.aget_response(message, ctx.author)
+        response = await chatextract.aget_response(_message, ctx.author)
         embed = discord.Embed(title="Chatbot", description=response)
         await ctx.send(embed=embed, ephemeral=True)
 
@@ -10267,14 +10177,14 @@ def message_probability(
         return 0
 
 
-def check_all_messages(message):
+def check_all_messages(_message):
     highest_prob_list = {}
 
     # Simplifies response creation / adds it to the dict
     def response(bot_response, list_of_words, single_response=False, required_words=[]):
         nonlocal highest_prob_list
         highest_prob_list[bot_response] = message_probability(
-            message, list_of_words, single_response, required_words
+            _message, list_of_words, single_response, required_words
         )
 
     # Responses -------------------------------------------------------------------------------------------------------
@@ -10362,12 +10272,12 @@ class Giveaways(commands.Cog):
         async with pool.acquire() as con:
             await con.execute(results, msgsent.id)
         await asyncio.sleep(timenum)
-        message = await ctx.channel.fetch_message(msgsent.id)
-        editedembed = message.embeds[0]
+        _message = await ctx.channel.fetch_message(msgsent.id)
+        editedembed = _message.embeds[0]
         embed.description = (
             f"This poll was conducted by {ctx.author.mention} and lasted {time}."
         )
-        await message.edit(embed=editedembed)
+        await _message.edit(embed=editedembed)
         await msgsent.reply(f"The poll on {reasonpoll} for {time} was completed.")
         async with pool.acquire() as con:
             await con.execute(f"DELETE FROM polls WHERE messageid = {msgsent.id}")
@@ -10720,11 +10630,11 @@ class Support(commands.Cog):
             self, ctx, emoji: discord.Emoji, messageid: int, channel: discord.TextChannel
     ):
         if isinstance(messageid, int):
-            message = await channel.fetch_message(messageid)
+            _message = await channel.fetch_message(messageid)
         if isinstance(emoji, int):
             emoji = client.get_emoji(emoji)
-        await message.add_reaction(emoji)
-        await ctx.send(f"Successfully added the reaction {emoji} to the message.")
+        await _message.add_reaction(emoji)
+        await ctx.send(f"Successfully added the reaction {emoji} to the _message.")
 
     @commands.hybrid_command(
         brief="This command can be used for disabling all commands by admin per guild.",
@@ -11592,11 +11502,12 @@ class Support(commands.Cog):
         )
         codeblock = getcodeblock(code)
         code = codeblock[1]
-        await ctx.send(
+        view = CodingLanguageView(code, ctx.author, ctx.channel)
+        view.set_message(await ctx.send(
             embed=embed,
-            view=CodingLanguageView(code, ctx.author, ctx.channel),
+            view=view,
             ephemeral=True,
-        )
+        ))
 
     @commands.cooldown(1, 30, BucketType.member)
     @commands.command(
@@ -11741,11 +11652,11 @@ class Support(commands.Cog):
         )
         count = 3
 
-        def check(message):
+        def check(_message):
             nonlocal count
             count = count + 1
             # print(f"{count} has been incremented.")
-            return message.author == ctx.author and message.channel == ctx.channel
+            return _message.author == ctx.author and _message.channel == ctx.channel
 
         await ctx.send("What is the title ?")
         title = await client.wait_for("message", check=check)
@@ -11783,8 +11694,8 @@ class Support(commands.Cog):
         await client.change_presence(activity=activity)
         # print(f"Status was changed to visible in {ctx.guild}")
         
-async def currentlyplayingslider(message, player):
-    embed = message.embeds[0]
+async def currentlyplayingslider(_message, player):
+    embed = _message.embeds[0]
     pbar = ""
     cplayingmusic = player.current
     try:
@@ -11804,7 +11715,7 @@ async def currentlyplayingslider(message, player):
             )
             embed.add_field(name=cplayingmusic.title, value=pbar)
             try:
-                await message.edit(embed=embed)
+                await _message.edit(embed=embed)
             except:
                 return
             await asyncio.sleep(5)
@@ -11884,9 +11795,9 @@ class Music(commands.Cog):
                 + f" [`{timedelta(seconds=((player.current.length//1000)+1))}`/`{timedelta(seconds=(player.position//1000))}`]"
         )
         embedVar.add_field(name=playingmusic, value=pbar)
-        message = await ctx.send(embed=embedVar, ephemeral=True)
+        _message = await ctx.send(embed=embedVar, ephemeral=True)
         await currentlyplayingslider(
-            message, player
+            _message, player
         )
 
     @commands.cooldown(1, 45, BucketType.member)
@@ -12248,9 +12159,9 @@ async def aexec(code, ctx):
     return await locals()["__ex"](ctx)
 
 
-@client.tree.context_menu()  # creates a global message command. use guild_ids=[] to create guild-specific commands
-async def profile(ctx, message: discord.Message):
-    member = message.author
+@client.tree.context_menu()  # creates a global _message command. use guild_ids=[] to create guild-specific commands
+async def profile(ctx, _message: discord.Message):
+    member = _message.author
     asset = member.display_avatar
     banner = member.banner
     embedcolor = member.accent_color
@@ -12356,18 +12267,18 @@ async def profile(ctx, message: discord.Message):
     await ctx.send(embed=embedOne, ephemeral=True)
 
 
-@client.tree.context_menu()  # creates a global message command. use guild_ids=[] to create guild-specific commands
-async def chatbot(ctx, message: discord.Message):
-    text = message.content
+@client.tree.context_menu()  # creates a global _message command. use guild_ids=[] to create guild-specific commands
+async def chatbot(ctx, _message: discord.Message):
+    text = _message.content
     chatextract = ChatExtractor()
-    response = await chatextract.aget_response(text, message.author)
+    response = await chatextract.aget_response(text, _message.author)
     embed = discord.Embed(title="Chatbot", description=response)
     await ctx.send(embed=embed, ephemeral=True)
 
 
-@client.tree.context_menu()  # creates a global message command. use guild_ids=[] to create guild-specific commands
-async def messagestats(ctx, message: discord.Message):
-    text = message.content
+@client.tree.context_menu()  # creates a global _message command. use guild_ids=[] to create guild-specific commands
+async def messagestats(ctx, _message: discord.Message):
+    text = _message.content
     analyze_request = {
         "comment": {"text": text},
         "requestedAttributes": {
@@ -12410,9 +12321,9 @@ async def messagestats(ctx, message: discord.Message):
 
 @client.tree.context_menu()  # creates a global message command. use guild_ids=[] to create guild-specific commands.
 async def translate(
-        ctx, message: discord.Message
+        ctx, _message: discord.Message
 ):  # message commands return the message
-    text = message.content
+    text = _message.content
     origmessage = text
     origlanguage = detect(text)
     translator = Translator(to_lang="en", from_lang=origlanguage)
@@ -12545,11 +12456,15 @@ class ValorantRoundStats(discord.ui.View):
         self.embed = self.embeds[self.currentround]
         self.round = self.rounds.roundlist[self.currentround]
         self.limit = len(self.embeds) - 1
+        self._message = None
+    
+    def set_message(self, _message):
+        self._message = _message
 
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
-        await self.message.edit(view=self)
+        await self._message.edit(view=self)
 
     class DemoAbility:
         def __init__(self):
@@ -12569,12 +12484,12 @@ class ValorantRoundStats(discord.ui.View):
         self.embed = self.embeds[self.currentround]
         self.round = self.rounds.roundlist[self.currentround]
         try:
-            if isinstance(self.message, discord.InteractionResponse):
-                await self.message.edit_message(embed=self.embed)
-            elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_response(embed=self.embed)
+            if isinstance(self._message, discord.InteractionResponse):
+                await self._message.edit_message(embed=self.embed)
+            elif isinstance(self._message, discord.Interaction):
+                await self._message.edit_original_response(embed=self.embed)
             else:
-                await self.message.edit(embed=self.embed)
+                await self._message.edit(embed=self.embed)
         except:
             pass
 
@@ -12583,15 +12498,15 @@ class ValorantRoundStats(discord.ui.View):
             self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
-        if isinstance(self.message, discord.InteractionResponse):
+        if isinstance(self._message, discord.InteractionResponse):
             try:
-                await self.message.edit_message(view=None)
+                await self._message.edit_message(view=None)
             except:
                 pass
-        elif isinstance(self.message, discord.Interaction):
-            await self.message.delete_original_message()
+        elif isinstance(self._message, discord.Interaction):
+            await self._message.delete_original_message()
         else:
-            await self.message.edit(view=None)
+            await self._message.edit(view=None)
         self.stop()
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
@@ -12604,12 +12519,12 @@ class ValorantRoundStats(discord.ui.View):
         self.embed = self.embeds[self.currentround]
         self.round = self.rounds.roundlist[self.currentround]
         try:
-            if isinstance(self.message, discord.InteractionResponse):
-                await self.message.edit_message(embed=self.embed)
-            elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_response(embed=self.embed)
+            if isinstance(self._message, discord.InteractionResponse):
+                await self._message.edit_message(embed=self.embed)
+            elif isinstance(self._message, discord.Interaction):
+                await self._message.edit_original_response(embed=self.embed)
             else:
-                await self.message.edit(embed=self.embed)
+                await self._message.edit(embed=self.embed)
         except Exception as ex:
             print(ex)
 
@@ -12666,11 +12581,15 @@ class ValorantStats(discord.ui.View):
         self.embed = self.embeds[self.currentmatch]
         self.match = self.matches.matchlist[self.currentmatch]
         self.limit = len(self.embeds) - 1
-
+        self._message = None
+    
+    def set_message(self, _message):
+        self._message = _message
+    
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
-        await self.message.edit(view=self)
+        await self._message.edit(view=self)
 
     @discord.ui.button(emoji="🙌", style=discord.ButtonStyle.green)
     async def playerinfostats(
@@ -12688,9 +12607,9 @@ class ValorantStats(discord.ui.View):
         valoview = ValorantRoundStats(
             currentmatch.rounds, self.currentplayerid, self.currentcharactername
         )
-        msg = await interaction.response.send_message(
+        valoview.set_message(await interaction.response.send_message(
             view=valoview, embed=valoview.embeds[0], ephemeral=True
-        )
+        ))
 
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.green)
     async def leftmove(
@@ -12706,12 +12625,12 @@ class ValorantStats(discord.ui.View):
             if player.id == self.currentplayerid:
                 self.currentcharactername = player.character.name
         try:
-            if isinstance(self.message, discord.InteractionResponse):
-                await self.message.edit_message(embed=self.embed)
-            elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_response(embed=self.embed)
+            if isinstance(self._message, discord.InteractionResponse):
+                await self._message.edit_message(embed=self.embed)
+            elif isinstance(self._message, discord.Interaction):
+                await self._message.edit_original_response(embed=self.embed)
             else:
-                await self.message.edit(embed=self.embed)
+                await self._message.edit(embed=self.embed)
         except:
             pass
 
@@ -12720,15 +12639,15 @@ class ValorantStats(discord.ui.View):
             self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await interaction.response.defer()
-        if isinstance(self.message, discord.InteractionResponse):
+        if isinstance(self._message, discord.InteractionResponse):
             try:
-                await self.message.edit_message(view=None)
+                await self._message.edit_message(view=None)
             except:
                 pass
-        elif isinstance(self.message, discord.Interaction):
-            await self.message.delete_original_message()
+        elif isinstance(self._message, discord.Interaction):
+            await self._message.delete_original_message()
         else:
-            await self.message.edit(view=None)
+            await self._message.edit(view=None)
         self.stop()
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.green)
@@ -12745,12 +12664,12 @@ class ValorantStats(discord.ui.View):
             if player.id == self.currentplayerid:
                 self.currentcharactername = player.character.name
         try:
-            if isinstance(self.message, discord.InteractionResponse):
-                await self.message.edit_message(embed=self.embed)
-            elif isinstance(self.message, discord.Interaction):
-                await self.message.edit_original_response(embed=self.embed)
+            if isinstance(self._message, discord.InteractionResponse):
+                await self._message.edit_message(embed=self.embed)
+            elif isinstance(self._message, discord.Interaction):
+                await self._message.edit_original_response(embed=self.embed)
             else:
-                await self.message.edit(embed=self.embed)
+                await self._message.edit(embed=self.embed)
         except:
             pass
 
@@ -12761,11 +12680,15 @@ class ValorantControls(discord.ui.View):
         self.matches = matches
         self.currentplayerid = currentplayerid
         self.ctx = ctx
+        self._message = None
+    
+    def set_message(self, _message):
+        self._message = _message
 
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
-        await self.message.edit(view=self)
+        await self._message.edit(view=self)
 
     @discord.ui.button(label="View recent matches", style=discord.ButtonStyle.green)
     async def roundstats(
@@ -12773,10 +12696,9 @@ class ValorantControls(discord.ui.View):
     ):
         await interaction.response.defer()
         valoview = ValorantStats(self.matches, self.currentplayerid)
-        msg = await self.ctx.send(
+        valoview.set_message(await self.ctx.send(
             embed=valoview.embeds[0], view=valoview, ephemeral=True
-        )
-        valoview.set_initial_message(msg)
+        ))
         button.disabled = True
         await interaction.response.edit_message(view=self)
 
@@ -12793,11 +12715,12 @@ class ValorantControls(discord.ui.View):
         3️⃣ Common round losing reasons
         """,
         )
-        await self.ctx.send(
+        view = ValorantDetailedStats(self.matches, self.currentplayerid)
+        view.set_message(await self.ctx.send(
             embed=embed,
-            view=ValorantDetailedStats(self.matches, self.currentplayerid),
+            view=view,
             ephemeral=True,
-        )
+        ))
         button.disabled = True
         await interaction.response.edit_message(view=self)
 
@@ -12807,11 +12730,15 @@ class ValorantDetailedStats(discord.ui.View):
         super().__init__(timeout=60)
         self.matches = matches
         self.currentplayerid = currentplayerid
+        self._message = None
+    
+    def set_message(self, _message):
+        self._message = _message
 
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
-        await self.message.edit(view=self)
+        await self._message.edit(view=self)
 
     @discord.ui.button(emoji="1️⃣", style=discord.ButtonStyle.green)
     async def mostusedweapons(
@@ -12921,9 +12848,9 @@ class Minecraftpvp(discord.ui.View):
                 await interaction.response.send_message(
                     f"You surrendered to {self.membertwoname} .", ephemeral=True
                 )
-                message = interaction.message
-                if not message is None:
-                    embed = message.embeds[0]
+                _message = interaction.message
+                if not _message is None:
+                    embed = _message.embeds[0]
                     embed.description = f"`{self.memberonename} surrendered against {self.membertwoname}`"
                     embed.set_field_at(
                         index=0,
@@ -12933,14 +12860,14 @@ class Minecraftpvp(discord.ui.View):
                     embed.set_field_at(
                         index=1, name=f"{self.membertwoname}", value=f"🧧Tie"
                     )
-                    await message.edit(content="** **", embed=embed, view=None)
+                    await _message.edit(content="** **", embed=embed, view=None)
             elif interaction.user.id == self.membertwoid:
                 await interaction.response.send_message(
                     f"You surrendered to {self.memberonename} .", ephemeral=True
                 )
-                message = interaction.message
-                if not message is None:
-                    embed = message.embeds[0]
+                _message = interaction.message
+                if not _message is None:
+                    embed = _message.embeds[0]
                     embed.description = f"`{self.membertwoname} surrendered against {self.memberonename}`"
                     embed.set_field_at(
                         index=0, name=f"{self.memberonename}", value=f"🧧Tie"
@@ -12950,7 +12877,7 @@ class Minecraftpvp(discord.ui.View):
                         name=f"{self.membertwoname} surrendered!",
                         value=f"🧧Tie",
                     )
-                    await message.edit(content="** **", embed=embed, view=None)
+                    await _message.edit(content="** **", embed=embed, view=None)
             try:
                 if self.vc.is_playing():
                     self.vc.stop()
@@ -13000,9 +12927,9 @@ class Minecraftpvp(discord.ui.View):
                         ephemeral=True,
                     )
                     return
-            message = interaction.message
-            if not message is None:
-                embed = message.embeds[0]
+            _message = interaction.message
+            if not _message is None:
+                embed = _message.embeds[0]
                 try:
                     if self.vc.is_playing():
                         self.vc.stop()
@@ -13010,7 +12937,7 @@ class Minecraftpvp(discord.ui.View):
                 except:
                     pass
                 embed.description = f"`{interaction.user.name} has equipped the shields and its on cooldown for the next move!`"
-                await message.edit(
+                await _message.edit(
                     content=f"<@{self.moveturn}> 's turn to fight!", embed=embed
                 )
             await interaction.response.send_message(
@@ -13092,10 +13019,10 @@ class Minecraftpvp(discord.ui.View):
                         self.vc.play(discord.FFmpegPCMAudio("Critical_attack1.ogg"))
                 except:
                     pass
-                message = interaction.message
+                _message = interaction.message
                 if self.membertwo_healthpoint <= 0:
-                    if not message is None:
-                        embed = message.embeds[0]
+                    if not _message is None:
+                        embed = _message.embeds[0]
                         embed.description = f"`{self.membertwoname} {random.choice(winmessage)}{self.memberonename}`"
                         embed.set_field_at(
                             index=0,
@@ -13118,10 +13045,10 @@ class Minecraftpvp(discord.ui.View):
                         async with pool.acquire() as con:
                             await con.execute(statement, str(self.memberoneid))
                         await addmoney(self.membertwoid, 5)
-                        await message.edit(embed=embed, view=None)
+                        await _message.edit(embed=embed, view=None)
                         self.stop()
                         return
-                if not message is None:
+                if not _message is None:
                     lastmessage = " ."
                     if shielddisabled:
                         try:
@@ -13131,7 +13058,7 @@ class Minecraftpvp(discord.ui.View):
                         except:
                             pass
                         lastmessage = " and disabled the shields!"
-                    embed = message.embeds[0]
+                    embed = _message.embeds[0]
                     embed.description = f"`{self.memberonename} landed {self.membertwoname} with a {attackchoice} hit and dealt {damagevalue}{lastmessage}`"
                     embed.set_field_at(
                         index=1,
@@ -13146,7 +13073,7 @@ class Minecraftpvp(discord.ui.View):
                             )
                         ),
                     )
-                    await message.edit(
+                    await _message.edit(
                         embed=embed, content=f"<@{self.moveturn}> 's turn to fight!"
                     )
             elif interaction.user.id == self.membertwoid:
@@ -13184,10 +13111,10 @@ class Minecraftpvp(discord.ui.View):
                         self.vc.play(discord.FFmpegPCMAudio("Critical_attack1.ogg"))
                 except:
                     pass
-                message = interaction.message
+                _message = interaction.message
                 if self.memberone_healthpoint <= 0:
-                    if not message is None:
-                        embed = message.embeds[0]
+                    if not _message is None:
+                        embed = _message.embeds[0]
                         embed.description = f"`{self.memberonename} {random.choice(winmessage)}{self.membertwoname}`"
                         embed.set_field_at(
                             index=0,
@@ -13210,10 +13137,10 @@ class Minecraftpvp(discord.ui.View):
                         async with pool.acquire() as con:
                             await con.execute(statement, str(self.membertwoid))
                         await addmoney(self.memberoneid, 5)
-                        await message.edit(embed=embed, view=None)
+                        await _message.edit(embed=embed, view=None)
                         self.stop()
                         return
-                if not message is None:
+                if not _message is None:
                     lastmessage = " ."
                     if shielddisabled:
                         try:
@@ -13223,7 +13150,7 @@ class Minecraftpvp(discord.ui.View):
                         except:
                             pass
                         lastmessage = " and disabled the shields!"
-                    embed = message.embeds[0]
+                    embed = _message.embeds[0]
                     embed.description = f"`{self.membertwoname} landed {self.memberonename} with a {attackchoice} hit and dealt {damagevalue}{lastmessage}`"
                     embed.set_field_at(
                         index=0,
@@ -13238,7 +13165,7 @@ class Minecraftpvp(discord.ui.View):
                             )
                         ),
                     )
-                    await message.edit(
+                    await _message.edit(
                         embed=embed, content=f"<@{self.moveturn}> 's turn to fight!"
                     )
 
@@ -13497,17 +13424,17 @@ async def on_raw_reaction_add(payload):
             if exists:
                 guild = client.get_guild(payload.guild_id)
                 channel = guild.get_channel(payload.channel_id)
-                message = await channel.fetch_message(payload.message_id)
-                embed = message.embeds[0]
+                _message = await channel.fetch_message(payload.message_id)
+                embed = _message.embeds[0]
                 # embed.add_field(name="Total count ",value="0")
                 # embed.add_field(name="Percentage of votes <a:verified:875327156572532736>/<a:denied:877399177208954912>",value="0/0 %")
-                if len(message.reactions) >= 2:
-                    deniedreactions = await message.reactions[1].users().flatten()
+                if len(_message.reactions) >= 2:
+                    deniedreactions = await _message.reactions[1].users().flatten()
                     try:
                         deniedreactions.pop(deniedreactions.index(client.user))
                     except:
                         pass
-                    verifiedreactions = await message.reactions[0].users().flatten()
+                    verifiedreactions = await _message.reactions[0].users().flatten()
                     try:
                         verifiedreactions.pop(verifiedreactions.index(client.user))
                     except:
@@ -13529,7 +13456,7 @@ async def on_raw_reaction_add(payload):
                     else:
                         statusmsg = f"Accepted({verifiedcount}/{totalcount}) users"
                     embed.set_footer(text=statusmsg)
-                    await message.edit(embed=embed)
+                    await _message.edit(embed=embed)
             return
         async with pool.acquire() as con:
             polllist = await con.fetch(f"SELECT messageid FROM polls")
@@ -13541,17 +13468,17 @@ async def on_raw_reaction_add(payload):
         if exists:
             guild = client.get_guild(payload.guild_id)
             channel = guild.get_channel(payload.channel_id)
-            message = await channel.fetch_message(payload.message_id)
-            embed = message.embeds[0]
+            _message = await channel.fetch_message(payload.message_id)
+            embed = _message.embeds[0]
             # embed.add_field(name="Total count ",value="0")
             # embed.add_field(name="Percentage of votes <a:verified:875327156572532736>/<a:denied:877399177208954912>",value="0/0 %")
-            if len(message.reactions) >= 2:
-                deniedreactions = await message.reactions[1].users().flatten()
+            if len(_message.reactions) >= 2:
+                deniedreactions = await _message.reactions[1].users().flatten()
                 try:
                     deniedreactions.pop(deniedreactions.index(client.user))
                 except:
                     pass
-                verifiedreactions = await message.reactions[0].users().flatten()
+                verifiedreactions = await _message.reactions[0].users().flatten()
                 try:
                     verifiedreactions.pop(verifiedreactions.index(client.user))
                 except:
@@ -13573,7 +13500,7 @@ async def on_raw_reaction_add(payload):
                 else:
                     statusmsg = f"Accepted({verifiedcount}/{totalcount}) users"
                 embed.set_footer(text=statusmsg)
-                await message.edit(embed=embed)
+                await _message.edit(embed=embed)
         async with pool.acquire() as con:
             ticketlist = await con.fetchrow(
                 f"SELECT * FROM ticketchannels WHERE messageid = {payload.message_id}"
@@ -13582,10 +13509,10 @@ async def on_raw_reaction_add(payload):
             supportroleid = ticketlist[2]
             guild = client.get_guild(payload.guild_id)
             channel = guild.get_channel(payload.channel_id)
-            message = channel.get_partial_message(payload.message_id)
+            _message = channel.get_partial_message(payload.message_id)
             user = payload.member
             try:
-                await message.remove_reaction(payload.emoji, user)
+                await _message.remove_reaction(payload.emoji, user)
             except Exception as ex:
                 print(ex)
             await createticket(user, guild, channel.category, channel, supportroleid)
@@ -13814,32 +13741,32 @@ async def on_member_join(member):
 
 
 @client.event
-async def on_message_edit(before, message):
+async def on_message_edit(before, _message):
     global maintenancemodestatus, disabledChannels
     if conn is None:
-        print(f"Could not process message {message.id} because of db problems!")
+        print(f"Could not process _message {_message.id} because of db problems!")
         return
     try:
         if maintenancemodestatus:
-            if not checkstaff(message.author):
+            if not checkstaff(_message.author):
                 return
             print(
-                f" {message.author} edited {before.content} -> {message.content} in {message.channel} ."
+                f" {_message.author} edited {before.content} -> {_message.content} in {_message.channel} ."
             )
-        if message.author.bot:
+        if _message.author.bot:
             return
 
-        origmessage = message.content
-        if message.guild:
+        origmessage = _message.content
+        if _message.guild:
             async with pool.acquire() as con:
                 linklist = await con.fetchrow(
-                    f"SELECT * FROM linkchannels WHERE channelid = {message.channel.id}"
+                    f"SELECT * FROM linkchannels WHERE channelid = {_message.channel.id}"
                 )
             if (
                     linklist is not None
-                    and not message.channel.permissions_for(message.author).manage_guild
-                    and not checkstaff(message.author)
-                    and not ismuted(message, message.author)
+                    and not _message.channel.permissions_for(_message.author).manage_guild
+                    and not checkstaff(_message.author)
+                    and not ismuted(_message, _message.author)
             ):
                 listofsentence = [origmessage]
                 listofwords = convertwords(listofsentence)
@@ -13849,14 +13776,14 @@ async def on_message_edit(before, message):
                     )
                     if serverinvitecheck.match(word):
                         try:
-                            await message.delete()
+                            await _message.delete()
                         except:
                             automodembedOne = discord.Embed(
                                 title="Automod Error",
                                 description="I don't have `manage messages` permission.",
                             )
-                            if not message.channel.id in disabledChannels:
-                                messagesent = await message.channel.send(
+                            if not _message.channel.id in disabledChannels:
+                                messagesent = await _message.channel.send(
                                     embed=automodembedOne
                                 )
                                 await asyncio.sleep(2)
@@ -13865,11 +13792,11 @@ async def on_message_edit(before, message):
                             title="Automod (Message edit)", description="Server invite"
                         )
                         automodembed.add_field(
-                            value=f"Hey {message.author.mention} server invites are not allowed here.",
+                            value=f"Hey {_message.author.mention} server invites are not allowed here.",
                             name="** **",
                         )
-                        if not message.channel.id in disabledChannels:
-                            messagesent = await message.channel.send(embed=automodembed)
+                        if not _message.channel.id in disabledChannels:
+                            messagesent = await _message.channel.send(embed=automodembed)
                             await asyncio.sleep(2)
                             await messagesent.delete()
                         return
@@ -13878,14 +13805,14 @@ async def on_message_edit(before, message):
                         wordtwo = "https://" + word
                         if validurl(wordone) or validurl(wordtwo):
                             try:
-                                await message.delete()
+                                await _message.delete()
                             except:
                                 automodembedOne = discord.Embed(
                                     title="Automod Error",
                                     description="I don't have `manage messages` permission.",
                                 )
-                                if not message.channel.id in disabledChannels:
-                                    messagesent = await message.channel.send(
+                                if not _message.channel.id in disabledChannels:
+                                    messagesent = await _message.channel.send(
                                         embed=automodembedOne
                                     )
                                     await asyncio.sleep(2)
@@ -13895,11 +13822,11 @@ async def on_message_edit(before, message):
                                 description="Website link",
                             )
                             automodembed.add_field(
-                                value=f"Hey {message.author.mention} links are not allowed here.",
+                                value=f"Hey {_message.author.mention} links are not allowed here.",
                                 name="** **",
                             )
-                            if not message.channel.id in disabledChannels:
-                                messagesent = await message.channel.send(
+                            if not _message.channel.id in disabledChannels:
+                                messagesent = await _message.channel.send(
                                     embed=automodembed
                                 )
                                 await asyncio.sleep(2)
@@ -13908,14 +13835,14 @@ async def on_message_edit(before, message):
                     else:
                         if validurl(word):
                             try:
-                                await message.delete()
+                                await _message.delete()
                             except:
                                 automodembedOne = discord.Embed(
                                     title="Automod Error",
                                     description="I don't have `manage messages` permission.",
                                 )
-                                if not message.channel.id in disabledChannels:
-                                    messagesent = await message.channel.send(
+                                if not _message.channel.id in disabledChannels:
+                                    messagesent = await _message.channel.send(
                                         embed=automodembedOne
                                     )
                                     await asyncio.sleep(2)
@@ -13925,38 +13852,38 @@ async def on_message_edit(before, message):
                                 description="Website link",
                             )
                             automodembed.add_field(
-                                value=f"Hey {message.author.mention} links are not allowed here.",
+                                value=f"Hey {_message.author.mention} links are not allowed here.",
                                 name="** **",
                             )
-                            if not message.channel.id in disabledChannels:
-                                messagesent = await message.channel.send(
+                            if not _message.channel.id in disabledChannels:
+                                messagesent = await _message.channel.send(
                                     embed=automodembed
                                 )
                                 await asyncio.sleep(2)
                                 await messagesent.delete()
                             return
-        if message.guild:
+        if _message.guild:
             async with pool.acquire() as con:
                 profanelist = await con.fetchrow(
-                    f"SELECT * FROM profanechannels WHERE channelid = {message.channel.id}"
+                    f"SELECT * FROM profanechannels WHERE channelid = {_message.channel.id}"
                 )
             if (
                     profanelist is not None
-                    and not message.channel.permissions_for(message.author).manage_guild
-                    and not checkstaff(message.author)
-                    and not ismuted(message, message.author)
+                    and not _message.channel.permissions_for(_message.author).manage_guild
+                    and not checkstaff(_message.author)
+                    and not ismuted(_message, _message.author)
             ):
                 if checkProfane(origmessage):
-                    if not message.channel.id in disabledChannels:
+                    if not _message.channel.id in disabledChannels:
                         try:
-                            await message.delete()
+                            await _message.delete()
                         except:
                             automodembedOne = discord.Embed(
                                 title="Automod Error",
                                 description="I don't have `manage messages` permission.",
                             )
-                            if not message.channel.id in disabledChannels:
-                                messagesent = await message.channel.send(
+                            if not _message.channel.id in disabledChannels:
+                                messagesent = await _message.channel.send(
                                     embed=automodembedOne
                                 )
                                 await asyncio.sleep(2)
@@ -13965,24 +13892,24 @@ async def on_message_edit(before, message):
                             title="Automod", description="Profane message edit"
                         )
                         automodembed.add_field(
-                            value=f"Hey {message.author.mention} don't send offensive messages.",
+                            value=f"Hey {_message.author.mention} don't send offensive messages.",
                             name="** **",
                         )
-                        if not message.channel.id in disabledChannels:
-                            messagesent = await message.channel.send(embed=automodembed)
+                        if not _message.channel.id in disabledChannels:
+                            messagesent = await _message.channel.send(embed=automodembed)
                             await asyncio.sleep(2)
                             await messagesent.delete()
                 elif checkCaps(origmessage):
-                    if not message.channel.id in disabledChannels:
+                    if not _message.channel.id in disabledChannels:
                         try:
-                            await message.delete()
+                            await _message.delete()
                         except:
                             automodembedOne = discord.Embed(
                                 title="Automod Error",
                                 description="I don't have `manage messages` permission.",
                             )
-                            if not message.channel.id in disabledChannels:
-                                messagesent = await message.channel.send(
+                            if not _message.channel.id in disabledChannels:
+                                messagesent = await _message.channel.send(
                                     embed=automodembedOne
                                 )
                                 await asyncio.sleep(2)
@@ -13991,11 +13918,11 @@ async def on_message_edit(before, message):
                             title="Automod", description="Caps message edit"
                         )
                         automodembed.add_field(
-                            value=f"Hey {message.author.mention} don't send full caps messages.",
+                            value=f"Hey {_message.author.mention} don't send full caps messages.",
                             name="** **",
                         )
-                        if not message.channel.id in disabledChannels:
-                            messagesent = await message.channel.send(embed=automodembed)
+                        if not _message.channel.id in disabledChannels:
+                            messagesent = await _message.channel.send(embed=automodembed)
                             await asyncio.sleep(2)
                             await messagesent.delete()
     except Exception as error:
@@ -14045,39 +13972,39 @@ async def restrict(guild, channel, member):
 
 
 @client.event
-async def on_message(message):
+async def on_message(_message):
     global maintenancemodestatus, maintenancemodereason, verifyCommand, debugCode, yourCode, retryDebug, disabledChannels
     try:
         if pool is None:
             while client.start_status != BotStartStatus.COMPLETED:
                 await asyncio.sleep(0.5)
-            await on_message(message)
+            await on_message(_message)
             return
         if maintenancemodestatus and not onlystaffaccess:
-            if ("<@!1061480715172200498>" in message.content) or (
-                    "<@1061480715172200498>" in message.content
+            if ("<@!1061480715172200498>" in _message.content) or (
+                    "<@1061480715172200498>" in _message.content
             ):
-                await message.reply(
+                await _message.reply(
                     f"The bot is currently in maintainence , {maintenancemodereason}"
                 )
-            # print(f" {message.author} sent {message.content} in {message.channel} .")
-            if not checkstaff(message.author):
+            # print(f" {_message.author} sent {_message.content} in {_message.channel} .")
+            if not checkstaff(_message.author):
                 return
             # logger.info(
-            #    f" {message.author} sent {message.content} in {message.channel} ."
+            #    f" {_message.author} sent {_message.content} in {_message.channel} ."
             # )
-            print(f" {message.author} sent {message.content} in {message.channel} .")
-        ctx = await client.get_context(message)
+            print(f" {_message.author} sent {_message.content} in {_message.channel} .")
+        ctx = await client.get_context(_message)
         if (
-                message.channel.id == 846696676214308904
-                and not message.author == ctx.guild.me
-                and message.author.bot
+                _message.channel.id == 846696676214308904
+                and not _message.author == ctx.guild.me
+                and _message.author.bot
         ):
             dashboardtype = "NA"
             codeexec = False
-            if message.author.name.startswith("git-"):
+            if _message.author.name.startswith("git-"):
                 dashboardtype = "github"
-            elif message.author.name.startswith("riot-"):
+            elif _message.author.name.startswith("riot-"):
                 dashboardtype = "riot"
             errorOcc = False
             if codeexec:
@@ -14085,7 +14012,7 @@ async def on_message(message):
                 errorOcc = False
                 try:
                     with contextlib.redirect_stdout(str_obj):
-                        code = message.content
+                        code = _message.content
                         await aexec(code, ctx)
                         output = str_obj.getvalue()
                 except Exception as ex:
@@ -14097,9 +14024,9 @@ async def on_message(message):
                     lines = traceback.format_exception(etype, ex, trace)
                     # format_exception returns a list with line breaks embedded in the lines, so let's just stitch the elements together
                     traceback_text = "".join(lines)
-                    await message.reply(f"Code ERROR : {traceback_text}")
+                    await _message.reply(f"Code ERROR : {traceback_text}")
             if dashboardtype == "github":
-                reqid = str(message.content)
+                reqid = str(_message.content)
                 game = discord.Game(reqid)
                 await client.change_presence(status=discord.Status.idle, activity=game)
                 messages = await client.get_channel(CHANNEL_GIT_LOGGING_ID).history(limit=1).flatten()
@@ -14111,9 +14038,9 @@ async def on_message(message):
                     except:
                         pass
             if dashboardtype == "riot":
-                reqid = str(message.author.name)
+                reqid = str(_message.author.name)
                 reqid = int(reqid.removeprefix("riot-"))
-                reqjson = str(message.content)
+                reqjson = str(_message.content)
                 reqjson = reqjson.replace("'", '"')
                 reqjson = json.loads(reqjson)
                 access_token = reqjson["access_token"]
@@ -14154,11 +14081,11 @@ async def on_message(message):
                                     accounttag,
                                 )
 
-                        await message.reply(
+                        await _message.reply(
                             f"Account {accountname} with tag {accounttag} and puuid {accountpuuid} has been added to the database."
                         )
-                        await message.add_reaction("✔️")
-        if message.author == client.user:
+                        await _message.add_reaction("✔️")
+        if _message.author == client.user:
             return
         async with pool.acquire() as con:
             restrictlist = await con.fetchrow(
@@ -14168,16 +14095,16 @@ async def on_message(message):
             return
         if (
                 ctx.author.id == 270904126974590976
-                and message.type == discord.MessageType.application_command
-                and message.interaction.name == "trivia"
+                and _message.type == discord.MessageType.application_command
+                and _message.interaction.name == "trivia"
         ):
             try:
-                embed = message.embeds[0]
+                embed = _message.embeds[0]
                 jsonGot = embed.to_dict()
-                title = message.interaction.user
+                title = _message.interaction.user
                 question = jsonGot["description"].split("\n")[0]
                 labels = ""
-                for cm in message.components:
+                for cm in _message.components:
                     for btn in cm.children:
                         labels = labels + "," + str(btn.label)
                 labels = labels.removeprefix(",")
@@ -14198,24 +14125,24 @@ async def on_message(message):
             print(
                 f"Command {ctx.command} received from {ctx.author}({ctx.author.id}) in {ctx.guild}"
             )
-            bucket = bot.cmdcooldownvar.get_bucket(message)
+            bucket = bot.cmdcooldownvar.get_bucket(_message)
             retry_after = bucket.update_rate_limit()
             if retry_after:
                 await restrict(ctx.guild, ctx.channel, ctx.author)
-        if message.author.bot:
+        if _message.author.bot:
             return
-        origmessage = message.content
-        if message.guild:
+        origmessage = _message.content
+        if _message.guild:
             if ctx.valid:
                 currcommand = ctx.command.name
                 async with pool.acquire() as con:
                     commandlist = await con.fetchrow(
-                        f"SELECT * FROM commandguildstatus WHERE guildid = {message.guild.id} and commandname = '{currcommand}'"
+                        f"SELECT * FROM commandguildstatus WHERE guildid = {_message.guild.id} and commandname = '{currcommand}'"
                     )
                 if commandlist is not None:
-                    if not message.channel.permissions_for(
-                            message.author
-                    ).administrator and not checkstaff(message.author):
+                    if not _message.channel.permissions_for(
+                            _message.author
+                    ).administrator and not checkstaff(_message.author):
                         await on_command_error(
                             ctx,
                             "You cannot use that command in this server as it is disabled!",
@@ -14223,7 +14150,7 @@ async def on_message(message):
                         return
             async with pool.acquire() as con:
                 verifylist = await con.fetchrow(
-                    f"SELECT * FROM verifychannels WHERE channelid = {message.channel.id}"
+                    f"SELECT * FROM verifychannels WHERE channelid = {_message.channel.id}"
                 )
             if verifylist is not None:
                 if not ctx.valid:
@@ -14238,73 +14165,73 @@ async def on_message(message):
                     except:
                         pass
                     return
-                await client.process_commands(message)
+                await client.process_commands(_message)
                 return
             async with pool.acquire() as con:
                 warninglist = await con.fetchrow(
-                    f"SELECT * FROM levelsettings WHERE channelid = {message.channel.id}"
+                    f"SELECT * FROM levelsettings WHERE channelid = {_message.channel.id}"
                 )
             if warninglist is None:
                 statement = (
                     """INSERT INTO levelsettings (channelid,setting) VALUES($1,$2);"""
                 )
                 async with pool.acquire() as con:
-                    await con.execute(statement, message.channel.id, False)
+                    await con.execute(statement, _message.channel.id, False)
 
                 async with pool.acquire() as con:
                     warninglist = await con.fetchrow(
-                        f"SELECT * FROM levelsettings WHERE channelid = {message.channel.id}"
+                        f"SELECT * FROM levelsettings WHERE channelid = {_message.channel.id}"
                     )
                 # await ctx.send(
-                #    f"Alert: leveling was automatically disabled in this channel, do {message.guild.me.mention}leveltoggle to turn on leveling!",
+                #    f"Alert: leveling was automatically disabled in this channel, do {_message.guild.me.mention}leveltoggle to turn on leveling!",
                 #    delete_after=5,
                 # )
             if warninglist[1]:
                 async with pool.acquire() as con:
                     levelconfiglist = await con.fetchrow(
-                        f"SELECT * FROM levelconfig WHERE channelid = {message.channel.id}"
+                        f"SELECT * FROM levelconfig WHERE channelid = {_message.channel.id}"
                     )
                 if levelconfiglist is None:
                     statement = """INSERT INTO levelconfig (channelid,messagecount) VALUES($1,$2);"""
                     async with pool.acquire() as con:
-                        await con.execute(statement, message.channel.id, 25)
+                        await con.execute(statement, _message.channel.id, 25)
                     async with pool.acquire() as con:
                         levelconfiglist = await con.fetchrow(
-                            f"SELECT * FROM levelconfig WHERE channelid = {message.channel.id}"
+                            f"SELECT * FROM levelconfig WHERE channelid = {_message.channel.id}"
                         )
                 levelmsgcount = levelconfiglist[1]
                 async with pool.acquire() as con:
                     levellist = await con.fetchrow(
-                        f"SELECT * FROM leveling WHERE guildid = {message.guild.id} AND memberid = {message.author.id}"
+                        f"SELECT * FROM leveling WHERE guildid = {_message.guild.id} AND memberid = {_message.author.id}"
                     )
                 if levellist is not None:
                     messageNew = levellist[2] + 1
                     currentLevel = messageNew // levelmsgcount
                     if messageNew % levelmsgcount == 0:
                         try:
-                            await message.channel.send(
-                                f" Hey {message.author} congrats on reaching level {currentLevel} ."
+                            await _message.channel.send(
+                                f" Hey {_message.author} congrats on reaching level {currentLevel} ."
                             )
                         except:
                             pass
                     async with pool.acquire() as con:
                         await con.execute(
-                            f"UPDATE leveling VALUES SET messagecount = {messageNew} WHERE guildid = {message.guild.id} AND memberid = {message.author.id}"
+                            f"UPDATE leveling VALUES SET messagecount = {messageNew} WHERE guildid = {_message.guild.id} AND memberid = {_message.author.id}"
                         )
                 else:
                     statement = """INSERT INTO leveling (guildid,memberid,messagecount) VALUES($1,$2,$3);"""
                     async with pool.acquire() as con:
                         await con.execute(
-                            statement, message.guild.id, message.author.id, 1
+                            statement, _message.guild.id, _message.author.id, 1
                         )
-        if message.guild:
+        if _message.guild:
             async with pool.acquire() as con:
                 linklist = await con.fetchrow(
-                    f"SELECT * FROM linkchannels WHERE channelid = {message.channel.id}"
+                    f"SELECT * FROM linkchannels WHERE channelid = {_message.channel.id}"
                 )
             if (
                     linklist is not None
-                    and not ctx.channel.permissions_for(message.author).manage_guild
+                    and not ctx.channel.permissions_for(_message.author).manage_guild
                     and not checkstaff(ctx.author)
                     and not ismuted(ctx, ctx.author)
             ):
@@ -14324,7 +14251,7 @@ async def on_message(message):
                         pass
                     if serverinvitecheck.match(word):
                         try:
-                            await message.delete()
+                            await _message.delete()
                         except:
                             automodembedOne = discord.Embed(
                                 title="Automod Error",
@@ -14340,8 +14267,8 @@ async def on_message(message):
                             if noninvite.guild is not None:
                                 guildmsg = noninvite.guild.name
                             await cmd(
-                                await client.get_context(message),
-                                message.author,
+                                await client.get_context(_message),
+                                _message.author,
                                 timenum="5m",
                                 reason=f"{guildmsg}'s server invite posted",
                             )
@@ -14351,10 +14278,10 @@ async def on_message(message):
                                 title="Automod Error", description="Server invite"
                             )
                             automodembed.add_field(
-                                value=f"I couldn't mute {message.author.mention} , I don't have `manage roles` permission.",
+                                value=f"I couldn't mute {_message.author.mention} , I don't have `manage roles` permission.",
                                 name="** **",
                             )
-                            if not message.channel.id in disabledChannels:
+                            if not _message.channel.id in disabledChannels:
                                 messagesent = await ctx.send(embed=automodembed)
                                 await asyncio.sleep(2)
                                 await messagesent.delete()
@@ -14364,7 +14291,7 @@ async def on_message(message):
                         wordtwo = "https://" + word
                         if validurl(wordone) or validurl(wordtwo):
                             try:
-                                await message.delete()
+                                await _message.delete()
                             except:
                                 automodembedOne = discord.Embed(
                                     title="Automod Error",
@@ -14376,10 +14303,10 @@ async def on_message(message):
                             cmd = client.get_command("mute")
                             try:
                                 await cmd(
-                                    await client.get_context(message),
-                                    message.author,
+                                    await client.get_context(_message),
+                                    _message.author,
                                     timenum="5m",
-                                    reason=f"links posted in {message.channel.mention}",
+                                    reason=f"links posted in {_message.channel.mention}",
                                 )
                             except Exception as ex:
                                 print(f"Exception in mute automod {ex}")
@@ -14387,10 +14314,10 @@ async def on_message(message):
                                     title="Automod Error", description="Website link"
                                 )
                                 automodembed.add_field(
-                                    value=f"I couldn't mute {message.author.mention} , I don't have `manage roles` permission.",
+                                    value=f"I couldn't mute {_message.author.mention} , I don't have `manage roles` permission.",
                                     name="** **",
                                 )
-                                if not message.channel.id in disabledChannels:
+                                if not _message.channel.id in disabledChannels:
                                     messagesent = await ctx.send(embed=automodembed)
                                     await asyncio.sleep(2)
                                     await messagesent.delete()
@@ -14398,7 +14325,7 @@ async def on_message(message):
                     else:
                         if validurl(word):
                             try:
-                                await message.delete()
+                                await _message.delete()
                             except:
                                 automodembedOne = discord.Embed(
                                     title="Automod Error",
@@ -14410,10 +14337,10 @@ async def on_message(message):
                             cmd = client.get_command("mute")
                             try:
                                 await cmd(
-                                    await client.get_context(message),
-                                    message.author,
+                                    await client.get_context(_message),
+                                    _message.author,
                                     timenum="5m",
-                                    reason=f"links posted in {message.channel.mention}",
+                                    reason=f"links posted in {_message.channel.mention}",
                                 )
                             except Exception as ex:
                                 print(f"Exception in mute automod {ex}")
@@ -14421,63 +14348,63 @@ async def on_message(message):
                                     title="Automod Error", description="Website link"
                                 )
                                 automodembed.add_field(
-                                    value=f"I couldn't mute {message.author.mention} , I don't have `manage roles` permission.",
+                                    value=f"I couldn't mute {_message.author.mention} , I don't have `manage roles` permission.",
                                     name="** **",
                                 )
-                                if not message.channel.id in disabledChannels:
+                                if not _message.channel.id in disabledChannels:
                                     messagesent = await ctx.send(embed=automodembed)
                                     await asyncio.sleep(2)
                                     await messagesent.delete()
                             return
         isAfk = True
         try:
-            isAfk = afkrecent[message.author.id]
+            isAfk = afkrecent[_message.author.id]
         except:
             isAfk = False
         if isAfk:
-            del afkrecent[message.author.id]
-        for mentioned in message.mentions:
+            del afkrecent[_message.author.id]
+        for mentioned in _message.mentions:
             isAfk = True
             try:
                 isAfk = afkrecent[mentioned.id]
             except:
                 isAfk = False
             if isAfk:
-                await message.reply(
+                await _message.reply(
                     f"{mentioned.name}#{mentioned.discriminator} has gone afk due to {afkrecent[mentioned.id]}."
                 )
 
         if (
-                ("<@!1061480715172200498>" in message.content)
-                or ("<@1061480715172200498>" in message.content)
+                ("<@!1061480715172200498>" in _message.content)
+                or ("<@1061480715172200498>" in _message.content)
         ) and not (ctx.valid):
-            if message.guild:
+            if _message.guild:
                 async with pool.acquire() as con:
                     prefixeslist = await con.fetchrow(
-                        f"SELECT * FROM prefixes WHERE guildid = {message.guild.id}"
+                        f"SELECT * FROM prefixes WHERE guildid = {_message.guild.id}"
                     )
                 if prefixeslist is None:
                     statement = (
                         """INSERT INTO prefixes (guildid,prefix) VALUES($1,$2);"""
                     )
                     async with pool.acquire() as con:
-                        await con.execute(statement, message.guild.id, "a!")
+                        await con.execute(statement, _message.guild.id, "a!")
                     chars = "a!"
                 else:
                     chars = prefixeslist["prefix"]
                 try:
-                    await message.reply(
-                        f"My {message.guild} prefix is `{chars}`, do setprefix to change prefixes."
+                    await _message.reply(
+                        f"My {_message.guild} prefix is `{chars}`, do setprefix to change prefixes."
                     )
                 except:
-                    await message.author.send(
+                    await _message.author.send(
                         "I could not send it in the channel, I don't have send messages permission."
                     )
-                    await message.author.send(
-                        f"My {message.guild} prefix is `{chars}`, do setprefix to change prefixes."
+                    await _message.author.send(
+                        f"My {_message.guild} prefix is `{chars}`, do setprefix to change prefixes."
                     )
             else:
-                await message.reply("My default dm prefix is `a!`.")
+                await _message.reply("My default dm prefix is `a!`.")
         if debugCode:
             str_obj = io.StringIO()  # Retrieves a stream of data
             try:
@@ -14524,37 +14451,37 @@ async def on_message(message):
                     pass
                 if checkstaff(ctx.author):
                     await ctx.send(embed=embedone)
-        bucket = bot.cooldownvar.get_bucket(message)
+        bucket = bot.cooldownvar.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
-        if retry_after and message.guild:
+        if retry_after and _message.guild:
             async with pool.acquire() as con:
                 spamlist = await con.fetchrow(
-                    f"SELECT * FROM spamchannels WHERE channelid = {message.channel.id}"
+                    f"SELECT * FROM spamchannels WHERE channelid = {_message.channel.id}"
                 )
             if (
                     spamlist is not None
-                    and not ctx.channel.permissions_for(message.author).manage_guild
+                    and not ctx.channel.permissions_for(_message.author).manage_guild
                     and not checkstaff(ctx.author)
                     and not ismuted(ctx, ctx.author)
             ):
                 try:
-                    await message.delete()
+                    await _message.delete()
                 except:
                     automodembedOne = discord.Embed(
                         title="Automod Error",
                         description="I don't have `manage messages` permission.",
                     )
-                    if not message.channel.id in disabledChannels:
+                    if not _message.channel.id in disabledChannels:
                         messagesent = await ctx.send(embed=automodembedOne)
                         await asyncio.sleep(2)
                         await messagesent.delete()
                 cmd = client.get_command("mute")
                 try:
                     await cmd(
-                        await client.get_context(message),
-                        message.author,
+                        await client.get_context(_message),
+                        _message.author,
                         timenum="5m",
-                        reason=f"spamming in {message.channel.mention}",
+                        reason=f"spamming in {_message.channel.mention}",
                     )
                 except Exception as ex:
                     print(f"Exception in mute automod {ex}")
@@ -14562,38 +14489,38 @@ async def on_message(message):
                         title="Automod", description="Message spam"
                     )
                     automodembed.add_field(
-                        value=f"I couldn't mute {message.author.mention} , I don't have `manage roles` permission.",
+                        value=f"I couldn't mute {_message.author.mention} , I don't have `manage roles` permission.",
                         name="** **",
                     )
-                    if not message.channel.id in disabledChannels:
+                    if not _message.channel.id in disabledChannels:
                         messagesent = await ctx.send(embed=automodembed)
                         await asyncio.sleep(2)
                         await messagesent.delete()
-        if message.guild:
+        if _message.guild:
             async with pool.acquire() as con:
                 profanelist = await con.fetchrow(
-                    f"SELECT * FROM profanechannels WHERE channelid = {message.channel.id}"
+                    f"SELECT * FROM profanechannels WHERE channelid = {_message.channel.id}"
                 )
             if (
                     profanelist is not None
-                    and not ctx.channel.permissions_for(message.author).manage_guild
+                    and not ctx.channel.permissions_for(_message.author).manage_guild
                     and not checkstaff(ctx.author)
                     and not ismuted(ctx, ctx.author)
             ):
                 if checkProfane(origmessage):
-                    warnbucket = bot.cooldowntwo.get_bucket(message)
+                    warnbucket = bot.cooldowntwo.get_bucket(_message)
                     warnretry_after = warnbucket.update_rate_limit()
                     if not warnretry_after:
                         try:
-                            await message.delete()
+                            await _message.delete()
                         except:
                             pass
                         await ctx.send(
-                            f"{message.author.mention} You are being warned as a rare offender , further continuation will result in a mute."
+                            f"{_message.author.mention} You are being warned as a rare offender, further continuation will result in a mute."
                         )
                         return
                     try:
-                        await message.delete()
+                        await _message.delete()
                     except:
                         automodembedOne = discord.Embed(
                             title="Automod Error",
@@ -14605,10 +14532,10 @@ async def on_message(message):
                     cmd = client.get_command("mute")
                     try:
                         await cmd(
-                            await client.get_context(message),
-                            message.author,
+                            await client.get_context(_message),
+                            _message.author,
                             timenum="5m",
-                            reason=f"profane messages sent in {message.channel.mention}",
+                            reason=f"profane messages sent in {_message.channel.mention}",
                         )
                     except Exception as ex:
                         print(f"Exception in mute automod {ex}")
@@ -14616,28 +14543,28 @@ async def on_message(message):
                             title="Automod", description="Profane message"
                         )
                         automodembed.add_field(
-                            value=f"I couldn't mute {message.author.mention} , I don't have `manage roles` permission.",
+                            value=f"I couldn't mute {_message.author.mention} , I don't have `manage roles` permission.",
                             name="** **",
                         )
-                        if not message.channel.id in disabledChannels:
+                        if not _message.channel.id in disabledChannels:
                             messagesent = await ctx.send(embed=automodembed)
                             await asyncio.sleep(2)
                             await messagesent.delete()
                     return
                 elif checkCaps(origmessage) and len(origmessage) >= 4:
-                    warnbucket = bot.cooldowntwo.get_bucket(message)
+                    warnbucket = bot.cooldowntwo.get_bucket(_message)
                     warnretry_after = warnbucket.update_rate_limit()
                     if not warnretry_after:
                         try:
-                            await message.delete()
+                            await _message.delete()
                         except:
                             pass
                         await ctx.send(
-                            f"{message.author.mention} You are being warned as a rare offender , further continuation will result in a mute."
+                            f"{_message.author.mention} You are being warned as a rare offender , further continuation will result in a mute."
                         )
                         return
                     try:
-                        await message.delete()
+                        await _message.delete()
                     except:
                         automodembedOne = discord.Embed(
                             title="Automod Error",
@@ -14649,10 +14576,10 @@ async def on_message(message):
                     cmd = client.get_command("mute")
                     try:
                         await cmd(
-                            await client.get_context(message),
-                            message.author,
+                            await client.get_context(_message),
+                            _message.author,
                             timenum="5m",
-                            reason=f"full caps messages sent in {message.channel.mention}",
+                            reason=f"full caps messages sent in {_message.channel.mention}",
                         )
                     except Exception as ex:
                         print(f"Exception in mute automod {ex}")
@@ -14660,15 +14587,15 @@ async def on_message(message):
                             title="Automod Error", description="Caps message"
                         )
                         automodembed.add_field(
-                            value=f"I couldn't mute {message.author.mention} , I don't have `manage roles` permission.",
+                            value=f"I couldn't mute {_message.author.mention} , I don't have `manage roles` permission.",
                             name="** **",
                         )
-                        if not message.channel.id in disabledChannels:
+                        if not _message.channel.id in disabledChannels:
                             messagesent = await ctx.send(embed=automodembed)
                             await asyncio.sleep(2)
                             await messagesent.delete()
                     return
-        await client.process_commands(message)
+        await client.process_commands(_message)
     except Exception as error:
         print(f"on_message Error : {error}")
         traceback_text = get_traceback(error)
@@ -14706,10 +14633,10 @@ async def on_guild_channel_create(channel):
     mod = None
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
-        message = constructmsg(logguild, mod)
+        _message = constructmsg(logguild, mod)
         ctx = constructctx(logguild, mod, antiraidchannel)
         ctx.bot = client
-        bucket = bot.channel_createcooldown.get_bucket(message)
+        bucket = bot.channel_createcooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
             cmd = client.get_command("blacklist")
@@ -14768,10 +14695,10 @@ async def on_guild_channel_delete(channel):
     mod = None
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
-        message = constructmsg(logguild, mod)
+        _message = constructmsg(logguild, mod)
         ctx = constructctx(logguild, mod, antiraidchannel)
         ctx.bot = client
-        bucket = bot.channel_deletecooldown.get_bucket(message)
+        bucket = bot.channel_deletecooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
             cmd = client.get_command("blacklist")
@@ -14863,10 +14790,10 @@ async def on_guild_channel_update(before, after):
     mod = None
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
-        message = constructmsg(logguild, mod)
+        _message = constructmsg(logguild, mod)
         ctx = constructctx(logguild, mod, antiraidchannel)
         ctx.bot = client
-        bucket = bot.channel_updatecooldown.get_bucket(message)
+        bucket = bot.channel_updatecooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
             cmd = client.get_command("blacklist")
@@ -14907,109 +14834,109 @@ async def on_guild_channel_update(before, after):
                 permOne = []
                 permOne.append((roleBef.add_reactions))
                 # if (myPerms.administrator ):
-                # message=("Does user have administrator privilleges **:**")
+                # _message=("Does user have administrator privilleges **:**")
                 permOne.append((roleBef.administrator))
                 # if (myPerms.attach_files ):
-                # message=("Can user send file attachments in messages **:**")
+                # _message=("Can user send file attachments in messages **:**")
                 permOne.append((roleBef.attach_files))
                 # if (myPerms.ban_members ):
-                # message=("Can user ban other members from the guild **:**")
+                # _message=("Can user ban other members from the guild **:**")
                 permOne.append((roleBef.ban_members))
                 # if (myPerms.change_nickname ):
-                # message=("Can user change their nicknames in the guild **:**")
+                # _message=("Can user change their nicknames in the guild **:**")
                 permOne.append((roleBef.change_nickname))
                 # if (myPerms.connect ):
-                # message=("Can user connect to any voice channels **:**")
+                # _message=("Can user connect to any voice channels **:**")
                 permOne.append((roleBef.connect))
                 # if (myPerms.create_instant_invite ):
-                # message=("Can user invite other members by generating an invite link **:**")
+                # _message=("Can user invite other members by generating an invite link **:**")
                 permOne.append((roleBef.create_instant_invite))
                 # if (myPerms.deafen_members ):
-                # message=("Can user server deafen other members in a voice channel **:**")
+                # _message=("Can user server deafen other members in a voice channel **:**")
                 permOne.append((roleBef.deafen_members))
                 # if (myPerms.embed_links ):
-                # message=("Can user send embedded content in a channel **:**")
+                # _message=("Can user send embedded content in a channel **:**")
                 permOne.append((roleBef.embed_links))
                 # if (myPerms.external_emojis ):
-                # message=("Can user send emojis created in other guilds **:**")
+                # _message=("Can user send emojis created in other guilds **:**")
                 permOne.append((roleBef.external_emojis))
                 # if (myPerms.kick_members ):
-                # message=("Can user kick other members from the guild **:**")
+                # _message=("Can user kick other members from the guild **:**")
                 permOne.append((roleBef.kick_members))
                 # if (myPerms.manage_channels ):
-                # message=("Can user edit , create or delete any channels **:**")
+                # _message=("Can user edit , create or delete any channels **:**")
                 permOne.append((roleBef.manage_channels))
                 # if (myPerms.manage_emojis ):
-                # message=("Can user edit , create or delete any emojis **:**")
+                # _message=("Can user edit , create or delete any emojis **:**")
                 permOne.append((roleBef.manage_emojis))
                 # if (myPerms.manage_guild ):
-                # message=("Can user edit guild settings and invite bots **:**")
+                # _message=("Can user edit guild settings and invite bots **:**")
                 permOne.append((roleBef.manage_guild))
                 # if (myPerms.manage_messages ):
-                # message=("Can user delete messages sent by other members in a channel **:**")
+                # _message=("Can user delete messages sent by other members in a channel **:**")
                 permOne.append((roleBef.manage_messages))
                 # if (myPerms.manage_nicknames):
-                # message=("Can user change other member's nicknames **:**")
+                # _message=("Can user change other member's nicknames **:**")
                 permOne.append((roleBef.manage_nicknames))
                 # if (myPerms.manage_permissions ):
-                # message=("Can user edit , create or delete role's permissions below their highest role **:**")
+                # _message=("Can user edit , create or delete role's permissions below their highest role **:**")
                 permOne.append((roleBef.manage_permissions))
                 # if (myPerms.manage_roles ):
-                # message=("Can user edit , create or delete roles below their highest role **:**")
+                # _message=("Can user edit , create or delete roles below their highest role **:**")
                 permOne.append((roleBef.manage_roles))
                 # if (myPerms.manage_webhooks ):
-                # message=("Can user  edit , create or delete webhooks of a channel **:**")
+                # _message=("Can user  edit , create or delete webhooks of a channel **:**")
                 permOne.append((roleBef.manage_webhooks))
                 # if (myPerms.mention_everyone ):
-                # message=("Can user mention everyone in a channel **:**")
+                # _message=("Can user mention everyone in a channel **:**")
                 permOne.append((roleBef.mention_everyone))
                 # if (myPerms.move_members ):
-                # message=("Can user move other members to other voice channels **:**")
+                # _message=("Can user move other members to other voice channels **:**")
                 permOne.append((roleBef.move_members))
                 # if (myPerms.mute_members ):
-                # message=("Can user can server mute other members in a voice channel **:**")
+                # _message=("Can user can server mute other members in a voice channel **:**")
                 permOne.append((roleBef.mute_members))
                 # if (myPerms.priority_speaker ):
-                # message=("Will user be given priority when speaking in a voice channel **:**")
+                # _message=("Will user be given priority when speaking in a voice channel **:**")
                 permOne.append((roleBef.priority_speaker))
                 # if (myPerms.read_message_history ):
-                # message=("Can user read messages channel's previous messages **:**")
+                # _message=("Can user read messages channel's previous messages **:**")
                 permOne.append((roleBef.read_message_history))
                 # if (myPerms.read_messages ):
-                # message=("Can user read messages from all or any channel **:**")
+                # _message=("Can user read messages from all or any channel **:**")
                 permOne.append((roleBef.read_messages))
                 # if (myPerms.request_to_speak ):
-                # message=("Can user request to speak in a stage channel **:**")
+                # _message=("Can user request to speak in a stage channel **:**")
                 permOne.append((roleBef.request_to_speak))
                 # if (myPerms.send_messages ):
-                # message=("Can user can send messages from all or specific text channels **:**")
+                # _message=("Can user can send messages from all or specific text channels **:**")
                 permOne.append((roleBef.add_reactions))
                 # if (myPerms.send_tts_messages ):
-                # message=("Can user can send messages TTS(which get converted to speech) from all or specific text channels **:**")
+                # _message=("Can user can send messages TTS(which get converted to speech) from all or specific text channels **:**")
                 permOne.append((roleBef.add_reactions))
                 # if (myPerms.speak ):
-                # message=("Can user can unmute and speak in a voice channel **:**")
+                # _message=("Can user can unmute and speak in a voice channel **:**")
                 permOne.append((roleBef.speak))
                 # if (myPerms.stream ):
-                # message=("Can user can share their computer screen in a voice channel **:**")
+                # _message=("Can user can share their computer screen in a voice channel **:**")
                 permOne.append((roleBef.stream))
                 # if (myPerms.use_external_emojis ):
-                # message=("Can user send emojis created in other guilds **:**")
+                # _message=("Can user send emojis created in other guilds **:**")
                 permOne.append((roleBef.use_external_emojis))
                 # if (myPerms.use_slash_command ):
-                # message=("Can user use slash commands in a channel **:**")
+                # _message=("Can user use slash commands in a channel **:**")
                 permOne.append((roleBef.use_slash_command))
                 # if (myPerms.use_voice_activation ):
-                # message=("Can user use voice activation in a voice channel **:**")
+                # _message=("Can user use voice activation in a voice channel **:**")
                 permOne.append((roleBef.use_voice_activation))
                 # if (myPerms.view_audit_log ):
-                # message=("Can user view guild's audit log **:**")
+                # _message=("Can user view guild's audit log **:**")
                 permOne.append((roleBef.view_audit_log))
                 # if (myPerms.view_channel ):
-                # message=("Can user view all or specific channels **:**")
+                # _message=("Can user view all or specific channels **:**")
                 permOne.append((roleBef.view_channel))
                 # if (myPerms.view_guild_insights ):
-                # message=("Can user view the guild insights **:**")
+                # _message=("Can user view the guild insights **:**")
                 permOne.append((roleBef.view_guild_insights))
                 permTwo = []
                 messageList = []
@@ -15249,10 +15176,10 @@ async def on_guild_update(before, after):
     mod = None
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
-        message = constructmsg(logguild, mod)
+        _message = constructmsg(logguild, mod)
         ctx = constructctx(logguild, mod, antiraidchannel)
         ctx.bot = client
-        bucket = bot.guild_updatecooldown.get_bucket(message)
+        bucket = bot.guild_updatecooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
             cmd = client.get_command("blacklist")
@@ -15356,10 +15283,10 @@ async def on_guild_role_create(role):
     mod = None
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
-        message = constructmsg(logguild, mod)
+        _message = constructmsg(logguild, mod)
         ctx = constructctx(logguild, mod, antiraidchannel)
         ctx.bot = client
-        bucket = bot.role_createcooldown.get_bucket(message)
+        bucket = bot.role_createcooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
             cmd = client.get_command("blacklist")
@@ -15426,10 +15353,10 @@ async def on_guild_role_delete(role):
     mod = None
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
-        message = constructmsg(logguild, mod)
+        _message = constructmsg(logguild, mod)
         ctx = constructctx(logguild, mod, antiraidchannel)
         ctx.bot = client
-        bucket = bot.role_deletecooldown.get_bucket(message)
+        bucket = bot.role_deletecooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
             cmd = client.get_command("blacklist")
@@ -15487,10 +15414,10 @@ async def on_guild_role_update(before, after):
     mod = None
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
-        message = constructmsg(logguild, mod)
+        _message = constructmsg(logguild, mod)
         ctx = constructctx(logguild, mod, antiraidchannel)
         ctx.bot = client
-        bucket = bot.role_updatecooldown.get_bucket(message)
+        bucket = bot.role_updatecooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
             cmd = client.get_command("blacklist")
@@ -15528,112 +15455,112 @@ async def on_guild_role_update(before, after):
         if before.permissions != after.permissions:
             myPerms = before.permissions
             myList = []
-            # message=("Can user add reactions to messages **:**")
+            # _message=("Can user add reactions to messages **:**")
             myList.append((myPerms.add_reactions))
             # if (myPerms.administrator ):
-            # message=("Does user have administrator privilleges **:**")
+            # _message=("Does user have administrator privilleges **:**")
             myList.append((myPerms.administrator))
             # if (myPerms.attach_files ):
-            # message=("Can user send file attachments in messages **:**")
+            # _message=("Can user send file attachments in messages **:**")
             myList.append((myPerms.attach_files))
             # if (myPerms.ban_members ):
-            # message=("Can user ban other members from the guild **:**")
+            # _message=("Can user ban other members from the guild **:**")
             myList.append((myPerms.ban_members))
             # if (myPerms.change_nickname ):
-            # message=("Can user change their nicknames in the guild **:**")
+            # _message=("Can user change their nicknames in the guild **:**")
             myList.append((myPerms.change_nickname))
             # if (myPerms.connect ):
-            # message=("Can user connect to any voice channels **:**")
+            # _message=("Can user connect to any voice channels **:**")
             myList.append((myPerms.connect))
             # if (myPerms.create_instant_invite ):
-            # message=("Can user invite other members by generating an invite link **:**")
+            # _message=("Can user invite other members by generating an invite link **:**")
             myList.append((myPerms.create_instant_invite))
             # if (myPerms.deafen_members ):
-            # message=("Can user server deafen other members in a voice channel **:**")
+            # _message=("Can user server deafen other members in a voice channel **:**")
             myList.append((myPerms.deafen_members))
             # if (myPerms.embed_links ):
-            # message=("Can user send embedded content in a channel **:**")
+            # _message=("Can user send embedded content in a channel **:**")
             myList.append((myPerms.embed_links))
             # if (myPerms.external_emojis ):
-            # message=("Can user send emojis created in other guilds **:**")
+            # _message=("Can user send emojis created in other guilds **:**")
             myList.append((myPerms.external_emojis))
             # if (myPerms.kick_members ):
-            # message=("Can user kick other members from the guild **:**")
+            # _message=("Can user kick other members from the guild **:**")
             myList.append((myPerms.kick_members))
             # if (myPerms.manage_channels ):
-            # message=("Can user edit , create or delete any channels **:**")
+            # _message=("Can user edit , create or delete any channels **:**")
             myList.append((myPerms.manage_channels))
             # if (myPerms.manage_emojis ):
-            # message=("Can user edit , create or delete any emojis **:**")
+            # _message=("Can user edit , create or delete any emojis **:**")
             myList.append((myPerms.manage_emojis))
             # if (myPerms.manage_guild ):
-            # message=("Can user edit guild settings and invite bots **:**")
+            # _message=("Can user edit guild settings and invite bots **:**")
             myList.append((myPerms.manage_guild))
             # if (myPerms.manage_messages ):
-            # message=("Can user delete messages sent by other members in a channel **:**")
+            # _message=("Can user delete messages sent by other members in a channel **:**")
             myList.append((myPerms.manage_messages))
             # if (myPerms.manage_nicknames):
-            # message=("Can user change other member's nicknames **:**")
+            # _message=("Can user change other member's nicknames **:**")
             myList.append((myPerms.manage_nicknames))
             # if (myPerms.manage_permissions ):
-            # message=("Can user edit , create or delete role's permissions below their highest role **:**")
+            # _message=("Can user edit , create or delete role's permissions below their highest role **:**")
             myList.append((myPerms.manage_permissions))
             # if (myPerms.manage_roles ):
-            # message=("Can user edit , create or delete roles below their highest role **:**")
+            # _message=("Can user edit , create or delete roles below their highest role **:**")
             myList.append((myPerms.manage_roles))
             # if (myPerms.manage_webhooks ):
-            # message=("Can user  edit , create or delete webhooks of a channel **:**")
+            # _message=("Can user  edit , create or delete webhooks of a channel **:**")
             myList.append((myPerms.manage_webhooks))
             # if (myPerms.mention_everyone ):
-            # message=("Can user mention everyone in a channel **:**")
+            # _message=("Can user mention everyone in a channel **:**")
             myList.append((myPerms.mention_everyone))
             # if (myPerms.move_members ):
-            # message=("Can user move other members to other voice channels **:**")
+            # _message=("Can user move other members to other voice channels **:**")
             myList.append((myPerms.move_members))
             # if (myPerms.mute_members ):
-            # message=("Can user can server mute other members in a voice channel **:**")
+            # _message=("Can user can server mute other members in a voice channel **:**")
             myList.append((myPerms.mute_members))
             # if (myPerms.priority_speaker ):
-            # message=("Will user be given priority when speaking in a voice channel **:**")
+            # _message=("Will user be given priority when speaking in a voice channel **:**")
             myList.append((myPerms.priority_speaker))
             # if (myPerms.read_message_history ):
-            # message=("Can user read messages channel's previous messages **:**")
+            # _message=("Can user read messages channel's previous messages **:**")
             myList.append((myPerms.read_message_history))
             # if (myPerms.read_messages ):
-            # message=("Can user read messages from all or any channel **:**")
+            # _message=("Can user read messages from all or any channel **:**")
             myList.append((myPerms.read_messages))
             # if (myPerms.request_to_speak ):
-            # message=("Can user request to speak in a stage channel **:**")
+            # _message=("Can user request to speak in a stage channel **:**")
             myList.append((myPerms.request_to_speak))
             # if (myPerms.send_messages ):
-            # message=("Can user can send messages from all or specific text channels **:**")
+            # _message=("Can user can send messages from all or specific text channels **:**")
             myList.append((myPerms.add_reactions))
             # if (myPerms.send_tts_messages ):
-            # message=("Can user can send messages TTS(which get converted to speech) from all or specific text channels **:**")
+            # _message=("Can user can send messages TTS(which get converted to speech) from all or specific text channels **:**")
             myList.append((myPerms.add_reactions))
             # if (myPerms.speak ):
-            # message=("Can user can unmute and speak in a voice channel **:**")
+            # _message=("Can user can unmute and speak in a voice channel **:**")
             myList.append((myPerms.speak))
             # if (myPerms.stream ):
-            # message=("Can user can share their computer screen in a voice channel **:**")
+            # _message=("Can user can share their computer screen in a voice channel **:**")
             myList.append((myPerms.stream))
             # if (myPerms.use_external_emojis ):
-            # message=("Can user send emojis created in other guilds **:**")
+            # _message=("Can user send emojis created in other guilds **:**")
             myList.append((myPerms.use_external_emojis))
             # if (myPerms.use_slash_command ):
-            # message=("Can user use slash commands in a channel **:**")
+            # _message=("Can user use slash commands in a channel **:**")
             myList.append((myPerms.use_slash_command))
             # if (myPerms.use_voice_activation ):
-            # message=("Can user use voice activation in a voice channel **:**")
+            # _message=("Can user use voice activation in a voice channel **:**")
             myList.append((myPerms.use_voice_activation))
             # if (myPerms.view_audit_log ):
-            # message=("Can user view guild's audit log **:**")
+            # _message=("Can user view guild's audit log **:**")
             myList.append((myPerms.view_audit_log))
             # if (myPerms.view_channel ):
-            # message=("Can user view all or specific channels **:**")
+            # _message=("Can user view all or specific channels **:**")
             myList.append((myPerms.view_channel))
             # if (myPerms.view_guild_insights ):
-            # message=("Can user view the guild insights **:**")
+            # _message=("Can user view the guild insights **:**")
             myList.append((myPerms.view_guild_insights))
             myPerms = after.permissions
             myList1 = []
@@ -15840,10 +15767,10 @@ async def on_member_ban(guild, member):
     mod = None
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
-        message = constructmsg(logguild, mod)
+        _message = constructmsg(logguild, mod)
         ctx = constructctx(logguild, mod, antiraidchannel)
         ctx.bot = client
-        bucket = bot.member_bancooldown.get_bucket(message)
+        bucket = bot.member_bancooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
             cmd = client.get_command("blacklist")
@@ -15904,10 +15831,10 @@ async def on_member_unban(guild, member):
     mod = None
     if not modid == 1061480715172200498:
         mod = logguild.get_member(modid)
-        message = constructmsg(logguild, mod)
+        _message = constructmsg(logguild, mod)
         ctx = constructctx(logguild, mod, antiraidchannel)
         ctx.bot = client
-        bucket = bot.member_unbancooldown.get_bucket(message)
+        bucket = bot.member_unbancooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
             cmd = client.get_command("blacklist")
