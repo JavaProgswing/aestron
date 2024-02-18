@@ -1554,7 +1554,7 @@ def songcheckperm(channel, member):
 
 class Songpanel(discord.ui.View):
     def __init__(self, guild, channel, player):
-        super().__init__(timeout=None)
+        super().__init__(timeout=((player.current.length)//1000)+5)
         self.player = player
         self.channel = channel
         self.guild = guild
@@ -1562,6 +1562,11 @@ class Songpanel(discord.ui.View):
 
     def set_message(self, _message):
         self._message = _message
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self._message.edit(view=self)
 
     @discord.ui.button(
         label="⏸️", style=discord.ButtonStyle.green, custom_id="songpanel:playpause"
@@ -3056,15 +3061,13 @@ async def gitcommitcheck():
                             f"({filedetails[3]})File {filedetails[0]} updated to size {filedetails[2]} in latest commit."
                         )
                 sync_views = client._connection._view_store._synced_message_views
-                for view in sync_views:
-                    viewobj = sync_views[view]
-                    if viewobj._message:
-                        await viewobj.on_timeout()
-                        try:
-                            await viewobj._message.edit(view=viewobj)
-                        except:
-                            pass
-
+                tasks = []
+                for view_id in sync_views:
+                    view = sync_views[view_id]
+                    if hasattr(view, "_message") and view.timeout != None:
+                        tasks.append(view.on_timeout())
+                await asyncio.gather(*tasks)
+                
                 subprocess.run(
                     f"python main.py restart {CHANNEL_DEV_ID}",
                     shell=True,
