@@ -446,24 +446,23 @@ class MyHelp(commands.HelpCommand):
             title="Aestron help",
             description="""Aestron is a cool bot having features such as Moderation, Logging, Music, Giveaways, Custom commands and more...
 **Features:**
-
-1. Anti-raid Protection
-2. Auto Moderation
-3. Custom commands
-4. Fun commands
-5. Ticket panel commands
-6. Logging commands
-7. Minecraft commands
-8. Template server commands
-9. Captcha verification commands
-10. Leveling commands
-11. Music commands
-12. Giveaway commands
-13. Valorant commands""",
+1. Anti-raid Protection(AntiRaid)
+2. Auto Moderation(AutoMod)
+3. Custom commands(CustomCommands)
+4. Fun commands(Fun)
+5. Ticket panel commands(SupportTicket)
+6. Logging commands(Logging)
+7. Minecraft commands(MinecraftFun)
+8. Template server commands(Templates)
+9. Captcha verification commands(Captcha)
+10. Leveling commands(Leveling)
+11. Music commands(Music)
+12. Giveaway commands(Giveaways)
+13. Valorant commands(Valorant)""",
         )
         embed.add_field(name="Version and info", value=f"v{botVersion}")
         embed.add_field(
-            name="Additional Usage: ", value="`a!help <command>`\n`a!help <category>`"
+            name="Additional Usage: ", value="`a!help <command>`\n`a!help <category-shortname>`"
         )
         embed.set_footer(
             text="Want support? Join here: https://discord.gg/TZDYSHSZgg",
@@ -711,6 +710,11 @@ class DefaultHelpSelect(discord.ui.Select):
         # Set the options that will be presented inside the dropdown
         options = [
             discord.SelectOption(
+                label="AntiRaid",
+                description="Protects the guild from mass raids.",
+                emoji="⛔",
+            ),
+            discord.SelectOption(
                 label="AutoMod",
                 description="Auto moderation settings for various purposes.",
                 emoji="🚨",
@@ -836,6 +840,7 @@ class DefaultHelpSelect(discord.ui.Select):
         author = interaction.user
         cog = client.get_cog(cogname)
         cogemoji = {
+            "AntiRaid": "⛔",
             "AutoMod": "🚨",
             "Templates": "🎫",
             "Captcha": "<:captcha:879225291136991292>",
@@ -1211,6 +1216,7 @@ async def runBot():
     valorantMatchSave.start()
     valorantSeasonCheck.start()
     await client.add_cog(AestronInfo(client))
+    await client.add_cog(AntiRaid(client))
     await client.add_cog(Moderation(client))
     await client.add_cog(Logging(client))
     await client.add_cog(AutoMod(client))
@@ -5011,6 +5017,56 @@ class Logging(commands.Cog):
         )
 
     @commands.hybrid_command(
+        brief="This command sets a logging channel in a guild.",
+        description="This command sets a logging channel in a guild(requires manage guild).",
+        usage="#channel",
+        aliases=[
+            "setuplog",
+            "setuplogs",
+            "setlog",
+            "setlogs",
+            "enablelog",
+            "enablelogs",
+        ],
+    )
+    @commands.guild_only()
+    @commands.check_any(is_bot_staff(), commands.has_permissions(manage_guild=True))
+    async def setloggingchannel(self, ctx, channel: discord.TextChannel = None):
+        if channel is None:
+            channel = ctx.channel
+        if channel.guild != ctx.guild:
+            await on_command_error(ctx, " The channel provided was not in this guild.")
+            return
+        if not channel.permissions_for(ctx.guild.me).send_messages:
+            raise commands.BotMissingPermissions(["send_messages"])
+        if not channel.permissions_for(ctx.guild.me).view_channel:
+            raise commands.BotMissingPermissions(["view_channel"])
+        if not channel.permissions_for(ctx.guild.me).embed_links:
+            raise commands.BotMissingPermissions(["embed_links"])
+        if not channel.permissions_for(ctx.guild.me).view_audit_log:
+            raise commands.BotMissingPermissions(["view_audit_log"])
+        async with pool.acquire() as con:
+            logchannellist = await con.fetchrow(
+                f"SELECT * FROM logchannels WHERE guildid = {ctx.guild.id}"
+            )
+        if logchannellist is None:
+            statement = (
+                """INSERT INTO logchannels (guildid,channelid) VALUES($1, $2);"""
+            )
+            async with pool.acquire() as con:
+                await con.execute(statement, ctx.guild.id, channel.id)
+        else:
+            async with pool.acquire() as con:
+                await con.execute(
+                    f"UPDATE logchannels VALUES SET channelid = {channel.id} WHERE guildid = {ctx.guild.id}"
+                )
+        await ctx.send(
+            f"Successfully set logging channel of {ctx.guild} to {channel.mention}.",
+            ephemeral=True,
+        )
+
+class AntiRaid(commands.Cog):
+    @commands.hybrid_command(
         brief="This command disables the anti-raid in a guild and sets the anti-raid log to the channel.",
         description="This command disables the anti-raid in a guild(requires manage guild).",
         usage="",
@@ -5089,56 +5145,6 @@ class Logging(commands.Cog):
             f"Successfully enabled anti-raid and set the anti-raid logging channel to {channel.mention}.",
             ephemeral=True,
         )
-
-    @commands.hybrid_command(
-        brief="This command sets a logging channel in a guild.",
-        description="This command sets a logging channel in a guild(requires manage guild).",
-        usage="#channel",
-        aliases=[
-            "setuplog",
-            "setuplogs",
-            "setlog",
-            "setlogs",
-            "enablelog",
-            "enablelogs",
-        ],
-    )
-    @commands.guild_only()
-    @commands.check_any(is_bot_staff(), commands.has_permissions(manage_guild=True))
-    async def setloggingchannel(self, ctx, channel: discord.TextChannel = None):
-        if channel is None:
-            channel = ctx.channel
-        if channel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
-            return
-        if not channel.permissions_for(ctx.guild.me).send_messages:
-            raise commands.BotMissingPermissions(["send_messages"])
-        if not channel.permissions_for(ctx.guild.me).view_channel:
-            raise commands.BotMissingPermissions(["view_channel"])
-        if not channel.permissions_for(ctx.guild.me).embed_links:
-            raise commands.BotMissingPermissions(["embed_links"])
-        if not channel.permissions_for(ctx.guild.me).view_audit_log:
-            raise commands.BotMissingPermissions(["view_audit_log"])
-        async with pool.acquire() as con:
-            logchannellist = await con.fetchrow(
-                f"SELECT * FROM logchannels WHERE guildid = {ctx.guild.id}"
-            )
-        if logchannellist is None:
-            statement = (
-                """INSERT INTO logchannels (guildid,channelid) VALUES($1, $2);"""
-            )
-            async with pool.acquire() as con:
-                await con.execute(statement, ctx.guild.id, channel.id)
-        else:
-            async with pool.acquire() as con:
-                await con.execute(
-                    f"UPDATE logchannels VALUES SET channelid = {channel.id} WHERE guildid = {ctx.guild.id}"
-                )
-        await ctx.send(
-            f"Successfully set logging channel of {ctx.guild} to {channel.mention}.",
-            ephemeral=True,
-        )
-
 
 class AutoMod(commands.Cog):
     """Auto moderation settings for various purposes."""
