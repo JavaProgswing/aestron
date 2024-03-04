@@ -73,12 +73,6 @@ CREATE TABLE cautionraid
 (guildid bigint PRIMARY KEY);
 CREATE TABLE pendingunblacklist
 (epochtime bigint ,reason text ,memberid bigint ,channelid bigint ,guildid bigint);
-CREATE TABLE blacklistedusers
-(roleslist bigint[] ,userid bigint ,guildid bigint);
-CREATE TABLE mutedusers
-(roleslist bigint[] ,userid bigint ,guildid bigint);
-CREATE TABLE pendingtrivia
-(channelid bigint PRIMARY KEY);
 CREATE TABLE warnings
 (messageid bigint ,warning text ,guildid bigint ,userid bigint );
 CREATE TABLE dankcmds
@@ -94,8 +88,6 @@ CREATE TABLE riotseason (
     episode text
 );
 CREATE TABLE riotparsedmatches (id text PRIMARY KEY, data bytea);
-CREATE TABLE restrictedusers
-(epochtime bigint ,memberid bigint PRIMARY KEY,guildid bigint);
 CREATE TABLE mceconomy
 (memberid bigint PRIMARY KEY,balance bigint,inventory text);
 CREATE TABLE IF NOT EXISTS githubcommits (
