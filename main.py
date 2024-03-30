@@ -2754,7 +2754,7 @@ async def gitcommitcheck():
                     shell=True,
                 )
                 await asyncio.sleep(3)
-                client.close()
+                await client.close()
 
 
 def convertSec(seconds):
@@ -2776,7 +2776,7 @@ async def shutdown(ctx):
                 await viewobj._message.edit(view=viewobj)
             except:
                 pass
-    client.close()
+    await client.close()
 
 
 def compare_local_remote_git_repo(files):
@@ -2864,7 +2864,7 @@ async def restartlatestcommit(ctx, *, files=None):
         ).stdout
     )
     await asyncio.sleep(3)
-    client.close()
+    await client.close()
 
 
 @client.command()
@@ -2888,7 +2888,7 @@ async def restart(ctx):
         ).stdout
     )
     await asyncio.sleep(3)
-    client.close()
+    await client.close()
 
 
 class AestronInfo(commands.Cog):
