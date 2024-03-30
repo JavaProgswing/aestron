@@ -2097,7 +2097,7 @@ async def on_command_error(
         missingperms = error.missing_permissions[0]
         missingperms = missingperms.replace("_", " ")
         missingperms = missingperms.replace("-", " ")
-        errordata = (
+        error_data = (
             f"You are lacking the {missingperms} permission to execute that command."
         )
         if str(ctx.author.id) in tempbotowners:
@@ -2130,31 +2130,31 @@ async def on_command_error(
             commands.BucketType.user == error.type
             or commands.BucketType.member == error.type
         ):
-            errordata = f"You tried doing {ctx.command} , you can use this command in {sendTimer}s."
+            error_data = f"You tried doing {ctx.command} , you can use this command in {sendTimer}s."
         elif commands.BucketType.guild == error.type:
-            errordata = (
+            error_data = (
                 f"The command {ctx.command} can be used in {sendTimer}s in this guild."
             )
         elif commands.BucketType.channel == error.type:
-            errordata = f"The command {ctx.command} can be used in {sendTimer}s in this channel."
+            error_data = f"The command {ctx.command} can be used in {sendTimer}s in this channel."
         elif commands.BucketType.category == error.type:
-            errordata = f"The command {ctx.command} can be used in {sendTimer}s in this category."
+            error_data = f"The command {ctx.command} can be used in {sendTimer}s in this category."
         elif commands.BucketType.role == error.type:
-            errordata = (
+            error_data = (
                 f"The command {ctx.command} can be used in {sendTimer}s in this role."
             )
         if checkstaff(ctx.author):
             await ctx.reinvoke()
             return
     elif isinstance(error, commands.DisabledCommand):
-        errordata = f'The command you tried to do is disabled due to a reported issue, contact [support server]({SUPPORT_SERVER_INVITE} "Join the bot support server for reporting bugs or suggesting commands!.") for more information.'
+        error_data = f'The command you tried to do is disabled due to a reported issue, contact [support server]({SUPPORT_SERVER_INVITE} "Join the bot support server for reporting bugs or suggesting commands!.") for more information.'
     elif isinstance(error, commands.BotMissingPermissions):
         missingperms = error.missing_permissions[0]
         missingperms = missingperms.replace("_", " ")
         missingperms = missingperms.replace("-", " ")
-        errordata = f"I do not have the `{missingperms}` permissions for that command."
+        error_data = f"I do not have the `{missingperms}` permissions for that command."
     elif isinstance(error, commands.MissingRequiredArgument):
-        errordata = f"Oops looks like you forgot to put the {error.param.name} in the {ctx.command} command.\n"
+        error_data = f"Oops looks like you forgot to put the {error.param.name} in the {ctx.command} command.\n"
         example = get_example(ctx.command, ctx.guild)
         exampleLine = example[0]
         if example[1]:
@@ -2162,11 +2162,11 @@ async def on_command_error(
                 exampleLine
                 + "\n\nNote: (OPT.) means that argument in the command is optional."
             )
-        errordata = (
-            errordata + f"Example  {ctx.prefix}{ctx.command.qualified_name} {exampleLine}"
+        error_data = (
+            error_data + f"Example  {ctx.prefix}{ctx.command.qualified_name} {exampleLine}"
         )
     elif isinstance(error, commands.BadArgument):
-        errordata = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
+        error_data = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
         example = get_example(ctx.command, ctx.guild)
         exampleLine = example[0]
         if example[1]:
@@ -2174,8 +2174,8 @@ async def on_command_error(
                 exampleLine
                 + "\n\nNote: (OPT.) means that argument in the command is optional."
             )
-        errordata = (
-            errordata + f"Example: {ctx.prefix}{ctx.command.qualified_name} {exampleLine}"
+        error_data = (
+            error_data + f"Example: {ctx.prefix}{ctx.command.qualified_name} {exampleLine}"
         )
     else:
         error_data = f'Some unexpected error occured while trying to do the command, report this bug in the [support server]({SUPPORT_SERVER_INVITE} "Join the bot support server for reporting bugs or suggesting commands!.")'
