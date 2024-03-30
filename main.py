@@ -411,38 +411,29 @@ class MyHelp(commands.HelpCommand):
 
     async def on_help_command_error(self, ctx, error):
         await super().on_help_command_error(ctx, error)
-        print(error)
-        print(type(error))
-        # logger.warning(f"Error {error} in help command")
-        print(get_traceback(error))
-        # logger.warning(get_traceback(error))
+        logger.error(f"Error in help command: {error}")
 
     async def send_bot_help(self, mapping):
         global customCog
         filteredcmds = []
         allcommands = []
         for cog, commands in mapping.items():
-            try:
-                filcmds = await self.filter_commands(commands=commands, sort=True)
-                for cmd in filcmds:
-                    if (
-                        cog == customCog
-                        and (
-                            cmd.name == "addcommand"
-                            or cmd.name == "removecommand"
-                            or cmd.name == "customcommands"
-                        )
-                        or cog != customCog
-                    ):
-                        filteredcmds.append(cmd.name)
-            except:
-                pass
-            try:
-                for cmd in commands:
-                    if not "is_bot_staff" in cmd.checks.__str__():
-                        allcommands.append(cmd.name)
-            except:
-                pass
+            filcmds = await self.filter_commands(commands=commands, sort=True)
+            for cmd in filcmds:
+                if (
+                    cog == customCog
+                    and (
+                        cmd.name == "addcommand"
+                        or cmd.name == "removecommand"
+                        or cmd.name == "customcommands"
+                    )
+                    or cog != customCog
+                ):
+                    filteredcmds.append(cmd.name)
+
+            for cmd in commands:
+                if not "is_bot_staff" in cmd.checks.__str__():
+                    allcommands.append(cmd.name)
         embed = discord.Embed(
             title="Aestron help",
             description="""Aestron is a cool bot having features such as Moderation, Logging, Music, Giveaways, Custom commands and more...
@@ -509,8 +500,8 @@ class MyHelp(commands.HelpCommand):
             )
             await channel.send(embed=embed, file=file)
             return
-        except:
-            pass
+        except Exception as ex:
+            logging.log(logging.WARNING, f"No command usages found for {command.name}: {get_traceback(ex)}")
         await channel.send(embed=embed)
 
     # !help <group>
@@ -612,8 +603,8 @@ class CommandHelpSelect(discord.ui.Select):
                 embed=embed, file=file, ephemeral=True
             )
             return
-        except:
-            pass
+        except Exception as ex:
+            logging.log(logging.WARNING, f"No command usages found for {command.name}: {get_traceback(ex)}")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
@@ -1089,17 +1080,14 @@ class MCShopSelect(discord.ui.Select):
                         ephemeral=True,
                     )
                     return
-                try:
-                    refurname = f"{inventory['orechoice']} Armor"
-                    refurprice = pricelist[(refurname)] - 300
-                    await addmoney(interaction.channel, self.author.id, refurprice)
-                    await interaction.response.send_message(
-                        content=f"You have successfully sold your old armor {refurname} for {refurprice} and successfully bought {shopitem} for {price}.",
-                        ephemeral=True,
-                    )
-                    inventory["orechoice"] = shopitem.split(" ")[0]
-                except Exception as ex:
-                    print(f"Exception in mcshop armor {ex}")
+                refurname = f"{inventory['orechoice']} Armor"
+                refurprice = pricelist[(refurname)] - 300
+                await addmoney(interaction.channel, self.author.id, refurprice)
+                await interaction.response.send_message(
+                    content=f"You have successfully sold your old armor {refurname} for {refurprice} and successfully bought {shopitem} for {price}.",
+                    ephemeral=True,
+                )
+                inventory["orechoice"] = shopitem.split(" ")[0]
             elif shopitem in swordchoice:
                 if (inventory["swordchoice"] + " Sword") == shopitem:
                     await interaction.response.send_message(
@@ -1107,17 +1095,14 @@ class MCShopSelect(discord.ui.Select):
                         ephemeral=True,
                     )
                     return
-                try:
-                    refurname = f"{inventory['swordchoice']} Sword"
-                    refurprice = pricelist[(refurname)] - 300
-                    await addmoney(interaction.channel, self.author.id, refurprice)
-                    await interaction.response.send_message(
-                        content=f"You have successfully sold your old sword {refurname} for {refurprice} and successfully bought {shopitem} for {price}.",
-                        ephemeral=True,
-                    )
-                    inventory["swordchoice"] = shopitem.split(" ")[0]
-                except Exception as ex:
-                    print(f"Exception in mcshop sword {ex}")
+                refurname = f"{inventory['swordchoice']} Sword"
+                refurprice = pricelist[(refurname)] - 300
+                await addmoney(interaction.channel, self.author.id, refurprice)
+                await interaction.response.send_message(
+                    content=f"You have successfully sold your old sword {refurname} for {refurprice} and successfully bought {shopitem} for {price}.",
+                    ephemeral=True,
+                )
+                inventory["swordchoice"] = shopitem.split(" ")[0]
             async with pool.acquire() as con:
                 await con.execute(
                     f"UPDATE mceconomy VALUES SET inventory = '{json.dumps(inventory)}' WHERE memberid = {self.author.id}"
@@ -1191,19 +1176,20 @@ async def runBot():
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(CustomFormatter())
+    logging.log(logging.DEBUG, "Starting the bot...")
     client.start_status = BotStartStatus.PROCESSING
     client.launch_time = datetime.utcnow()
     global botVersion, conn, pool, DATABASE_URL, guildids, token, togetherControl, browser
     togetherControl = await DiscordTogether(token)
     token = ""
-    print(f"Trying to connect to {DATABASE_URL}")
+    logging.log(logging.DEBUG, f"Trying to connect to {DATABASE_URL}")
     conn = await asyncpg.connect(DATABASE_URL)
     pool = await asyncpg.create_pool(
         DATABASE_URL, max_size=max(20, len(client.guilds)), min_size=1
     )
-    print(f"The database sql has been set to {conn}")
+    logging.log(logging.DEBUG, f"The database sql has been set to {conn}")
     client.session = aiohttp.ClientSession()
-    print(f"The session has been set to {client.session}")
+    logging.log(logging.DEBUG, f"The session has been set to {client.session}")
     client.github_session = aiohttp.ClientSession()
     nodes = [
         wavelink.Node(uri="http://192.168.29.64:27051/", password="youshallnotpass")
@@ -1236,6 +1222,7 @@ async def runBot():
         guildids.append(guild.id)
     gitcommitcheck.start()
     client.start_status = BotStartStatus.COMPLETED
+    logging.log(logging.DEBUG, f"Bot has started in {datetime.utcnow()-client.launch_time}s!")
     if len(sys.argv) > 1 and sys.argv[1] == "restart":
         if len(sys.argv) > 2:
             channelid = int(sys.argv[2])
@@ -1265,7 +1252,7 @@ class MyBot(commands.Bot):
     ) -> None:
         player: wavelink.Player | None = payload.player
         if not player:
-            # Handle edge cases...
+            logging.log(logging.ERROR, f"No player found while trying to start {payload.track}!")
             return
 
         original: wavelink.Playable | None = payload.original
@@ -1478,14 +1465,8 @@ async def playmusic(ctx, songname):
         except discord.ClientException:
             await ctx.send("I was unable to join this voice channel. Please try again.")
             return
-
-    # Turn on AutoPlay to enabled mode.
-    # enabled = AutoPlay will play songs for us and fetch recommendations...
-    # partial = AutoPlay will play songs for us, but WILL NOT fetch recommendations...
-    # disabled = AutoPlay will do nothing...
+        
     player.autoplay = wavelink.AutoPlayMode.partial
-
-    # Lock the player to this channel...
     if not hasattr(player, "home"):
         player.home = ctx.channel
     elif player.home != ctx.channel:
@@ -1493,11 +1474,6 @@ async def playmusic(ctx, songname):
             f"You can only play songs in {player.home.mention}, as the player has already started there."
         )
         return
-
-    # This will handle fetching Tracks and Playlists...
-    # Seed the doc strings for more information on this method...
-    # If spotify is enabled via LavaSrc, this will automatically fetch Spotify tracks if you pass a URL...
-    # Defaults to YouTube for non URL based queries...
     tracks: wavelink.Search = await wavelink.Playable.search(songname)
     if not tracks:
         await ctx.send(
@@ -1795,11 +1771,9 @@ class Songpanel(discord.ui.View):
             embed.set_thumbnail(url=output["image"])
         except:
             pass
-        try:
-            button.label = "🔙"
-            await interaction.edit_original_response(embed=embed, view=self)
-        except Exception as ex:
-            print(get_traceback(ex))
+        button.label = "🔙"
+        await interaction.edit_original_response(embed=embed, view=self)
+
 
     @discord.ui.button(
         label="🛑", style=discord.ButtonStyle.red, custom_id="songpanel:stop"
@@ -1824,12 +1798,9 @@ class Songpanel(discord.ui.View):
                 return
 
             await player.disconnect()
-            try:
-                await interaction.response.send_message(
+            await interaction.response.send_message(
                     f"The audio has been stopped by {interaction.user.mention}",
                 )
-            except:
-                pass
         except:
             await interaction.response.send_message(
                 "I am not connected to any voice channel.", ephemeral=True
@@ -2043,11 +2014,6 @@ class Confirm(discord.ui.View):
             return
         self.value = False
         self.stop()
-
-
-class NoCooldownError(discord.DiscordException):
-    pass
-
 
 async def exception_catching_callback(task):
     if task.exception():
@@ -2410,7 +2376,7 @@ def minimumPrice(items):
 
 def buySequence(items, bal, result):
     if minimumPrice(items) > bal:
-        print(result)
+        logging.log(logging.DEBUG, result)
     else:
         for itemA in items:
             if itemA.cost <= bal:
@@ -2623,7 +2589,6 @@ async def getFormattedOutput(url, authheader=None):
         async with session.get(url, headers=authheader) as resp:
             if resp.status == 200:
                 respjson = await resp.json()
-                pass
     except:
         return None
     formattedjson = respjson
@@ -2663,12 +2628,12 @@ async def valorantSeasonCheck():
 
 @tasks.loop(minutes=15)
 async def valorantMatchSave():
-    print(f"Match save started...")
+    logging.log(logging.INFO, f"Match save started.")
     async with pool.acquire() as con:
         puuidlist = await con.fetch(f"SELECT * FROM riotaccount")
     for puuid in puuidlist:
         puuidstr = puuid["accountpuuid"]
-        print(f"\rGetting match history for {puuidstr}(0% complete)", end="")
+        logging.log(logging.DEBUG, f"\rGetting match history for {puuidstr}(0% complete)", end="")
         url = (
             f"https://ap.api.riotgames.com/val/match/v1/matchlists/by-puuid/{puuidstr}"
         )
@@ -2678,7 +2643,7 @@ async def valorantMatchSave():
         count = 1
         for matchdetails in respjson["history"]:
             matchid = matchdetails["matchId"]
-            print(
+            logging.log(logging.DEBUG, 
                 f"\rGetting match history for {puuidstr}({((count / numberofmatches) * 100):.2f}% complete)",
                 end="",
             )
@@ -2689,7 +2654,7 @@ async def valorantMatchSave():
             try:
                 matchInfo = Match(respjson)
             except Exception as ex:
-                print(f"Match error {ex}")
+                logging.log(logging.ERROR, f"Match parsing error: {get_traceback(ex)}")
                 continue
             end = time.time()
             async with pool.acquire() as con:
@@ -2710,7 +2675,7 @@ async def valorantMatchSave():
                 async with pool.acquire() as con:
                     results = f"UPDATE riotmatches SET matchids = array_append(matchids, $1) WHERE discorduserid = $2"
                     await con.execute(results, matchid, puuid["discorduserid"])
-        print(f"\rGetting match history for {puuidstr}(100% complete)", end="")
+        logging.log(logging.DEBUG, f"\rGetting match history for {puuidstr}(100% complete)", end="")
 
 
 def check_ensure_permissions(ctx, member, perms):
@@ -2725,7 +2690,7 @@ async def gitcommitcheck():
     if firstgithubcheck:
         await asyncio.sleep(15)
         firstgithubcheck = False
-        print(f"Github checks started!")
+        logging.log(logging.INFO, f"Github checks started!")
     GITHUB_OWNER = os.getenv("GITHUB_OWNER")
     GITHUB_REPO = os.getenv("GITHUB_REPO")
 
@@ -2829,13 +2794,13 @@ def compare_local_remote_git_repo(files):
             },
         )
         if file_response.status_code == 404:
-            print(f"{filename} is not present in the remote repository.")
+            logging.log(logging.DEBUG, f"{filename} is not present in the remote repository.")
             continue
         parsed_file_response = file_response.json()
         try:
             remote_file_content = parsed_file_response["content"]
         except KeyError:
-            print(f"{filename} doesn't have a content!?")
+            logging.log(logging.DEBUG, f"{filename} doesn't have a content!?")
             continue
         # Get the content of the file from the local repository
         with open(filename, "r", encoding="utf8") as file:
@@ -3561,7 +3526,7 @@ class Moderation(commands.Cog):
             if reason is None:
                 reason = "being forgiven."
             _message = f"You have been unbanned from {ctx.guild.name} for {reason}"
-            # print(f"Unsuccessfully DMed users, try again later.")
+   
             try:
                 await ctx.guild.unban(member, reason=reason)
             except:
@@ -3569,7 +3534,7 @@ class Moderation(commands.Cog):
                 continue
             try:
                 await member.send(_message)
-                # print(f"Successfully dmed users!")
+
             except:
                 await ctx.send(
                     f"{member.mention} couldn't be direct messaged about the server unban",
@@ -3669,7 +3634,6 @@ class Moderation(commands.Cog):
                 reason = "being a jerk!"
             _message = f"You have been banned from {ctx.guild.name} for {reason}"
 
-            # print(f"Unsuccessfully DMed users, try again later.")
             try:
                 await ctx.guild.ban(member, reason=reason)
             except:
@@ -3679,7 +3643,6 @@ class Moderation(commands.Cog):
                 continue
             try:
                 await member.send(_message)
-                # print(f"Successfully dmed users!")
             except:
                 await ctx.send(
                     f"{member.mention} couldn't be direct messaged about the server ban ",
@@ -3742,7 +3705,6 @@ class Moderation(commands.Cog):
                 reason = "being a jerk!"
             _message = f"You have been kicked from {ctx.guild.name} for {reason}"
 
-            # print(f"Unsuccessfully DMed users, try again later.")
             try:
                 await ctx.guild.kick(member, reason=reason)
             except:
@@ -3752,7 +3714,6 @@ class Moderation(commands.Cog):
                 continue
             try:
                 await member.send(_message)
-                # print(f"Successfully dmed users!")
             except:
                 await ctx.send(
                     f"{member.mention} couldn't be direct messaged about the server kick ",
@@ -5995,11 +5956,9 @@ class MinecraftFun(commands.Cog):
     async def pvpleaderboard(self, ctx):
         async with pool.acquire() as con:
             leaderBoard = await con.fetch(f"SELECT * FROM leaderboard")
-        # print(leaderBoard)
         countPoint = []
         countNames = []
         countDictionary = Counter(leaderBoard)
-        # print(countDictionary)
         for member in leaderBoard:
             if not member in countNames:
                 countNames.append(member)
@@ -6008,12 +5967,9 @@ class MinecraftFun(commands.Cog):
         sortedNames = []
         for point in sortedPoint:
             indexName = countPoint.index(point)
-            # print(indexName)
             countPoint[indexName] = -1
-            # print(countPoint)
             sortedNames.append(countNames[indexName])
 
-        # print(sortedNames)
         embedOne = discord.Embed(
             title="Battle leaderboard", description=f"Season one", color=Color.green()
         )
@@ -6113,7 +6069,7 @@ def t_NUMBER(t):
     try:
         t.value = int(t.value)
     except ValueError:
-        print("Integer value too large %d", t.value)
+        logging.log(logging.ERROR, "T-Integer value too large %d", t.value)
         t.value = 0
 
     return t
@@ -6129,7 +6085,7 @@ def t_newline(t):
 
 
 def t_error(t):
-    print("Illegal character '%s'" % t.value[0])
+    logging.log(logging.ERROR, "T-Illegal character '%s'" % t.value[0])
     t.lexer.skip(1)
     return
 
@@ -6195,15 +6151,15 @@ def p_expression_name(t):
     try:
         t[0] = names[t[1]]
     except LookupError:
-        print("Undefined name '%s'" % t[1])
+        logging.log(logging.ERROR, "Undefined name '%s'" % t[1])
         t[0] = 0
 
 
 def p_error(t):
     if t is None:
-        print("Something unexpected occured.")
+        logging.log(logging.ERROR, "Something unexpected occured.")
         return
-    print("Syntax error at '%s'" % t.value)
+    logging.log(logging.ERROR, "Syntax error at '%s'" % t.value)
     return
 
 
@@ -8272,8 +8228,6 @@ class Misc(commands.Cog):
             pressure = main["pressure"]
             # weather report
             report = data["weather"]
-            # print(f"{CITY:-^30}")
-            # print(f"Temperature: {temperature}")
             embedVar.add_field(
                 name="Weather Report: ",
                 value=(f"{report[0]['description']}"),
@@ -8283,11 +8237,8 @@ class Misc(commands.Cog):
             embedVar.add_field(
                 name="Temperature ", value=(f"{temperature}°​C"), inline=False
             )
-            # print(f"Humidity: {humidity}")
             embedVar.add_field(name="Humidity ", value=(f"{humidity}%"), inline=False)
-            # print(f"Pressure: {pressure}")
             embedVar.add_field(name="Pressure ", value=(f"{pressure} Pa"), inline=False)
-            # print(f"Weather Report: {report[0]['description']}")
         else:
             await send_generic_error_embed(ctx, error_data="The city provided was not found.")
             return
@@ -10158,30 +10109,23 @@ class Support(commands.Cog):
                 tuplea.tm_sec,
             ).timestamp()
         )
-        tokenFirstPart = None
-        tokenSecondPart = None
-        tokenThirdPart = None
         try:
             tokenFirstPart = base64.b64encode(str(member.id).encode())
             tokenFirstPart = str(tokenFirstPart, "utf-8")
-        except Exception as ex:
-            print(f"{ex} 1")
-        try:
             tokenSecondPart = str(
-                base64.b64encode(
-                    timestamp.to_bytes(
-                        (timestamp.bit_length() + 8) // 8, "big", signed=True
-                    )
-                ),
-                "utf-8",
-            )
+                    base64.b64encode(
+                        timestamp.to_bytes(
+                            (timestamp.bit_length() + 8) // 8, "big", signed=True
+                        )
+                    ),
+                    "utf-8",
+                )
             tokenSecondPart = tokenSecondPart.replace("==", "")
-        except Exception as ex:
-            print(f"{ex} 2")
-        try:
             tokenThirdPart = genrandomstr(27)
         except Exception as ex:
-            print(f"{ex} 3")
+            logging.log(logging.ERROR, f"Token decode error: {get_traceback(ex)}")
+            await send_generic_error_embed(ctx, error_data="Error generating token.")
+            return
         randomtoken = f"{tokenFirstPart}.{tokenSecondPart}.{tokenThirdPart}"
         asset = member.display_avatar
         embed = discord.Embed(title=f"", description=str(asset))
@@ -10573,7 +10517,6 @@ class Support(commands.Cog):
                 name="Output :", value=str(output) + "** **", inline=False
             )
         except Exception as e:
-            print(f"{cmd} is an invalid command")
             embedone = discord.Embed(
                 title=(f"```{e.__class__.__name__}: {e}```"),
                 description=(
@@ -10602,7 +10545,6 @@ class Support(commands.Cog):
         def check(_message):
             nonlocal count
             count = count + 1
-            # print(f"{count} has been incremented.")
             return _message.author == ctx.author and _message.channel == ctx.channel
 
         await ctx.send("What is the title ?")
@@ -10610,7 +10552,6 @@ class Support(commands.Cog):
 
         await ctx.send("What is the description ?")
         desc = await client.wait_for("message", check=check)
-        # print(f"Total count : {count}")
         try:
             await ctx.channel.purge(limit=count)
         except:
@@ -10639,7 +10580,6 @@ class Support(commands.Cog):
             name="@Aestron for commands.", type=discord.ActivityType.watching
         )
         await client.change_presence(activity=activity)
-        # print(f"Status was changed to visible in {ctx.guild}")
 
 
 async def currentlyplayingslider(_message, player):
@@ -10816,12 +10756,12 @@ async def ensure_voice(guild, member):
             try:
                 await member.voice.channel.connect(cls=wavelink.Player)
             except:
-                print(
+                logging.log(logging.ERROR, 
                     f"I don't have permissions to join {member.voice.channel.mention}"
                 )
                 return True
         else:
-            print("You are not connected to a voice channel.")
+            logging.log(logging.ERROR, "You are not connected to a voice channel.")
             return True
     return False
 
@@ -11464,15 +11404,12 @@ class ValorantRoundStats(discord.ui.View):
             self.currentround = self.currentround + 1
         self.embed = self.embeds[self.currentround]
         self.round = self.rounds.roundlist[self.currentround]
-        try:
-            if isinstance(self._message, discord.InteractionResponse):
-                await self._message.edit_message(embed=self.embed)
-            elif isinstance(self._message, discord.Interaction):
-                await self._message.edit_original_response(embed=self.embed)
-            else:
-                await self._message.edit(embed=self.embed)
-        except Exception as ex:
-            print(ex)
+        if isinstance(self._message, discord.InteractionResponse):
+            await self._message.edit_message(embed=self.embed)
+        elif isinstance(self._message, discord.Interaction):
+            await self._message.edit_original_response(embed=self.embed)
+        else:
+            await self._message.edit(embed=self.embed)
 
 
 class ValorantStats(discord.ui.View):
@@ -12264,7 +12201,7 @@ class CustomCommands(commands.Cog):
                     try:
                         client.add_command(cmd)
                     except Exception as ex:
-                        print(f" Unknown {ex} occured while adding {customlist[1]}.")
+                        logging.log(logging.ERROR, f"Custom commands error in {customlist[1]}: {get_traceback(ex)}")
                         async with pool.acquire() as con:
                             await con.execute(
                                 f"DELETE FROM customcommands WHERE guildid = {guild.id} AND commandname = '{custom[1]}'"
@@ -12403,7 +12340,7 @@ async def on_raw_reaction_add(payload):
     if payload.user_id == client.user.id:
         return
     if maintenancemodestatus:
-        print(
+        logging.log(logging.DEBUG, 
             f"Guild {payload.guild_id} channel {payload.channel_id} message {payload.message_id} reaction {payload.emoji} event_type {payload.event_type}."
         )
     try:
@@ -12505,15 +12442,10 @@ async def on_raw_reaction_add(payload):
             channel = guild.get_channel(payload.channel_id)
             _message = channel.get_partial_message(payload.message_id)
             user = payload.member
-            try:
-                await _message.remove_reaction(payload.emoji, user)
-            except Exception as ex:
-                print(ex)
+            await _message.remove_reaction(payload.emoji, user)
             await createticket(user, guild, channel.category, channel, supportroleid)
     except Exception as error:
-        print(f"on_raw_reaction_add Error {error} ")
-        traceback_text = get_traceback(error)
-        print(traceback_text)
+        logging.log(logging.ERROR, f" on_raw_reaction_add: {get_traceback(error)}")
 
 
 @client.event
@@ -12580,9 +12512,7 @@ async def on_guild_join(guild):
                     raise commands.BotMissingPermissions(["embed_links"])
                 break
     except Exception as error:
-        print(f"on_guild_join Error {error} ")
-        traceback_text = get_traceback(error)
-        print(traceback_text)
+        logging.log(logging.ERROR, f" on_guild_join: {get_traceback(error)}")
 
 
 @client.event
@@ -12639,9 +12569,7 @@ async def on_raw_message_delete(payload):
                     )
 
     except Exception as error:
-        print(f"on_raw_message delete Error {error}")
-        traceback_text = get_traceback(error)
-        print(traceback_text)
+        logging.log(logging.ERROR, f" on_raw_message_delete: {get_traceback(error)}")
 
 
 @client.event
@@ -12738,13 +12666,13 @@ async def on_member_join(member):
 async def on_message_edit(before, _message):
     global maintenancemodestatus, disabledChannels
     if conn is None:
-        print(f"Could not process _message {_message.id} because of db problems!")
+        logging.log(logging.ERROR, f"Could not process _message {_message.id} because of db problems!")
         return
     try:
         if maintenancemodestatus:
             if not checkstaff(_message.author):
                 return
-            print(
+            logging.log(logging.debug, 
                 f" {_message.author} edited {before.content} -> {_message.content} in {_message.channel} ."
             )
         if _message.author.bot:
@@ -12926,10 +12854,7 @@ async def on_message_edit(before, _message):
                             await asyncio.sleep(2)
                             await messagesent.delete()
     except Exception as error:
-        print(f"on_message_edit Error {error}")
-        traceback_text = get_traceback(error)
-        print(traceback_text)
-        # print("No language recognised.")
+        logging.log(logging.ERROR, f" on_message_edit: {get_traceback(error)}")
 
 
 @client.event
@@ -12938,7 +12863,7 @@ async def on_command(ctx):
     async with pool.acquire() as con:
         requests = await con.fetch("SELECT * FROM debugCommand")
     if requests:
-        print(
+        logging.log(logging.DEBUG, 
             f"{ctx.author}({ctx.author.id}) attempted {ctx.command} in {ctx.guild}({ctx.guild.id}) in {ctx.channel}({ctx.channel.id})."
         )
 
@@ -12987,13 +12912,9 @@ async def on_message(_message):
                 await _message.reply(
                     f"The bot is currently in maintainence , {maintenancemodereason}"
                 )
-            # print(f" {_message.author} sent {_message.content} in {_message.channel} .")
             if not checkstaff(_message.author):
                 return
-            # logger.info(
-            #    f" {_message.author} sent {_message.content} in {_message.channel} ."
-            # )
-            print(f" {_message.author} sent {_message.content} in {_message.channel} .")
+            logging.log(logging.DEBUG, f" {_message.author} sent {_message.content} in {_message.channel} .")
         ctx = await client.get_context(_message)
         if (
             _message.channel.id == 846696676214308904
@@ -13102,31 +13023,28 @@ async def on_message(_message):
             and _message.type == discord.MessageType.application_command
             and _message.interaction.name == "trivia"
         ):
-            try:
-                embed = _message.embeds[0]
-                jsonGot = embed.to_dict()
-                title = _message.interaction.user
-                question = jsonGot["description"].split("\n")[0]
-                labels = ""
-                for cm in _message.components:
-                    for btn in cm.children:
-                        labels = labels + "," + str(btn.label)
-                labels = labels.removeprefix(",")
-                question = question + " among " + labels
-                question = question.replace("*", "")
-                question = question.replace(" ", "%2b")
-                googleurl = f"https://www.google.com/search?q={question}"
-                embed = discord.Embed(
-                    title="Google result",
-                    description=f"Scraping results for {title}",
-                )
-                scrn = await take_quick_screenshot(ctx, url=googleurl)
-                await ctx.send(file=scrn, embed=embed)
-            except Exception as ex:
-                print(f"Exception in trivia cmd : {ex}")
+            embed = _message.embeds[0]
+            jsonGot = embed.to_dict()
+            title = _message.interaction.user
+            question = jsonGot["description"].split("\n")[0]
+            labels = ""
+            for cm in _message.components:
+                for btn in cm.children:
+                    labels = labels + "," + str(btn.label)
+            labels = labels.removeprefix(",")
+            question = question + " among " + labels
+            question = question.replace("*", "")
+            question = question.replace(" ", "%2b")
+            googleurl = f"https://www.google.com/search?q={question}"
+            embed = discord.Embed(
+                title="Google result",
+                description=f"Scraping results for {title}",
+            )
+            scrn = await take_quick_screenshot(ctx, url=googleurl)
+            await ctx.send(file=scrn, embed=embed)
 
         if ctx.valid:
-            print(
+            logging.log(logging.DEBUG, 
                 f"Command {ctx.command} received from {ctx.author}({ctx.author.id}) in {ctx.guild}"
             )
             bucket = bot.cmdcooldownvar.get_bucket(_message)
@@ -13275,7 +13193,7 @@ async def on_message(_message):
                                 reason=f"{guildmsg}'s server invite posted",
                             )
                         except Exception as ex:
-                            print(f"Exception in mute automod {ex}")
+                            logging.log(logging.ERROR, f"Exception in mute automod {ex}")
                             automodembed = discord.Embed(
                                 title="Automod Error", description="Server invite"
                             )
@@ -13312,7 +13230,7 @@ async def on_message(_message):
                                     reason=f"links posted in {_message.channel.mention}",
                                 )
                             except Exception as ex:
-                                print(f"Exception in mute automod {ex}")
+                                logging.log(logging.ERROR, f"Exception in mute automod {ex}")
                                 automodembed = discord.Embed(
                                     title="Automod Error", description="Website link"
                                 )
@@ -13347,7 +13265,7 @@ async def on_message(_message):
                                     reason=f"links posted in {_message.channel.mention}",
                                 )
                             except Exception as ex:
-                                print(f"Exception in mute automod {ex}")
+                                logging.log(logging.ERROR, f"Exception in mute automod {ex}")
                                 automodembed = discord.Embed(
                                     title="Automod Error", description="Website link"
                                 )
@@ -13489,7 +13407,7 @@ async def on_message(_message):
                         reason=f"spamming in {_message.channel.mention}",
                     )
                 except Exception as ex:
-                    print(f"Exception in mute automod {ex}")
+                    logging.log(logging.ERROR, f"Exception in mute automod {ex}")
                     automodembed = discord.Embed(
                         title="Automod", description="Message spam"
                     )
@@ -13544,7 +13462,7 @@ async def on_message(_message):
                             reason=f"profane messages sent in {_message.channel.mention}",
                         )
                     except Exception as ex:
-                        print(f"Exception in mute automod {ex}")
+                        logging.log(logging.ERROR, f"Exception in mute automod {ex}")
                         automodembed = discord.Embed(
                             title="Automod", description="Profane message"
                         )
@@ -13589,7 +13507,7 @@ async def on_message(_message):
                             reason=f"full caps messages sent in {_message.channel.mention}",
                         )
                     except Exception as ex:
-                        print(f"Exception in mute automod {ex}")
+                        logging.log(logging.ERROR, f"Exception in mute automod {ex}")
                         automodembed = discord.Embed(
                             title="Automod Error", description="Caps message"
                         )
@@ -13604,9 +13522,7 @@ async def on_message(_message):
                     return
         await client.process_commands(_message)
     except Exception as error:
-        print(f"on_message Error : {error}")
-        traceback_text = get_traceback(error)
-        print(traceback_text)
+        logging.log(logging.ERROR, f" on_message: {get_traceback(error)}")
 
 
 @client.event
@@ -13643,7 +13559,7 @@ async def on_guild_channel_create(channel):
                 embed.add_field(name=f"Moderator", value=f"{mod.mention}")
                 await logchannel.send(embed=embed)
             except Exception as ex:
-                print(f" on_guild_channel_create Logging error {ex}")
+                logging.log(logging.ERROR, f" on_guild_channel_create: {get_traceback(ex)}")
     if antiraidchannellist:
         channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
@@ -13704,7 +13620,7 @@ async def on_guild_channel_delete(channel):
                 embed.add_field(name=f"Moderator", value=f"{mod.mention}")
                 await logchannel.send(embed=embed)
             except Exception as ex:
-                print(f" on_guild_channel_delete Logging error {ex}")
+                logging.log(logging.ERROR, f" on_guild_channel_delete: {get_traceback(ex)}")
     if antiraidchannellist:
         channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
@@ -13813,7 +13729,7 @@ async def on_guild_channel_update(before, after):
                     reason=(f"""AUTO-MOD for exceeding channel update limit."""),
                 )
             except Exception as ex:
-                print(f"on_guild_channel_update error {ex}")
+                logging.log(logging.ERROR, f"on_guild_channel_update error {ex}")
             statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
@@ -14151,8 +14067,7 @@ async def on_guild_channel_update(before, after):
             await logchannel.send(embed=embed)
 
     except Exception as ex:
-        print(f" on_guild_channel_update Logging error {ex}")
-
+        logging.log(logging.ERROR, f" on_guild_channel_update: {get_traceback(ex)}")
 
 @client.event
 async def on_guild_update(before, after):
@@ -14203,7 +14118,7 @@ async def on_guild_update(before, after):
                     reason=(f"""AUTO-MOD for exceeding guild update limit."""),
                 )
             except Exception as ex:
-                print(f"on_guild_update Blacklist error {ex}")
+                logging.log(logging.ERROR, f"on_guild_update Blacklist error {ex}")
             statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
@@ -14262,7 +14177,7 @@ async def on_guild_update(before, after):
             embed.add_field(name="Moderator", value=f"{mod.mention}")
             await logchannel.send(embed=embed)
     except Exception as ex:
-        print(f" on_guild_update Logging error {ex}")
+        logging.log(logging.ERROR, f" on_guild_update: {get_traceback(ex)}")
 
 
 @client.event
@@ -14314,7 +14229,7 @@ async def on_guild_role_create(role):
                     reason=(f"""AUTO-MOD for exceeding role create limit."""),
                 )
             except Exception as ex:
-                print(f"on_guild_role_create Blacklist error {ex}")
+                logging.log(logging.ERROR, f"on_guild_role_create Blacklist error {ex}")
             statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
@@ -14336,8 +14251,7 @@ async def on_guild_role_create(role):
         await logchannel.send(embed=embed)
 
     except Exception as ex:
-        print(f" on_guild_role_create Logging error {ex}")
-
+        logging.log(logging.ERROR, f" on_guild_role_create: {get_traceback(ex)}")
 
 @client.event
 async def on_guild_role_delete(role):
@@ -14388,7 +14302,7 @@ async def on_guild_role_delete(role):
                     reason=(f"""AUTO-MOD for exceeding role delete limit."""),
                 )
             except Exception as ex:
-                print(f"on_guild_role_delete Blacklist error {ex}")
+                logging.log(logging.ERROR, f" on_guild_role_delete: {get_traceback(ex)}")
             statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
@@ -14401,8 +14315,7 @@ async def on_guild_role_delete(role):
         embed.add_field(name="Moderator", value=f"{mod.mention}")
         await logchannel.send(embed=embed)
     except Exception as ex:
-        print(f" on_guild_role_delete Logging error {ex}")
-
+        logging.log(logging.ERROR, f" on_guild_role_delete: {get_traceback(ex)}")
 
 @client.event
 async def on_guild_role_update(before, after):
@@ -14453,7 +14366,7 @@ async def on_guild_role_update(before, after):
                     reason=(f"""AUTO-MOD for exceeding role update limit."""),
                 )
             except Exception as ex:
-                print(f"on_guild_role_update Blacklist error {ex}")
+                logging.log(logging.ERROR, f"on_guild_role_update Blacklist error {ex}")
             statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
@@ -14760,8 +14673,7 @@ async def on_guild_role_update(before, after):
             embed.add_field(name="Moderator", value=f"{mod.mention}")
             await logchannel.send(embed=embed)
     except Exception as ex:
-        print(f" on_guild_role_update Logging error {ex}")
-
+        logging.log(logging.ERROR, f" on_guild_role_update: {get_traceback(ex)}")
 
 @client.event
 async def on_member_ban(guild, member):
@@ -14810,7 +14722,7 @@ async def on_member_ban(guild, member):
                     reason=(f"""AUTO-MOD for exceeding member ban limit."""),
                 )
             except Exception as ex:
-                print(f" on_member_ban Blacklist error {ex}")
+                logging.log(logging.ERROR, f" on_member_ban Blacklist error {ex}")
             statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
@@ -14826,7 +14738,7 @@ async def on_member_ban(guild, member):
         )
         await logchannel.send(embed=embed)
     except Exception as ex:
-        print(f" on_member_ban Logging error {ex}")
+        logging.log(logging.ERROR, f" on_member_ban: {get_traceback(ex)}")
 
 
 @client.event
@@ -14878,7 +14790,7 @@ async def on_member_unban(guild, member):
                     reason=(f"""AUTO-MOD for exceeding member unban limit."""),
                 )
             except Exception as ex:
-                print(f" on_member_unban Blacklist error {ex}")
+                logging.log(logging.ERROR, f" on_member_unban Blacklist error {ex}")
             statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
             async with pool.acquire() as con:
                 await con.execute(statement, logguild.id)
@@ -14894,7 +14806,7 @@ async def on_member_unban(guild, member):
         )
         await logchannel.send(embed=embed)
     except Exception as ex:
-        print(f" on_member_unban Logging error {ex}")
+        logging.log(logging.ERROR, f" on_member_unban: {get_traceback(ex)}")
 
 
 @client.event
@@ -14924,7 +14836,7 @@ async def on_invite_create(invite):
         embed.add_field(name="** **", value=changes)
         await logchannel.send(embed=embed)
     except Exception as ex:
-        print(f" on_invite_create Logging error {ex}")
+        logging.log(logging.ERROR, f" on_invite_create: {get_traceback(ex)}")
 
 
 @client.event
@@ -14946,7 +14858,7 @@ async def on_invite_delete(invite):
         )
         await logchannel.send(embed=embed)
     except Exception as ex:
-        print(f" on_invite_update Logging error {ex}")
+        logging.log(logging.ERROR, f" on_invite_update: {get_traceback(ex)}")
 
 
 @client.event
@@ -15026,22 +14938,22 @@ async def on_voice_state_update(member, before, after):
                 embed.add_field(name="** **", value=changes)
                 await logchannel.send(embed=embed)
     except Exception as ex:
-        print(f" on_voice_state_update Logging error {ex}")
+        logging.log(logging.ERROR, f" on_voice_state_update: {get_traceback(ex)}")
 
 
 try:
     client.run(token)
     # REQUIRES API KEY(BOT TOKEN)
 except Exception as ex:
-    print(get_traceback(ex))
-    print(f"Client session {client}")
+    logging.log(logging.DEBUG, get_traceback(ex))
+    logging.log(logging.ERROR, f"Client session {client}")
     if isinstance(ex, discord.LoginFailure):
-        print(
+        logging.log(logging.ERROR, 
             "An improper token has been passed, try logging in again with correct credentials."
         )
     if isinstance(ex, discord.HTTPException):
-        print(
+        logging.log(logging.ERROR, 
             f"Login returned an error code {ex.code} with {ex.text} of {ex.response}."
         )
     if client.is_ws_ratelimited():
-        print("Client is rate limited...")
+        logging.log(logging.ERROR, "Client is rate limited...")
