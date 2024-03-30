@@ -1248,8 +1248,6 @@ async def runBot():
         await channelmsg.send("Successfully Restarted!")
 
 
-
-
 class MyBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1810,7 +1808,10 @@ class Songpanel(discord.ui.View):
         channel = self.channel
         guild = self.guild
 
-        if not (channel.permissions_for(interaction.user).manage_channels or checkstaff(member)):
+        if not (
+            channel.permissions_for(interaction.user).manage_channels
+            or checkstaff(member)
+        ):
             await interaction.response.send_message(
                 f"I am already playing music in a channel , you must have `manage_channels` permissions to stop music.",
                 ephemeral=True,
@@ -2060,13 +2061,12 @@ async def exception_catching_callback(task):
         embederror.add_field(name="Traceback: ", value=traceback_text)
         client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(embed=embederror)
 
+
 @client.event
-async def on_command_error(
-    ctx, error
-):
+async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
-    
+
     if isinstance(error, commands.CheckAnyFailure) or isinstance(
         error, commands.CheckFailure
     ):
@@ -2165,7 +2165,8 @@ async def on_command_error(
                 + "\n\nNote: (OPT.) means that argument in the command is optional."
             )
         error_data = (
-            error_data + f"Example  {ctx.prefix}{ctx.command.qualified_name} {exampleLine}"
+            error_data
+            + f"Example  {ctx.prefix}{ctx.command.qualified_name} {exampleLine}"
         )
     elif isinstance(error, commands.BadArgument):
         error_data = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
@@ -2177,7 +2178,8 @@ async def on_command_error(
                 + "\n\nNote: (OPT.) means that argument in the command is optional."
             )
         error_data = (
-            error_data + f"Example: {ctx.prefix}{ctx.command.qualified_name} {exampleLine}"
+            error_data
+            + f"Example: {ctx.prefix}{ctx.command.qualified_name} {exampleLine}"
         )
     else:
         error_data = f'Some unexpected error occured while trying to do the command, report this bug in the [support server]({SUPPORT_SERVER_INVITE} "Join the bot support server for reporting bugs or suggesting commands!.")'
@@ -2186,13 +2188,15 @@ async def on_command_error(
             description=f"Command: {ctx.command}.",
             color=Color.dark_red(),
         )
-        embederror.add_field(name="Traceback: ", value=get_traceback(error))
+        pastecode = await mystbin_client.create_paste(
+            content=get_traceback(error), filename=f"AE-{genrandomstr(10)}"
+        )
+        embederror.add_field(name="Traceback: ", value=pastecode.url)
         await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(embed=embederror)
     embed = discord.Embed(
         title=f"🚫 Command Error ", description=error_data, color=Color.dark_red()
     )
     await ctx.send(embed=embed)
-
 
 
 def newaccount(member):
@@ -2755,9 +2759,7 @@ async def gitcommitcheck():
                 ]
                 changed_files = compare_local_remote_git_repo(files)
                 if len(changed_files) == 0:
-                    client.get_channel(CHANNEL_DEV_ID).send(
-                        "No file changes detected."
-                    )
+                    client.get_channel(CHANNEL_DEV_ID).send("No file changes detected.")
                 else:
                     client.get_channel(CHANNEL_DEV_ID).send(
                         f"Files changed: {', '.join(map(lambda x: x[0], changed_files))}"
@@ -2787,6 +2789,7 @@ def convertSec(seconds):
     min, sec = divmod(seconds, 60)
     hour, min = divmod(min, 60)
     return "%dh %02dm %02ds" % (hour, min, sec)
+
 
 @client.command()
 @is_bot_staff()
@@ -3931,6 +3934,7 @@ class AntiRaid(commands.Cog):
             f"Successfully enabled anti-raid and set the anti-raid logging channel to {channel.mention}.",
             ephemeral=True,
         )
+
 
 class AutoMod(commands.Cog):
     """Auto moderation settings for various purposes."""
@@ -6288,6 +6292,7 @@ async def take_quick_screenshot(ctx, url, save_fn="capture.png"):
         my_file = discord.File(save_fn)
         return my_file
 
+
 async def take_screenshot(ctx, url, save_fn="capture.png"):
     global browser
     if browser is None:
@@ -6327,6 +6332,7 @@ async def take_screenshot(ctx, url, save_fn="capture.png"):
         return
     my_file = discord.File(save_fn)
     return my_file
+
 
 class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
     def __init__(self, embeds):
@@ -10022,9 +10028,7 @@ class Support(commands.Cog):
             inline=False,
         )
         embedtwo.add_field(name="Command ", value=commandname)
-        messageSent = client.get_channel(CHANNEL_BUG_LOGGING_ID).send(
-            embed=embedtwo
-        )
+        messageSent = client.get_channel(CHANNEL_BUG_LOGGING_ID).send(embed=embedtwo)
         await asyncio.sleep(1)
         embedtwo = discord.Embed(title=f"Bug report", color=Color.red())
         embedtwo.add_field(name="Report id ", value=str(messageSent.id), inline=False)
@@ -13243,7 +13247,7 @@ async def on_message(_message):
                             messagesent = await ctx.send(embed=automodembedOne)
                             await asyncio.sleep(2)
                             await messagesent.delete()
-                        #TODO replace mute -> timeout
+                        # TODO replace mute -> timeout
                         cmd = client.get_command("mute")
                         try:
                             noninvite = await client.fetch_invite(word)
@@ -13284,7 +13288,7 @@ async def on_message(_message):
                                 messagesent = await ctx.send(embed=automodembedOne)
                                 await asyncio.sleep(2)
                                 await messagesent.delete()
-                            #TODO replace mute -> timeout
+                            # TODO replace mute -> timeout
                             cmd = client.get_command("mute")
                             try:
                                 await cmd(
@@ -13319,7 +13323,7 @@ async def on_message(_message):
                                 messagesent = await ctx.send(embed=automodembedOne)
                                 await asyncio.sleep(2)
                                 await messagesent.delete()
-                            #TODO replace mute -> timeout
+                            # TODO replace mute -> timeout
                             cmd = client.get_command("mute")
                             try:
                                 await cmd(
@@ -13461,7 +13465,7 @@ async def on_message(_message):
                         messagesent = await ctx.send(embed=automodembedOne)
                         await asyncio.sleep(2)
                         await messagesent.delete()
-                #TODO replace mute -> timeout
+                # TODO replace mute -> timeout
                 cmd = client.get_command("mute")
                 try:
                     await cmd(
@@ -13516,7 +13520,7 @@ async def on_message(_message):
                         messagesent = await ctx.send(embed=automodembedOne)
                         await asyncio.sleep(2)
                         await messagesent.delete()
-                    #TODO replace mute -> timeout
+                    # TODO replace mute -> timeout
                     cmd = client.get_command("mute")
                     try:
                         await cmd(
@@ -13561,7 +13565,7 @@ async def on_message(_message):
                         messagesent = await ctx.send(embed=automodembedOne)
                         await asyncio.sleep(2)
                         await messagesent.delete()
-                    #TODO replace mute -> timeout
+                    # TODO replace mute -> timeout
                     cmd = client.get_command("mute")
                     try:
                         await cmd(
@@ -13617,7 +13621,9 @@ async def on_guild_channel_create(channel):
                 mod = logguild.get_member(entry.user.id)
             try:
                 embed = discord.Embed(
-                    title=f"Channel creation", description=channel.mention, color=Color.green()
+                    title=f"Channel creation",
+                    description=channel.mention,
+                    color=Color.green(),
                 )
                 embed.add_field(name="Category", value=channel.category)
                 embed.add_field(name=f"Moderator", value=f"{mod.mention}")
@@ -13642,7 +13648,7 @@ async def on_guild_channel_create(channel):
             bucket = bot.channel_createcooldown.get_bucket(_message)
             retry_after = bucket.update_rate_limit()
             if retry_after:
-                #TODO replace mute -> timeout
+                # TODO replace mute -> timeout
                 statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
                 async with pool.acquire() as con:
                     await con.execute(statement, logguild.id)
@@ -13676,7 +13682,9 @@ async def on_guild_channel_delete(channel):
                 mod = logguild.get_member(entry.user.id)
             try:
                 embed = discord.Embed(
-                    title=f"Channel deletion", description=channel.mention, color=Color.green()
+                    title=f"Channel deletion",
+                    description=channel.mention,
+                    color=Color.green(),
                 )
                 embed.add_field(name="Category", value=channel.category)
                 embed.add_field(name=f"Moderator", value=f"{mod.mention}")
@@ -13701,7 +13709,7 @@ async def on_guild_channel_delete(channel):
             bucket = bot.channel_deletecooldown.get_bucket(_message)
             retry_after = bucket.update_rate_limit()
             if retry_after:
-                #TODO replace mute -> timeout
+                # TODO replace mute -> timeout
                 statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
                 async with pool.acquire() as con:
                     await con.execute(statement, logguild.id)
@@ -13734,7 +13742,7 @@ async def on_guild_channel_update(before, after):
         antiraidchannel = logguild.get_channel(channelid)
     if not antiraidchannel:
         return
-    
+
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
@@ -13782,7 +13790,7 @@ async def on_guild_channel_update(before, after):
         bucket = bot.channel_updatecooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
-            #TODO replace mute -> timeout
+            # TODO replace mute -> timeout
             cmd = client.get_command("blacklist")
             try:
                 await cmd(
@@ -14172,7 +14180,7 @@ async def on_guild_update(before, after):
         bucket = bot.guild_updatecooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
-            #TODO replace mute -> timeout
+            # TODO replace mute -> timeout
             cmd = client.get_command("blacklist")
             try:
                 await cmd(
@@ -14264,7 +14272,7 @@ async def on_guild_role_create(role):
         antiraidchannel = logguild.get_channel(channelid)
     if not antiraidchannel:
         return
-    
+
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
@@ -14283,7 +14291,7 @@ async def on_guild_role_create(role):
         bucket = bot.role_createcooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
-            #TODO replace mute -> timeout
+            # TODO replace mute -> timeout
             cmd = client.get_command("blacklist")
             try:
                 await cmd(
@@ -14338,7 +14346,7 @@ async def on_guild_role_delete(role):
         antiraidchannel = logguild.get_channel(channelid)
     if not antiraidchannel:
         return
-    
+
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
@@ -14357,7 +14365,7 @@ async def on_guild_role_delete(role):
         bucket = bot.role_deletecooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
-            #TODO replace mute -> timeout
+            # TODO replace mute -> timeout
             cmd = client.get_command("blacklist")
             try:
                 await cmd(
@@ -14403,7 +14411,7 @@ async def on_guild_role_update(before, after):
         antiraidchannel = logguild.get_channel(channelid)
     if not antiraidchannel:
         return
-    
+
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
@@ -14422,7 +14430,7 @@ async def on_guild_role_update(before, after):
         bucket = bot.role_updatecooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
-            #TODO replace mute -> timeout
+            # TODO replace mute -> timeout
             cmd = client.get_command("blacklist")
             try:
                 await cmd(
@@ -14762,7 +14770,7 @@ async def on_member_ban(guild, member):
         antiraidchannel = logguild.get_channel(channelid)
     if not antiraidchannel:
         return
-    
+
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
@@ -14779,7 +14787,7 @@ async def on_member_ban(guild, member):
         bucket = bot.member_bancooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
-            #TODO replace mute -> timeout
+            # TODO replace mute -> timeout
             cmd = client.get_command("blacklist")
             try:
                 await cmd(
@@ -14828,7 +14836,7 @@ async def on_member_unban(guild, member):
         antiraidchannel = logguild.get_channel(channelid)
     if not antiraidchannel:
         return
-    
+
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     currententry = None
     if not checklog:
@@ -14847,7 +14855,7 @@ async def on_member_unban(guild, member):
         bucket = bot.member_unbancooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
-            #TODO replace mute -> timeout
+            # TODO replace mute -> timeout
             cmd = client.get_command("blacklist")
             try:
                 await cmd(
