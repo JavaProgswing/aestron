@@ -1207,14 +1207,7 @@ async def runBot():
     nodes = [
         wavelink.Node(uri="http://192.168.29.64:27051/", password="youshallnotpass")
     ]
-    await wavelink.Pool.connect(nodes=nodes, client=client, cache_capacity=None)
-    if len(sys.argv) > 1 and sys.argv[1] == "restart":
-        if len(sys.argv) > 2:
-            channelid = int(sys.argv[2])
-            channelmsg = client.get_channel(channelid)
-        else:
-            channelmsg = client.get_channel(CHANNEL_DEV_ID)
-        await channelmsg.send("Successfully Restarted!")
+    await wavelink.Pool.connect(nodes=nodes, client=client)
     valorantMatchSave.start()
     valorantSeasonCheck.start()
     await client.add_cog(AestronInfo(client))
@@ -1242,6 +1235,17 @@ async def runBot():
         guildids.append(guild.id)
     gitcommitcheck.start()
     client.start_status = BotStartStatus.COMPLETED
+    if len(sys.argv) > 1 and sys.argv[1] == "restart":
+        if len(sys.argv) > 2:
+            channelid = int(sys.argv[2])
+            channelmsg = client.get_channel(channelid)
+        else:
+            channelmsg = client.get_channel(CHANNEL_DEV_ID)
+        while channelmsg := client.get_channel(channelid) is None:
+            await asyncio.sleep(2)
+        await channelmsg.send("Successfully Restarted!")
+
+
 
 
 class MyBot(commands.Bot):
