@@ -1238,11 +1238,13 @@ async def runBot():
     if len(sys.argv) > 1 and sys.argv[1] == "restart":
         if len(sys.argv) > 2:
             channelid = int(sys.argv[2])
+            while client.get_channel(channelid) is None:
+                await asyncio.sleep(2)
             channelmsg = client.get_channel(channelid)
         else:
+            while client.get_channel(CHANNEL_DEV_ID) is None:
+                await asyncio.sleep(2)
             channelmsg = client.get_channel(CHANNEL_DEV_ID)
-        while channelmsg := client.get_channel(channelid) is None:
-            await asyncio.sleep(2)
         await channelmsg.send("Successfully Restarted!")
 
 
