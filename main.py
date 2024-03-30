@@ -173,6 +173,7 @@ CHANNEL_ERROR_LOGGING_ID = 840193232885121094
 CHANNEL_BUG_LOGGING_ID = 855310400366444584
 CHANNEL_DEV_ID = 843081057506426880
 CHANNEL_GIT_LOGGING_ID = 895884797099008050
+SUPPORT_SERVER_INVITE = "https://discord.gg/TZDYSHSZgg"
 # REQUIRES API KEY
 # https://brainshop.ai/
 conn = None
@@ -2057,19 +2058,135 @@ async def exception_catching_callback(task):
 async def on_command_error(
     ctx, error
 ):
-    link = "https://discord.gg/TZDYSHSZgg"
-    error_data = f'Some unexpected error occured while trying to do the command , report this bug in the [support server]({link} "Join the bot support server for reporting bugs or suggesting commands!.")'
+    if isinstance(error, commands.CommandNotFound):
+        return
+    
+    if isinstance(error, commands.CheckAnyFailure) or isinstance(
+        error, commands.CheckFailure
+    ):
+        error_data = error.errors[0]
+        copyError = error
+        error = copyError.errors[0]
+        if str(ctx.author.id) in tempbotowners:
+            view = Confirm()
+            embed = discord.Embed(title="Command sent", description=ctx.message.content)
+            view.set_message(
+                statmsg := await client.get_channel(CHANNEL_DEV_ID).send(
+                    f"(Missing perms) TS-({ctx.author.id}): {ctx.author.mention} wrote *MESSAGE BELOW* ({ctx.command}) in {ctx.guild}.",
+                    view=view,
+                    embed=embed,
+                )
+            )
+
+            await view.wait()
+            if view.value is None:
+                await statmsg.reply(f"Timed out({view.timeout}s)! :octagonal_sign:")
+            elif view.value:
+                await statmsg.reply("Confirmed <a:yes:872664918736928858>")
+                await ctx.reinvoke()
+                return
+            else:
+                await statmsg.reply("Cancelled :octagonal_sign:")
+        else:
+            error_data = "You do not have permission to run this command."
+    elif isinstance(error, commands.MissingPermissions):
+        missingperms = error.missing_permissions[0]
+        missingperms = missingperms.replace("_", " ")
+        missingperms = missingperms.replace("-", " ")
+        errordata = (
+            f"You are lacking the {missingperms} permission to execute that command."
+        )
+        if str(ctx.author.id) in tempbotowners:
+            view = Confirm()
+            embed = discord.Embed(title="Command sent", description=ctx.message.content)
+            view.set_message(
+                statmsg := await client.get_channel(CHANNEL_DEV_ID).send(
+                    f"(Missing perms) TS-({ctx.author.id}): {ctx.author.mention} wrote *MESSAGE BELOW* ({ctx.command}) in {ctx.guild}.",
+                    view=view,
+                    embed=embed,
+                )
+            )
+
+            await view.wait()
+            if view.value is None:
+                await statmsg.reply(f"Timed out({view.timeout}s)! :octagonal_sign:")
+            elif view.value:
+                await statmsg.reply("Confirmed <a:yes:872664918736928858>")
+                await ctx.reinvoke()
+                return
+            else:
+                await statmsg.reply("Cancelled :octagonal_sign:")
+    elif isinstance(error, commands.CommandOnCooldown):
+        sendTimer = error.retry_after
+        if sendTimer < 1:
+            sendTimer = 1
+        else:
+            sendTimer = int(sendTimer)
+        if (
+            commands.BucketType.user == error.type
+            or commands.BucketType.member == error.type
+        ):
+            errordata = f"You tried doing {ctx.command} , you can use this command in {sendTimer}s."
+        elif commands.BucketType.guild == error.type:
+            errordata = (
+                f"The command {ctx.command} can be used in {sendTimer}s in this guild."
+            )
+        elif commands.BucketType.channel == error.type:
+            errordata = f"The command {ctx.command} can be used in {sendTimer}s in this channel."
+        elif commands.BucketType.category == error.type:
+            errordata = f"The command {ctx.command} can be used in {sendTimer}s in this category."
+        elif commands.BucketType.role == error.type:
+            errordata = (
+                f"The command {ctx.command} can be used in {sendTimer}s in this role."
+            )
+        if checkstaff(ctx.author):
+            await ctx.reinvoke()
+            return
+    elif isinstance(error, commands.DisabledCommand):
+        errordata = f'The command you tried to do is disabled due to a reported issue, contact [support server]({SUPPORT_SERVER_INVITE} "Join the bot support server for reporting bugs or suggesting commands!.") for more information.'
+    elif isinstance(error, commands.BotMissingPermissions):
+        missingperms = error.missing_permissions[0]
+        missingperms = missingperms.replace("_", " ")
+        missingperms = missingperms.replace("-", " ")
+        errordata = f"I do not have the `{missingperms}` permissions for that command."
+    elif isinstance(error, commands.MissingRequiredArgument):
+        errordata = f"Oops looks like you forgot to put the {error.param.name} in the {ctx.command} command.\n"
+        example = get_example(ctx.command, ctx.guild)
+        exampleLine = example[0]
+        if example[1]:
+            exampleLine = (
+                exampleLine
+                + "\n\nNote: (OPT.) means that argument in the command is optional."
+            )
+        errordata = (
+            errordata + f"Example  {ctx.prefix}{ctx.command.qualified_name} {exampleLine}"
+        )
+    elif isinstance(error, commands.BadArgument):
+        errordata = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
+        example = get_example(ctx.command, ctx.guild)
+        exampleLine = example[0]
+        if example[1]:
+            exampleLine = (
+                exampleLine
+                + "\n\nNote: (OPT.) means that argument in the command is optional."
+            )
+        errordata = (
+            errordata + f"Example: {ctx.prefix}{ctx.command.qualified_name} {exampleLine}"
+        )
+    else:
+        error_data = f'Some unexpected error occured while trying to do the command, report this bug in the [support server]({SUPPORT_SERVER_INVITE} "Join the bot support server for reporting bugs or suggesting commands!.")'
+        embederror = discord.Embed(
+            title=f"🚫 {type(error)}: **{error}**",
+            description=f"Command: {ctx.command}.",
+            color=Color.dark_red(),
+        )
+        embederror.add_field(name="Traceback: ", value=get_traceback(error))
+        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(embed=embederror)
     embed = discord.Embed(
         title=f"🚫 Command Error ", description=error_data, color=Color.dark_red()
     )
     await ctx.send(embed=embed)
-    embederror = discord.Embed(
-        title=f"🚫 {type(error)}: **{error}**",
-        description=f"Command: {ctx.command}.",
-        color=Color.dark_red(),
-    )
-    embederror.add_field(name="Traceback: ", value=get_traceback(error))
-    await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(embed=embederror)
+
 
 
 def newaccount(member):
