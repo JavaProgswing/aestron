@@ -462,7 +462,8 @@ class MyHelp(commands.HelpCommand):
         )
         embed.add_field(name="Version and info", value=f"v{botVersion}")
         embed.add_field(
-            name="Additional Usage: ", value="`a!help <command>`\n`a!help <category-shortname>`"
+            name="Additional Usage: ",
+            value="`a!help <command>`\n`a!help <category-shortname>`",
         )
         embed.set_footer(
             text="Want support? Join here: https://discord.gg/TZDYSHSZgg",
@@ -1250,6 +1251,7 @@ class MyBot(commands.Bot):
         return checkstaff(user)
 
     async def setup_hook(self):
+        self.add_view(Verification())
         self.loop.create_task(runBot())
 
     async def on_wavelink_track_start(
@@ -1518,7 +1520,7 @@ async def playmusic(ctx, songname):
             color=0x00FF00,
         )
         embedVar.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar)
-        await ctx.send(embed=embedVar, ephemeral=True)
+        await ctx.send(embed=embedVar)
     else:
         track: wavelink.Playable = tracks[0]
         track.extras = {
@@ -1540,7 +1542,7 @@ async def playmusic(ctx, songname):
             color=0x00FF00,
         )
         embedVar.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar)
-        await ctx.send(embed=embedVar, ephemeral=True)
+        await ctx.send(embed=embedVar)
 
     if not player.playing:
         await player.play(player.queue.get())
@@ -1554,7 +1556,7 @@ def songcheckperm(channel, member):
 
 class Songpanel(discord.ui.View):
     def __init__(self, guild, channel, player):
-        super().__init__(timeout=((player.current.length)//1000)+5)
+        super().__init__(timeout=((player.current.length) // 1000) + 5)
         self.player = player
         self.channel = channel
         self.guild = guild
@@ -1801,7 +1803,7 @@ class Songpanel(discord.ui.View):
         channel = self.channel
         guild = self.guild
 
-        if not (channel.permissions_for(member).manage_channels or checkstaff(member)):
+        if not (channel.permissions_for(interaction.user).manage_channels or checkstaff(member)):
             await interaction.response.send_message(
                 f"I am already playing music in a channel , you must have `manage_channels` permissions to stop music.",
                 ephemeral=True,
@@ -2049,442 +2051,25 @@ async def exception_catching_callback(task):
         )
         traceback_text = get_traceback(error)
         embederror.add_field(name="Traceback: ", value=traceback_text)
-        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(embed=embederror)
-
-
-@client.event
-async def on_application_command_error(ctx, error):
-    # logger.warning(f"Error {error} in {ctx.command} app command.")
-    # logger.warning(get_traceback(error))
-    global verifyCommand, maintenancemodestatus
-    prefix = ""
-    errordata = error
-    if isinstance(error, str):
-        error = commands.CommandError(error)
-    try:
-        messageid = ctx.message.id
-    except:
-        messageid = "Slash commands"
-    try:
-        testingcommand = ctx.command
-    except:
-        ctx.command = "Slash commands"
-    if isinstance(error, commands.CommandInvokeError):
-        error = error.original
-    if isinstance(error, commands.CheckAnyFailure):
-        try:
-            errordata = error.errors[0]
-            copyError = error
-            error = copyError.errors[0]
-        except:
-            pass
-    if isinstance(error, discord.Forbidden):
-        link = "https://discord.gg/TZDYSHSZgg"
-        errordata = f'Some unexpected error occured while trying to do the command , report this bug in the [support server]({link} "Join the bot support server for reporting bugs or suggesting commands!.")'
-    if isinstance(error, commands.BotMissingPermissions):
-        missingperms = error.missing_permissions[0]
-        missingperms = missingperms.replace("_", " ")
-        missingperms = missingperms.replace("-", " ")
-        errordata = f"I do not have the `{missingperms}` permissions for that command."
-    if isinstance(error, commands.MissingPermissions):
-        missingperms = error.missing_permissions[0]
-        missingperms = missingperms.replace("_", " ")
-        missingperms = missingperms.replace("-", " ")
-        errordata = (
-            f"You are lacking the {missingperms} permission to execute that command."
-        )
-    if isinstance(error, commands.MissingRequiredArgument):
-        errordata = f"Oops looks like you forgot to put the {str(error.param.name)} in the {ctx.command} command.\n"
-        example = get_example(ctx.command, ctx.guild)
-        exampleLine = example[0]
-        if example[1]:
-            exampleLine = (
-                exampleLine
-                + "\n\nNote: (OPT.) means that argument in the command is optional."
-            )
-        errordata = (
-            errordata + f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
-        )
-    if isinstance(error, commands.BadArgument):
-        errordata = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
-        example = get_example(ctx.command, ctx.guild)
-        exampleLine = example[0]
-        if example[1]:
-            exampleLine = (
-                exampleLine
-                + "\n\nNote: (OPT.) means that argument in the command is optional."
-            )
-        errordata = (
-            errordata + f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
-        )
-    embedone = discord.Embed(
-        title=f"🚫 Command Error ", description=errordata, color=Color.dark_red()
-    )
-    traceback_text = get_traceback(error)
-
-    embederror = discord.Embed(
-        title=f"🚫 Error occured ({type(error)}) : **{error}**",
-        description=f"Command : {ctx.command}.",
-        color=Color.dark_red(),
-    )
-    embederror.add_field(name="Traceback: ", value=traceback_text)
-    if ctx.guild:
-        embederror.add_field(
-            name=(f"Guild: {ctx.guild} ({ctx.guild.id})"), value="** **", inline=False
-        )
-        embederror.add_field(
-            name=(f"Channel: {ctx.channel.name} ({ctx.channel.id})"),
-            value="** **",
-            inline=False,
-        )
-        embederror.add_field(
-            name=(f"Member: {ctx.author.mention} ({ctx.author.name})"),
-            value="** **",
-            inline=False,
-        )
-    else:
-
-        embederror.add_field(name=("DM Channel "), value="** **", inline=False)
-        embederror.add_field(
-            name=(f"Member: {ctx.author.mention} ({ctx.author.name})"),
-            value="** **",
-            inline=False,
-        )
-    try:
-        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(embed=embederror)
-    except:
-        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
-            f"Command : {ctx.command}."
-        )
-        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
-            f"🚫 Error occured ({type(error)}) : **{error}**"
-        )
-        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
-            f"Traceback: {traceback_text}"
-        )
-        await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
-            f"Member: {ctx.author.mention} ({ctx.author.name})"
-        )
-        if ctx.guild:
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
-                f"Guild : {ctx.guild}"
-            )
-    try:
-        errorMsg = await ctx.send(embed=embedone, ephemeral=True)
-    except:
-        errorMsg = await ctx.send(embed=embedone)
-
+        client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(embed=embederror)
 
 @client.event
 async def on_command_error(
-    ctx, error, tracebackreq=False, forcelog=forcelogerrors, userlog=True
+    ctx, error
 ):
-    # logger.warning(f"Error {error} in {ctx.command} command.")
-    # logger.warning(get_traceback(error))
-    global verifyCommand, maintenancemodestatus, tempbotowners
-    isSlashCmd = False
-    verifyDelete = True
-    if isinstance(error, str):
-        error = commands.CommandError(error)
-    try:
-        prefix = ctx.prefix
-    except:
-        prefix = "/"
-    try:
-        messageid = ctx.message.id
-    except:
-        messageid = "Slash commands"
-        isSlashCmd = True
-        prefix = "/"
-    try:
-        testingcommand = ctx.command
-    except:
-        ctx.command = "Slash commands"
-    if maintenancemodestatus:
-        print(
-            f"{ctx.author} attempted {ctx.command} in {ctx.guild}/{ctx.channel} which has {error}."
-        )
-        traceback_text = get_traceback(error)
-        print(traceback_text)
-    errordata = "Oops something went wrong while executing the command , if this keeps happening frequently report this on our support server."
-    if isinstance(error, commands.CommandInvokeError):
-        error = error.original
-    if isinstance(error, commands.CommandNotFound):
-        return
-    if isinstance(error, commands.CheckAnyFailure) or isinstance(
-        error, commands.CheckFailure
-    ):
-        try:
-            errordata = error.errors[0]
-            copyError = error
-            error = copyError.errors[0]
-        except:
-            pass
-        if str(ctx.author.id) in tempbotowners:
-            view = Confirm()
-            embed = discord.Embed(title="Command sent", description=ctx.message.content)
-            view.set_message(
-                statmsg := await client.get_channel(CHANNEL_DEV_ID).send(
-                    f"(Missing perms) Temporary bot staff ({ctx.author.id}) : {ctx.author.mention} wrote *MESSAGE BELOW* ({ctx.command}) in {ctx.guild}.",
-                    view=view,
-                    embed=embed,
-                )
-            )
-            # Wait for the View to stop listening for input...
-            await view.wait()
-            if view.value is None:
-                await statmsg.reply("Timed out! :octagonal_sign:")
-            elif view.value:
-                await statmsg.reply("Confirmed <a:yes:872664918736928858>")
-                await ctx.reinvoke()
-                return
-            else:
-                await statmsg.reply("Cancelled :octagonal_sign:")
-        else:
-            errordata = "You do not have permission to run this command."
-    if isinstance(error, commands.errors.CommandError) or isinstance(
-        error, NoCooldownError
-    ):
-        errordata = error
-    else:
-        errordata = f"{error}"
-    if isinstance(error, commands.DisabledCommand):
-        link = "https://discord.gg/TZDYSHSZgg"
-        errordata = f'The command you tried to do is disabled due to a reported issue , contact [support server]({link} "Join the bot support server for reporting bugs or suggesting commands!.") for more information.'
-    if isinstance(error, discord.Forbidden):
-        link = "https://discord.gg/TZDYSHSZgg"
-        errordata = f'Some unexpected error occured while trying to do the command , report this bug in the [support server]({link} "Join the bot support server for reporting bugs or suggesting commands!.")'
-    if isinstance(error, commands.BotMissingPermissions):
-        missingperms = error.missing_permissions[0]
-        missingperms = missingperms.replace("_", " ")
-        missingperms = missingperms.replace("-", " ")
-        errordata = f"I do not have the `{missingperms}` permissions for that command."
-    if isinstance(error, commands.MissingPermissions):
-        missingperms = error.missing_permissions[0]
-        missingperms = missingperms.replace("_", " ")
-        missingperms = missingperms.replace("-", " ")
-        errordata = (
-            f"You are lacking the {missingperms} permission to execute that command."
-        )
-        if str(ctx.author.id) in tempbotowners:
-            view = Confirm()
-            embed = discord.Embed(title="Command sent", description=ctx.message.content)
-            view.set_message(
-                statmsg := await client.get_channel(CHANNEL_DEV_ID).send(
-                    f"(Missing perms) Temporary bot staff ({ctx.author.id}) : {ctx.author.mention} wrote *MESSAGE BELOW* ({ctx.command}) in {ctx.guild}.",
-                    view=view,
-                    embed=embed,
-                )
-            )
-            # Wait for the View to stop listening for input...
-            await view.wait()
-            if view.value is None:
-                await statmsg.reply("Timed out...")
-            elif view.value:
-                await statmsg.reply("Confirmed...")
-                try:
-                    await ctx.reinvoke()
-                except Exception as ex:
-                    pass
-                return
-            else:
-                await statmsg.reply("Cancelled...")
-    if isinstance(error, commands.MissingRequiredArgument):
-        errordata = f"Oops looks like you forgot to put the {str(error.param.name)} in the {ctx.command} command.\n"
-        example = get_example(ctx.command, ctx.guild)
-        exampleLine = example[0]
-        if example[1]:
-            exampleLine = (
-                exampleLine
-                + "\n\nNote: (OPT.) means that argument in the command is optional."
-            )
-        errordata = (
-            errordata + f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
-        )
-    if isinstance(error, commands.BadArgument):
-        errordata = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
-        example = get_example(ctx.command, ctx.guild)
-        exampleLine = example[0]
-        if example[1]:
-            exampleLine = (
-                exampleLine
-                + "\n\nNote: (OPT.) means that argument in the command is optional."
-            )
-        errordata = (
-            errordata + f"Example : {prefix}{ctx.command.qualified_name} {exampleLine}"
-        )
-    if isinstance(error, commands.CommandOnCooldown):
-        sendTimer = error.retry_after
-        if sendTimer < 1:
-            sendTimer = 1
-        else:
-            sendTimer = int(sendTimer)
-        if (
-            commands.BucketType.user == error.type
-            or commands.BucketType.member == error.type
-        ):
-            errordata = f"You tried doing {ctx.command} , you can use this command in {sendTimer}s."
-        elif commands.BucketType.guild == error.type:
-            errordata = (
-                f"The command {ctx.command} can be used in {sendTimer}s in this guild."
-            )
-        elif commands.BucketType.channel == error.type:
-            errordata = f"The command {ctx.command} can be used in {sendTimer}s in this channel."
-        elif commands.BucketType.category == error.type:
-            errordata = f"The command {ctx.command} can be used in {sendTimer}s in this category."
-        elif commands.BucketType.role == error.type:
-            errordata = (
-                f"The command {ctx.command} can be used in {sendTimer}s in this role."
-            )
-        if checkstaff(ctx.author):
-            try:
-                await ctx.reinvoke()
-            except Exception as ex:
-                pass
-            return
-
-    embedone = discord.Embed(
-        title=f"🚫 Command Error ", description=errordata, color=Color.dark_red()
+    link = "https://discord.gg/TZDYSHSZgg"
+    error_data = f'Some unexpected error occured while trying to do the command , report this bug in the [support server]({link} "Join the bot support server for reporting bugs or suggesting commands!.")'
+    embed = discord.Embed(
+        title=f"🚫 Command Error ", description=error_data, color=Color.dark_red()
     )
-    if isinstance(error, NoCooldownError):
-        embedone.set_footer(
-            text="Trying again in 5 seconds,this command will re-invoke itself."
-        )
-
-    traceback_text = get_traceback(error)
-    pastecode_failed = False
-    try:
-        pastecode = await mystbin_client.create_paste(
-            content=traceback_text, filename=genrandomstr(10)
-        )
-    except:
-        pass
+    await ctx.send(embed=embed)
     embederror = discord.Embed(
-        title=f"🚫 Error occured ({type(error)}) : **{error}**",
-        description=f"Command : {ctx.command}.",
+        title=f"🚫 {type(error)}: **{error}**",
+        description=f"Command: {ctx.command}.",
         color=Color.dark_red(),
     )
-    try:
-        embederror.add_field(name="Traceback: ", value=pastecode.url)
-    except:
-        embederror.add_field(name="Traceback: ", value="See traceback below")
-        pastecode_failed = True
-    if ctx.guild:
-        embederror.add_field(
-            name=(f"Guild: {ctx.guild} ({ctx.guild.id})"), value="** **", inline=False
-        )
-        embederror.add_field(
-            name=(f"Channel: {ctx.channel.name} ({ctx.channel.id})"),
-            value="** **",
-            inline=False,
-        )
-        embederror.add_field(
-            name=(f"Member: {ctx.author.mention} ({ctx.author.name})"),
-            value="** **",
-            inline=False,
-        )
-        embederror.add_field(
-            name=(f"Message: ({messageid})"), value="** **", inline=False
-        )
-
-    else:
-
-        embederror.add_field(name=("DM Channel "), value="** **", inline=False)
-        embederror.add_field(
-            name=(f"Member: {ctx.author.mention} ({ctx.author.name})"),
-            value="** **",
-            inline=False,
-        )
-
-    async with pool.acquire() as con:
-        verifylist = await con.fetchrow(
-            f"SELECT * FROM verifychannels WHERE channelid = {ctx.channel.id}"
-        )
-    if verifylist:
-        verifyDelete = True
-        try:
-            await ctx.message.delete()
-        except:
-            pass
-    if (not isinstance(error, commands.errors.CommandError)) or forcelog:
-        try:
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(embed=embederror)
-            if pastecode_failed:
-                await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
-                    "Traceback",
-                    file=discord.File(
-                        io.StringIO(str(traceback_text)), filename="output.text"
-                    ),
-                )
-        except:
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
-                f"Command : {ctx.command}."
-            )
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
-                f"🚫 Error occured ({type(error)})"
-            )
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(f"**{error}**")
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
-                f"Member: {ctx.author.mention} ({ctx.author.name})"
-            )
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
-                f"Message: ({messageid})"
-            )
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
-                f"Guild : {ctx.guild}"
-            )
-            await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(
-                f"Traceback: {traceback_text}"
-            )
-    try:
-        if not isSlashCmd:
-            if userlog:
-                errorMsg = await ctx.send(embed=embedone)
-            if tracebackreq:
-                embed = discord.Embed(title="Traceback", description=pastecode)
-                try:
-                    await ctx.message.reply(embed=embed)
-                except:
-                    await ctx.send(embed=embed)
-            try:
-                await ctx.message.add_reaction("<:offline:886434154412113961>")
-            except:
-                pass
-        else:
-            # disabled due to an issue
-            errorMsg = await ctx.send(embed=embedone)
-
-        if verifyDelete:
-            await asyncio.sleep(5)
-            try:
-                await errorMsg.delete()
-            except:
-                pass
-    except Exception as ex:
-        if (
-            isinstance(ex, discord.Forbidden)
-            or isinstance(ex, commands.MissingPermissions)
-            or isinstance(ex, commands.BotMissingPermissions)
-        ):
-            if userlog:
-                await ctx.send(
-                    f"I do not have the `embed_links` permissions for that command."
-                )
-                if verifyDelete:
-                    await asyncio.sleep(15)
-                    try:
-                        await errorMsg.delete()
-                    except:
-                        pass
-        else:
-            print(f"Error while sending in on-command-error {ex}")
-            etype = type(ex)
-            trace = ex.__traceback__
-            # 'traceback' is the stdlib module, `import traceback`.
-            lines = traceback.format_exception(etype, ex, trace)
-            # format_exception returns a list with line breaks embedded in the lines, so let's just stitch the elements together
-            traceback_text = "".join(lines)
-            print(traceback_text)
+    embederror.add_field(name="Traceback: ", value=get_traceback(error))
+    await client.get_channel(CHANNEL_ERROR_LOGGING_ID).send(embed=embederror)
 
 
 def newaccount(member):
@@ -2935,7 +2520,7 @@ async def valorantSeasonCheck():
         async with pool.acquire() as con:
             results = f"UPDATE riotseason SET act = $1 , episode = $2 WHERE act = $3 AND episode = $4"
             await con.execute(results, currentAct, currentEpisode, oldAct, oldEpisode)
-        await client.get_channel(CHANNEL_DEV_ID).send(
+        client.get_channel(CHANNEL_DEV_ID).send(
             "Season update detected, resetting data!"
         )
         async with pool.acquire() as con:
@@ -3034,7 +2619,7 @@ async def gitcommitcheck():
                 results = f"INSERT INTO githubcommits (userid, latestcommitsha) VALUES($1, $2) ON CONFLICT (userid) DO UPDATE SET latestcommitsha = EXCLUDED.latestcommitsha;"
                 async with pool.acquire() as con:
                     await con.execute(results, str(client.user.id), commitsha)
-                await client.get_channel(CHANNEL_DEV_ID).send(
+                client.get_channel(CHANNEL_DEV_ID).send(
                     f"New commit detected! {commiturl}, restarting..."
                 )
                 files = [
@@ -3047,27 +2632,26 @@ async def gitcommitcheck():
                 ]
                 changed_files = compare_local_remote_git_repo(files)
                 if len(changed_files) == 0:
-                    await client.get_channel(CHANNEL_DEV_ID).send(
+                    client.get_channel(CHANNEL_DEV_ID).send(
                         "No file changes detected."
                     )
                 else:
-                    await client.get_channel(CHANNEL_DEV_ID).send(
+                    client.get_channel(CHANNEL_DEV_ID).send(
                         f"Files changed: {', '.join(map(lambda x: x[0], changed_files))}"
                     )
                     for filedetails in changed_files:
                         with open(filedetails[0], "wb") as f:
                             f.write(base64.b64decode(filedetails[1]))
-                        await client.get_channel(CHANNEL_DEV_ID).send(
+                        client.get_channel(CHANNEL_DEV_ID).send(
                             f"({filedetails[3]})File {filedetails[0]} updated to size {filedetails[2]} in latest commit."
                         )
                 sync_views = client._connection._view_store._synced_message_views
                 tasks = []
-                for view_id in sync_views:
-                    view = sync_views[view_id]
+                for view in sync_views.values():
                     if hasattr(view, "_message") and view.timeout != None:
                         tasks.append(view.on_timeout())
                 await asyncio.gather(*tasks)
-                
+
                 subprocess.run(
                     f"python main.py restart {CHANNEL_DEV_ID}",
                     shell=True,
@@ -3080,135 +2664,6 @@ def convertSec(seconds):
     min, sec = divmod(seconds, 60)
     hour, min = divmod(min, 60)
     return "%dh %02dm %02ds" % (hour, min, sec)
-
-
-async def mutetimer(ctx, timecount, mutedmember, reason=None):
-    await asyncio.sleep(timecount)
-    muterole = discord.utils.get(ctx.guild.roles, name="muted")
-    if muterole is None:
-        perms = discord.Permissions(
-            send_messages=False, add_reactions=False, connect=False
-        )
-        try:
-            await ctx.guild.create_role(name="muted", permissions=perms)
-        except:
-            raise commands.BotMissingPermissions(["manage_roles"])
-        muterole = discord.utils.get(ctx.guild.roles, name="muted")
-    myrole = discord.utils.get(mutedmember.roles, id=muterole.id)
-    if myrole is None:
-        return
-    try:
-        await mutedmember.remove_roles(muterole)
-    except:
-        return
-    if reason is None:
-        reason = f"having elapsed {convertSec(timecount)}."
-
-        async with pool.acquire() as con:
-            mutedlist = await con.fetchrow(
-                f"SELECT * FROM mutedusers where userid = {mutedmember.id} AND guildid = {mutedmember.guild.id}"
-            )
-    if mutedlist:
-        for roleid in mutedlist["roleslist"]:
-            roleobj = ctx.guild.get_role(roleid)
-            try:
-                await mutedmember.add_roles(roleobj)
-            except:
-                pass
-
-        async with pool.acquire() as con:
-            await con.execute(
-                f"DELETE FROM mutedusers WHERE userid = {mutedmember.id} AND guildid = {mutedmember.guild.id}"
-            )
-
-    try:
-        await mutedmember.send(
-            f"""You were unmuted by {ctx.author.mention} in {ctx.guild.name} for {reason} """
-        )
-        # print(f"Successfully dmed users!")
-    except:
-        pass
-    cmd = client.get_command("silentwarn")
-    try:
-        await cmd(
-            ctx, mutedmember, reason=(f"""unmuted {ctx.author.mention} for {reason} """)
-        )
-    except:
-        pass
-    async with pool.acquire() as con:
-        await con.execute(
-            f"DELETE FROM pendingunmute WHERE guildid = {ctx.guild.id} AND memberid = {mutedmember.id}"
-        )
-    embed = discord.Embed(title="Member unmuted", description=f"{mutedmember.mention}.")
-    embed.add_field(name="Moderator", value=ctx.author.mention)
-    embed.add_field(name="Reason", value=reason)
-    await ctx.send(embed=embed, ephemeral=True)
-
-
-async def blacklisttimer(ctx, timecount, blacklistedmember, reason=None):
-    await asyncio.sleep(timecount)
-    blacklistrole = discord.utils.get(ctx.guild.roles, name="blacklisted")
-    if blacklistrole is None:
-        perms = discord.Permissions(send_messages=False, read_messages=True)
-        try:
-            await ctx.guild.create_role(name="blacklisted", permissions=perms)
-        except:
-            raise commands.BotMissingPermissions(["manage_roles"])
-        blacklistrole = discord.utils.get(ctx.guild.roles, name="blacklisted")
-    myrole = discord.utils.get(blacklistedmember.roles, id=blacklistrole.id)
-    if myrole is None:
-        return
-    try:
-        await blacklistedmember.remove_roles(blacklistrole)
-    except:
-        return
-    if reason is None:
-        reason = f"having elapsed {convertSec(timecount)}."
-    blacklistrole = discord.utils.get(ctx.guild.roles, name="blacklisted")
-    async with pool.acquire() as con:
-        mutedlist = await con.fetchrow(
-            f"SELECT * FROM blacklistedusers where userid = {blacklistedmember.id} AND guildid = {blacklistedmember.guild.id}"
-        )
-    if mutedlist:
-        for roleid in mutedlist["roleslist"]:
-            roleobj = ctx.guild.get_role(roleid)
-            try:
-                await blacklistedmember.add_roles(roleobj)
-            except:
-                pass
-
-        async with pool.acquire() as con:
-            await con.execute(
-                f"DELETE FROM blacklistedusers WHERE userid = {blacklistedmember.id} AND guildid = {blacklistedmember.guild.id}"
-            )
-
-    try:
-        await blacklistedmember.send(
-            f"""You were unblacklisted by {ctx.author.mention} in {ctx.guild.name} for {reason} """
-        )
-        # print(f"Successfully dmed users!")
-    except:
-        pass
-    cmd = client.get_command("silentwarn")
-    try:
-        await cmd(
-            ctx,
-            blacklistedmember,
-            reason=(f"""unblacklisted by {ctx.author.mention} for {reason} """),
-        )
-    except:
-        pass
-    async with pool.acquire() as con:
-        await con.execute(
-            f"DELETE FROM pendingunblacklist WHERE guildid = {ctx.guild.id} AND memberid = {blacklistedmember.id}"
-        )
-    embed = discord.Embed(
-        title="Member unblacklisted", description=f"{blacklistedmember.mention}."
-    )
-    embed.add_field(name="Moderator", value=ctx.author.mention)
-    embed.add_field(name="Reason", value=reason)
-    await ctx.send(embed=embed, ephemeral=True)
-
 
 @client.command()
 @is_bot_staff()
@@ -3350,7 +2805,7 @@ class AestronInfo(commands.Cog):
     async def cmdusage(self, ctx, command: str):
         reqCommand = client.get_command(command)
         if reqCommand in customCog.__cog_commands__:
-            await on_command_error(ctx, "Custom commands don't have listed usages.")
+            raise commands.CommandError("Custom commands don't have listed usages.")
             return
         if reqCommand:
             commandUsages = []
@@ -3392,8 +2847,8 @@ class AestronInfo(commands.Cog):
             )
 
         else:
-            await on_command_error(
-                ctx, "The requested command with name was not found."
+            raise commands.CommandError(
+                "The requested command with name was not found."
             )
             return
 
@@ -3429,7 +2884,7 @@ class AestronInfo(commands.Cog):
         for guild in client.guilds:
             totalmembercount += guild.member_count
         embedVar.add_field(name="Member count", value=totalmembercount)
-        delta_uptime = datetime.utcnow() - bot.launch_time
+        delta_uptime = datetime.utcnow() - client.launch_time
         hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
         days, hours = divmod(hours, 24)
@@ -3448,10 +2903,7 @@ class AestronInfo(commands.Cog):
         embedVar.set_thumbnail(
             url="https://cdn.discordapp.com/avatars/805030662183845919/70fee8581891e9a810da60944dc486ba.webp?size=128"
         )
-        try:
-            await ctx.send(embed=embedVar, ephemeral=True)
-        except:
-            pass
+        await ctx.send(embed=embedVar, ephemeral=True)
 
 
 def ismuted(ctx, member):
@@ -3467,122 +2919,6 @@ def ismuted(ctx, member):
 
 class Moderation(commands.Cog):
     """Moderation commands."""
-
-    async def cog_load(self):
-        await client.wait_until_ready()
-        async with pool.acquire() as con:
-            restricts = await con.fetch(f"SELECT * FROM restrictedUsers")
-            for res in restricts:
-                guildid = res["guildid"]
-                memberid = res["memberid"]
-                epochtime = res["epochtime"]
-                currentepochtime = int(time.time())
-                if epochtime <= currentepochtime:
-                    asyncio.ensure_future(restricttimer(0, guildid, memberid))
-                else:
-                    asyncio.ensure_future(
-                        restricttimer((epochtime - currentepochtime), guildid, memberid)
-                    )
-        async with pool.acquire() as con:
-            pendingunutes = await con.fetch(f"SELECT * FROM pendingunmute")
-        for unmute in pendingunutes:
-            guildid = unmute["guildid"]
-            guild = client.get_guild(guildid)
-            if guild is None:
-                async with pool.acquire() as con:
-                    await con.execute(
-                        f"DELETE FROM pendingunmute WHERE guildid = {guildid}"
-                    )
-                continue
-            channelid = unmute["channelid"]
-            channel = guild.get_channel(channelid)
-            if channel is None:
-                channelcopy = client.get_channel(channelid)
-                if channelcopy is not None:
-                    channel = channelcopy
-            if channel is None:
-                try:
-                    txtchannel = guild.text_channels[0]
-                    channel = txtchannel
-                except Exception as e:
-                    print(
-                        f"{e} Failed to get channel for guild = {guildid} and channelid = {channelid}."
-                    )
-                    async with pool.acquire() as con:
-                        await con.execute(
-                            f"DELETE FROM pendingunmute WHERE guildid = {guildid} AND channelid = {channelid}"
-                        )
-                    continue
-            memberid = unmute["memberid"]
-            member = guild.get_member(memberid)
-            if member is None:
-                async with pool.acquire() as con:
-                    await con.execute(
-                        f"DELETE FROM pendingunmute WHERE guildid = {guildid} AND memberid = {memberid}"
-                    )
-                continue
-            reason = unmute["reason"]
-            epochtime = unmute["epochtime"]
-            currentepochtime = int(time.time())
-            ctx = constructctx(guild, member, channel)
-            if epochtime <= currentepochtime:
-                asyncio.ensure_future(mutetimer(ctx, 0, member, reason=reason))
-            else:
-                asyncio.ensure_future(
-                    mutetimer(
-                        ctx, (epochtime - currentepochtime), member, reason=reason
-                    )
-                )
-        async with pool.acquire() as con:
-            pendingunblacklists = await con.fetch(f"SELECT * FROM pendingunblacklist")
-        for unblacklist in pendingunblacklists:
-            guildid = unblacklist["guildid"]
-            guild = client.get_guild(guildid)
-            if guild is None:
-                async with pool.acquire() as con:
-                    await con.execute(
-                        f"DELETE FROM pendingunblacklist WHERE guildid = {guildid}"
-                    )
-                continue
-            channelid = unblacklist["channelid"]
-            channel = guild.get_channel(channelid)
-            if channel is None:
-                channelcopy = client.get_channel(channelid)
-                if channelcopy is not None:
-                    channel = channelcopy
-            if channel is None:
-                try:
-                    txtchannel = guild.text_channels[0]
-                    channel = txtchannel
-                except Exception as e:
-                    print(
-                        f"{e} Failed to get channel for guild = {guildid} and channelid = {channelid}."
-                    )
-                    async with pool.acquire() as con:
-                        await con.execute(
-                            f"DELETE FROM pendingunblacklist WHERE guildid = {guildid} AND channelid = {channelid}"
-                        )
-                    continue
-            memberid = unblacklist["memberid"]
-            member = guild.get_member(memberid)
-            if member is None:
-                async with pool.acquire() as con:
-                    await con.execute(
-                        f"DELETE FROM pendingunblacklist WHERE guildid = {guildid} AND memberid = {memberid}"
-                    )
-                continue
-            reason = unblacklist["reason"]
-            epochtime = unblacklist["epochtime"]
-            currentepochtime = int(time.time())
-            ctx = constructctx(guild, member, channel)
-            if epochtime <= currentepochtime:
-                asyncio.ensure_future(blacklisttimer(ctx, 0, member, reason=reason))
-            else:
-                asyncio.ensure_future(
-                    blacklisttimer(
-                        ctx, (epochtime - currentepochtime), member, reason=reason
-                    )
-                )
 
     @commands.hybrid_command(
         brief="This command locks the given channel until a duration.",
@@ -3604,7 +2940,7 @@ class Moderation(commands.Cog):
     ):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         if channel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
+            raise commands.CommandError(" The channel provided was not in this guild.")
             return
         await channel.edit(name=f"🔒-{channel.name}")
         if role is None:
@@ -3638,21 +2974,18 @@ class Moderation(commands.Cog):
         if not duration is None:
             timenum = convert(duration)
             if timenum == -1:
-                await on_command_error(
-                    ctx,
+                raise commands.CommandError(
                     "You didn't answer with a proper unit. Use (s|m|h|d) next time!",
                 )
 
                 return
             elif timenum == -2:
-                await on_command_error(
-                    ctx,
+                raise commands.CommandError(
                     "The time must be an integer. Please enter an integer next time.",
                 )
                 return
             elif timenum == -3:
-                await on_command_error(
-                    ctx,
+                raise commands.CommandError(
                     "The time must be an positive number. Please enter an positive number next time.",
                 )
                 return
@@ -3698,7 +3031,7 @@ class Moderation(commands.Cog):
     ):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_guild"])
         if channel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
+            raise commands.CommandError(" The channel provided was not in this guild.")
             return
         await channel.edit(name=channel.name.removeprefix("🔒-"))
         if role is None:
@@ -3815,8 +3148,8 @@ class Moderation(commands.Cog):
     async def setslowmode(self, ctx, delay: int = 0):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         if delay < 0:
-            await on_command_error(
-                ctx, "You cannot set slowmode to negative amount of delay."
+            raise commands.CommandError(
+                "You cannot set slowmode to negative amount of delay."
             )
             return
         try:
@@ -3840,11 +3173,11 @@ class Moderation(commands.Cog):
         try:
             number = int(numberstr)
         except:
-            await on_command_error(ctx, "Enter a valid number to purge messages.")
+            raise commands.CommandError("Enter a valid number to purge messages.")
             return
         if number <= 0:
-            await on_command_error(
-                ctx, " You cannot purge negative/zero amount of messages."
+            raise commands.CommandError(
+                " You cannot purge negative/zero amount of messages."
             )
             return
         try:
@@ -3894,11 +3227,11 @@ class Moderation(commands.Cog):
             try:
                 number = int(numberstr)
             except:
-                await on_command_error(ctx, "Enter a valid number to purge messages.")
+                raise commands.CommandError("Enter a valid number to purge messages.")
                 return
             if number <= 0:
-                await on_command_error(
-                    ctx, " You cannot purge negative/zero amount of messages."
+                raise commands.CommandError(
+                    " You cannot purge negative/zero amount of messages."
                 )
                 return
             try:
@@ -3918,11 +3251,11 @@ class Moderation(commands.Cog):
             try:
                 number = int(numberstr)
             except:
-                await on_command_error(ctx, "Enter a valid number to purge messages.")
+                raise commands.CommandError("Enter a valid number to purge messages.")
                 return
             if number <= 0:
-                await on_command_error(
-                    ctx, " You cannot purge negative/zero amount of messages."
+                raise commands.CommandError(
+                    " You cannot purge negative/zero amount of messages."
                 )
                 return
             if len(members) == 0:
@@ -3947,325 +3280,6 @@ class Moderation(commands.Cog):
                     await ctx.send(embed=embed, ephemeral=True)
                 except:
                     await ctx.send(embed=embed)
-
-    @commands.hybrid_command(
-        brief="This command prevents users from viewing any channels on the server.",
-        description="This command prevents users from viewing any channels on the server(requires manage roles).",
-        aliases=["quarantine", "securemute"],
-    )
-    @commands.guild_only()
-    @commands.check_any(is_bot_staff(), commands.has_permissions(manage_roles=True))
-    async def blacklist(
-        self, ctx, list_members: str, timenum: str = None, *, reason: str = None
-    ):
-        check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
-        global currentlyblacklisting
-        membernames = list_members.replace(" ", ",")
-        members = []
-        for membername in membernames.split(","):
-            try:
-                member = await commands.MemberConverter().convert(ctx, membername)
-                members.append(member)
-            except:
-                pass
-
-        for member in members:
-            if member.id in currentlyblacklisting:
-                continue
-            currentlyblacklisting.append(member.id)
-            if (
-                ctx.author.top_role <= member.top_role
-                and not checkstaff(ctx.author)
-                and not ctx.author.bot
-                and not ctx.author == member
-                and not ctx.author.id == ctx.guild.owner.id
-            ):
-                await on_command_error(
-                    ctx,
-                    f"You cannot blacklist {member.mention} having higher roles than your highest role.",
-                )
-                try:
-                    currentlyblacklisting.remove(member.id)
-                except:
-                    pass
-                continue
-            if reason is None:
-                reason = "no reason provided"
-            if timenum is None:
-                timelength = ""
-            else:
-                timelength = f"for a duration of {timenum}."
-
-            if member == client.user:
-                await on_command_error(ctx, "I could not blacklist myself.")
-                try:
-                    currentlyblacklisting.remove(member.id)
-                except:
-                    pass
-                continue
-            if ctx.me.top_role <= member.top_role:
-                await on_command_error(
-                    ctx,
-                    f"My highest role is the same or lower than the highest role of {member.mention} , so I am unable to blacklist.",
-                )
-                try:
-                    currentlyblacklisting.remove(member.id)
-                except:
-                    pass
-                continue
-            if not timenum is None:
-                convertedtime = convert(timenum)
-                if convertedtime == -1:
-
-                    await on_command_error(
-                        ctx,
-                        "You didn't answer with a proper unit. Use (s|m|h|d) next time!",
-                    )
-                    try:
-                        currentlyblacklisting.remove(member.id)
-                    except:
-                        pass
-                    continue
-                elif convertedtime == -2:
-                    await on_command_error(
-                        ctx,
-                        "The time must be an integer. Please enter an integer next time.",
-                    )
-                    try:
-                        currentlyblacklisting.remove(member.id)
-                    except:
-                        pass
-                    continue
-                elif convertedtime == -3:
-                    await on_command_error(
-                        ctx,
-                        "The time must be an positive number. Please enter an positive number next time.",
-                    )
-                    try:
-                        currentlyblacklisting.remove(member.id)
-                    except:
-                        pass
-                    continue
-            blacklistrole = discord.utils.get(ctx.guild.roles, name="blacklisted")
-            if blacklistrole is None:
-                perms = discord.Permissions(send_messages=False, read_messages=False)
-                try:
-                    await ctx.guild.create_role(name="blacklisted", permissions=perms)
-                except:
-                    raise commands.BotMissingPermissions(["manage_roles"])
-                blacklistrole = discord.utils.get(ctx.guild.roles, name="blacklisted")
-                for channelloop in ctx.guild.channels:
-                    await channelloop.set_permissions(blacklistrole, view_channel=False)
-            else:
-                perms = discord.Permissions(send_messages=False, read_messages=False)
-                try:
-                    await blacklistrole.edit(permissions=perms)
-                except:
-                    raise commands.BotMissingPermissions(["manage_roles"])
-                for channelloop in ctx.guild.channels:
-                    await channelloop.set_permissions(blacklistrole, view_channel=False)
-            myrole = discord.utils.get(member.roles, id=blacklistrole.id)
-            if myrole:
-                await on_command_error(
-                    ctx, f"The member {member.mention} is already blacklisted!"
-                )
-                try:
-                    currentlyblacklisting.remove(member.id)
-                except:
-                    pass
-                continue
-            rolelist = []
-            for role in member.roles:
-                if role != ctx.guild.default_role:
-                    try:
-                        await member.remove_roles(role)
-                        rolelist.append(role.id)
-                    except:
-                        perms = discord.Permissions()
-                        try:
-                            await role.edit(permissions=perms)
-                        except:
-                            pass
-
-            results = f"INSERT INTO blacklistedusers (guildid,userid,roleslist) VALUES($1, $2, $3);"
-            async with pool.acquire() as con:
-                await con.execute(results, ctx.guild.id, member.id, rolelist)
-            await member.add_roles(blacklistrole)
-            try:
-                await member.send(
-                    f"""You were blacklisted by {ctx.author.mention} in {ctx.guild.name} for {reason} {timelength}"""
-                )
-                # print(f"Successfully dmed users!")
-            except:
-                pass
-            cmd = client.get_command("silentwarn")
-            try:
-                await cmd(
-                    ctx,
-                    member,
-                    reason=(f"blacklisted by {ctx.author.mention} for {reason} "),
-                )
-            except:
-                pass
-            timemsg = ""
-            if not timenum is None:
-                timemsg = f" for {timenum}"
-            embed = discord.Embed(
-                title="Member blacklisted", description=f"{member.mention}{timemsg}."
-            )
-            embed.add_field(name="Moderator", value=ctx.author.mention)
-            embed.add_field(name="Reason", value=reason)
-            await ctx.send(embed=embed, ephemeral=True)
-            try:
-                currentlyblacklisting.remove(member.id)
-            except:
-                pass
-            timenum = convert(timenum)
-            if timenum == -1:
-                await on_command_error(
-                    ctx,
-                    "You didn't answer with a proper unit. Use (s|m|h|d) next time!",
-                )
-
-                return
-            elif timenum == -2:
-                await on_command_error(
-                    ctx,
-                    "The time must be an integer. Please enter an integer next time.",
-                )
-                return
-            elif timenum == -3:
-                await on_command_error(
-                    ctx,
-                    "The time must be an positive number. Please enter an positive number next time.",
-                )
-                return
-            if not timenum is None:
-                epochtime = int(time.time()) + timenum
-                statement = """INSERT INTO  pendingunblacklist (guildid,channelid,memberid,reason,epochtime) VALUES($1,$2,$3,$4,$5);"""
-                async with pool.acquire() as con:
-                    await con.execute(
-                        statement,
-                        ctx.guild.id,
-                        ctx.channel.id,
-                        member.id,
-                        reason,
-                        epochtime,
-                    )
-                asyncio.ensure_future(blacklisttimer(ctx, convertedtime, member))
-
-    @commands.hybrid_command(
-        brief="This command allows users to view any channel on the server.",
-        description="This command allows users to view any channel on the server(requires manage roles).",
-        aliases=["unquarantine", "secureunmute", "unb"],
-    )
-    @commands.guild_only()
-    @commands.check_any(is_bot_staff(), commands.has_permissions(manage_roles=True))
-    async def unblacklist(self, ctx, list_members: str, *, reason: str = None):
-        check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
-        global currentlyunblacklisting
-        membernames = list_members.replace(" ", ",")
-        blacklistedmembers = []
-        for membername in membernames.split(","):
-            try:
-                member = await commands.MemberConverter().convert(ctx, membername)
-                blacklistedmembers.append(member)
-            except:
-                pass
-
-        if len(blacklistedmembers) == 0:
-            raise commands.BadArgument("Nothing")
-        for blacklistedmember in blacklistedmembers:
-            if blacklistedmember.id in currentlyunblacklisting:
-                continue
-            currentlyunblacklisting.append(blacklistedmember.id)
-            if (
-                ctx.author.top_role <= blacklistedmember.top_role
-                and not checkstaff(ctx.author)
-                and not ctx.author.bot
-                and not ctx.author == blacklistedmember
-                and not ctx.author.id == ctx.guild.owner.id
-            ):
-                await on_command_error(
-                    ctx,
-                    f"You cannot unblacklist {blacklistedmember.mention} having higher roles than your highest role.",
-                )
-                try:
-                    currentlyunblacklisting.remove(blacklistedmember.id)
-                except:
-                    pass
-                continue
-            if ctx.me.top_role <= blacklistedmember.top_role:
-                await on_command_error(
-                    ctx,
-                    f"My highest role is the same or lower than the highest role of {blacklistedmember.mention} , so I am unable to unblacklist.",
-                )
-                try:
-                    currentlyunblacklisting.remove(blacklistedmember.id)
-                except:
-                    pass
-                continue
-            blacklistrole = discord.utils.get(ctx.guild.roles, name="blacklisted")
-            if blacklistrole is None:
-                perms = discord.Permissions(send_messages=False, read_messages=True)
-                await ctx.guild.create_role(name="blacklisted", permissions=perms)
-                blacklistrole = discord.utils.get(ctx.guild.roles, name="blacklisted")
-            myrole = discord.utils.get(blacklistedmember.roles, id=blacklistrole.id)
-            if not myrole:
-                await on_command_error(
-                    ctx, f"The member {blacklistedmember.mention} is not blacklisted!"
-                )
-                try:
-                    currentlyunblacklisting.remove(blacklistedmember.id)
-                except:
-                    pass
-                continue
-            await blacklistedmember.remove_roles(blacklistrole)
-            if reason is None:
-                reason = "no reason provided "
-            async with pool.acquire() as con:
-                mutedlist = await con.fetchrow(
-                    f"SELECT * FROM blacklistedusers where userid = {blacklistedmember.id} AND guildid = {blacklistedmember.guild.id}"
-                )
-            if mutedlist:
-                for roleid in mutedlist["roleslist"]:
-                    roleobj = ctx.guild.get_role(roleid)
-                    try:
-                        await blacklistedmember.add_roles(roleobj)
-                    except:
-                        pass
-            async with pool.acquire() as con:
-                await con.execute(
-                    f"DELETE FROM blacklistedusers WHERE userid = {blacklistedmember.id} AND guildid = {blacklistedmember.guild.id}"
-                )
-
-            try:
-                await blacklistedmember.send(
-                    f"""You were unblacklisted by {ctx.author.mention} in {ctx.guild.name} for {reason} """
-                )
-                # print(f"Successfully dmed users!")
-            except:
-                pass
-            cmd = client.get_command("silentwarn")
-            try:
-                await cmd(
-                    ctx,
-                    blacklistedmember,
-                    reason=(f"""unblacklisted by {ctx.author.mention} for {reason} """),
-                )
-            except:
-                pass
-            embed = discord.Embed(
-                title="Member unblacklisted",
-                description=f"{blacklistedmember.mention}.",
-            )
-            embed.add_field(name="Moderator", value=ctx.author.mention)
-            embed.add_field(name="Reason", value=reason)
-            await ctx.send(embed=embed, ephemeral=True)
-            try:
-                currentlyunblacklisting.remove(blacklistedmember.id)
-            except:
-                pass
 
     @commands.hybrid_command(
         brief="This command warns users for a given reason provided.",
@@ -4308,8 +3322,7 @@ class Moderation(commands.Cog):
                 and not ctx.author == member
                 and not ctx.author.id == ctx.guild.owner.id
             ):
-                await on_command_error(
-                    ctx,
+                raise commands.CommandError(
                     "You cannot warn members having higher roles than your highest role.",
                 )
                 continue
@@ -4386,354 +3399,6 @@ class Moderation(commands.Cog):
             )
 
     @commands.hybrid_command(
-        brief="This command (mutes)prevents user from sending messages in any channel.",
-        description="This command (mutes)prevents user from sending messages in any channel(requires manage roles).",
-    )
-    @commands.guild_only()
-    @commands.check_any(is_bot_staff(), commands.has_permissions(manage_roles=True))
-    async def mute(
-        self, ctx, list_members: str, timenum: str = None, *, reason: str = None
-    ):
-        check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
-        global currentlymuting
-        membernames = list_members.replace(" ", ",")
-        members = []
-        for membername in membernames.split(","):
-            try:
-                member = await commands.MemberConverter().convert(ctx, membername)
-                members.append(member)
-            except:
-                pass
-
-        if len(members) == 0:
-            raise commands.BadArgument("Nothing")
-        for member in members:
-            if member.id in currentlymuting:
-                continue
-            currentlymuting.append(member.id)
-            if (
-                ctx.author.top_role <= member.top_role
-                and not checkstaff(ctx.author)
-                and not ctx.author.bot
-                and not ctx.author == member
-                and not ctx.author.id == ctx.guild.owner.id
-            ):
-                await on_command_error(
-                    ctx,
-                    f"You cannot mute {member.mention} having higher roles than your highest role.",
-                )
-                try:
-                    currentlymuting.remove(member.id)
-                except:
-                    pass
-                continue
-            if reason is None:
-                reason = "no reason provided "
-            if timenum is None:
-                timelength = ""
-            else:
-                timelength = f"for a duration of {timenum}."
-            if member == client.user:
-                await on_command_error(ctx, "I could not mute myself.")
-                try:
-                    currentlymuting.remove(member.id)
-                except:
-                    pass
-                continue
-            if ctx.me.top_role <= member.top_role:
-                await on_command_error(
-                    ctx,
-                    f"My highest role is the same or lower than the highest role of {member.mention} , so I am unable to mute.",
-                )
-                try:
-                    currentlymuting.remove(member.id)
-                except:
-                    pass
-                continue
-            if not timenum is None:
-                convertedtime = convert(timenum)
-                if convertedtime == -1:
-                    await on_command_error(
-                        ctx,
-                        "You didn't answer with a proper unit. Use (s|m|h|d) next time!",
-                    )
-                    try:
-                        currentlymuting.remove(member.id)
-                    except:
-                        pass
-                    continue
-                elif convertedtime == -2:
-                    await on_command_error(
-                        ctx,
-                        "The time must be an integer. Please enter an integer next time.",
-                    )
-                    try:
-                        currentlymuting.remove(member.id)
-                    except:
-                        pass
-                    continue
-                elif convertedtime == -3:
-                    await on_command_error(
-                        ctx,
-                        "The time must be an positive number. Please enter an positive number next time.",
-                    )
-                    try:
-                        currentlymuting.remove(member.id)
-                    except:
-                        pass
-                    continue
-            muterole = discord.utils.get(ctx.guild.roles, name="muted")
-            if muterole is None:
-                perms = discord.Permissions(
-                    send_messages=False,
-                    add_reactions=False,
-                    connect=False,
-                    change_nickname=False,
-                )
-                try:
-                    await ctx.guild.create_role(name="muted", permissions=perms)
-                except:
-                    raise commands.BotMissingPermissions(["manage_roles"])
-                muterole = discord.utils.get(ctx.guild.roles, name="muted")
-                for channelloop in ctx.guild.channels:
-                    if channelloop.type == discord.ChannelType.text:
-                        await channelloop.set_permissions(
-                            muterole,
-                            read_messages=None,
-                            send_messages=False,
-                            add_reactions=False,
-                            create_public_threads=False,
-                            create_private_threads=False,
-                        )
-                    else:
-                        await channelloop.set_permissions(muterole, view_channel=False)
-            else:
-                perms = discord.Permissions(
-                    send_messages=False,
-                    add_reactions=False,
-                    connect=False,
-                    change_nickname=False,
-                )
-                try:
-                    await muterole.edit(permissions=perms)
-                except:
-                    raise commands.BotMissingPermissions(["manage_roles"])
-                for channelloop in ctx.guild.channels:
-                    if channelloop.type == discord.ChannelType.text:
-                        await channelloop.set_permissions(
-                            muterole,
-                            read_messages=None,
-                            send_messages=False,
-                            add_reactions=False,
-                            create_public_threads=False,
-                            create_private_threads=False,
-                        )
-                    else:
-                        await channelloop.set_permissions(muterole, view_channel=False)
-            myrole = discord.utils.get(member.roles, id=muterole.id)
-            if myrole:
-                await on_command_error(
-                    ctx, f"The member {member.mention} is already muted!"
-                )
-                try:
-                    currentlymuting.remove(member.id)
-                except:
-                    pass
-                continue
-
-            muterole = discord.utils.get(ctx.guild.roles, name="muted")
-            rolelist = []
-            for role in member.roles:
-                if role != ctx.guild.default_role:
-                    try:
-                        await member.remove_roles(role)
-                        rolelist.append(role.id)
-                    except:
-                        pass
-            statement = """INSERT INTO mutedusers (guildid,userid,roleslist) VALUES($1, $2 ,$3);"""
-            async with pool.acquire() as con:
-                await con.execute(statement, ctx.guild.id, member.id, rolelist)
-            await member.add_roles(muterole)
-            try:
-                await member.send(
-                    f"""You were muted by {ctx.author.mention} in {ctx.guild.name} for {reason} {timelength}"""
-                )
-                # print(f"Successfully dmed users!")
-            except:
-                pass
-            cmd = client.get_command("silentwarn")
-            try:
-                await cmd(
-                    ctx, member, reason=(f"muted by {ctx.author.mention} for {reason} ")
-                )
-            except:
-                pass
-            timemsg = ""
-            if not timenum is None:
-                timemsg = f" for {timenum}"
-            embed = discord.Embed(
-                title="Member muted", description=f"{member.mention}{timemsg}."
-            )
-            embed.add_field(name="Moderator", value=ctx.author.mention)
-            embed.add_field(name="Reason", value=reason)
-            await ctx.send(embed=embed, ephemeral=True)
-            try:
-                currentlymuting.remove(member.id)
-            except:
-                pass
-            timenum = convert(timenum)
-            if timenum == -1:
-                await on_command_error(
-                    ctx,
-                    "You didn't answer with a proper unit. Use (s|m|h|d) next time!",
-                )
-
-                return
-            elif timenum == -2:
-                await on_command_error(
-                    ctx,
-                    "The time must be an integer. Please enter an integer next time.",
-                )
-                return
-            elif timenum == -3:
-                await on_command_error(
-                    ctx,
-                    "The time must be an positive number. Please enter an positive number next time.",
-                )
-                return
-            if not timenum is None:
-                epochtime = int(time.time()) + timenum
-                statement = """INSERT INTO  pendingunmute (guildid,memberid,channelid,reason,epochtime) VALUES($1,$2,$3,$4,$5);"""
-                async with pool.acquire() as con:
-                    await con.execute(
-                        statement,
-                        ctx.guild.id,
-                        ctx.channel.id,
-                        member.id,
-                        reason,
-                        epochtime,
-                    )
-                asyncio.ensure_future(mutetimer(ctx, convertedtime, member))
-
-    @commands.hybrid_command(
-        aliases=["unm"],
-        brief="This command (unmutes)allows user to send messages in any channel.",
-        description="This command (unmutes)allows user to send messages in any channel(requires manage roles).",
-    )
-    @commands.guild_only()
-    @commands.check_any(is_bot_staff(), commands.has_permissions(manage_roles=True))
-    async def unmute(self, ctx, list_members: str, *, reason: str = None):
-        check_ensure_permissions(ctx, ctx.guild.me, ["manage_roles"])
-        global currentlyunmuting
-        membernames = list_members.replace(" ", ",")
-        mutedmembers = []
-        for membername in membernames.split(","):
-            try:
-                member = await commands.MemberConverter().convert(ctx, membername)
-                mutedmembers.append(member)
-            except:
-                pass
-
-        if len(mutedmembers) == 0:
-            raise commands.BadArgument("Nothing")
-        for mutedmember in mutedmembers:
-            if mutedmember.id in currentlyunmuting:
-                continue
-            currentlyunmuting.append(mutedmember.id)
-            if (
-                ctx.author.top_role <= mutedmember.top_role
-                and not checkstaff(ctx.author)
-                and not ctx.author.bot
-                and not ctx.author == mutedmember
-                and not ctx.author.id == ctx.guild.owner.id
-            ):
-                await on_command_error(
-                    ctx,
-                    f"You cannot unmute {mutedmember.mention} having higher roles than your highest role.",
-                )
-                try:
-                    currentlyunmuting.remove(mutedmember.id)
-                except:
-                    pass
-                continue
-            if ctx.me.top_role <= mutedmember.top_role:
-                await on_command_error(
-                    ctx,
-                    f"My highest role is the same or lower than the highest role of {mutedmember.mention} , so I am unable to unmute.",
-                )
-                try:
-                    currentlyunmuting.remove(mutedmember.id)
-                except:
-                    pass
-                continue
-            muterole = discord.utils.get(ctx.guild.roles, name="muted")
-            if muterole is None:
-                await on_command_error(
-                    ctx, f"The member {mutedmember.mention} is not muted!"
-                )
-                try:
-                    currentlyunmuting.remove(mutedmember.id)
-                except:
-                    pass
-                continue
-            myrole = discord.utils.get(mutedmember.roles, id=muterole.id)
-            if not myrole:
-                await on_command_error(
-                    ctx, f"The member {mutedmember.mention} is not muted!"
-                )
-                try:
-                    currentlyunmuting.remove(mutedmember.id)
-                except:
-                    pass
-                continue
-            await mutedmember.remove_roles(muterole)
-            if reason is None:
-                reason = "no reason provided"
-            async with pool.acquire() as con:
-                mutedlist = await con.fetchrow(
-                    f"SELECT * FROM mutedusers where userid = {mutedmember.id} AND guildid = {mutedmember.guild.id}"
-                )
-            if mutedlist:
-                for roleid in mutedlist["roleslist"]:
-                    roleobj = ctx.guild.get_role(roleid)
-                    try:
-                        await mutedmember.add_roles(roleobj)
-                    except:
-                        pass
-
-            async with pool.acquire() as con:
-                await con.execute(
-                    f"DELETE FROM mutedusers WHERE userid = {mutedmember.id} AND guildid = {mutedmember.guild.id}"
-                )
-
-            try:
-                await mutedmember.send(
-                    f"""You were unmuted by {ctx.author.mention} in {ctx.guild.name} for {reason} """
-                )
-                # print(f"Successfully dmed users!")
-            except:
-                pass
-            cmd = client.get_command("silentwarn")
-            try:
-                await cmd(
-                    ctx,
-                    mutedmember,
-                    reason=(f"""unmuted by {ctx.author.mention} for {reason} """),
-                )
-            except:
-                pass
-            embed = discord.Embed(
-                title="Member unmuted", description=f"{mutedmember.mention}."
-            )
-            embed.add_field(name="Moderator", value=ctx.author.mention)
-            embed.add_field(name="Reason", value=reason)
-            await ctx.send(embed=embed, ephemeral=True)
-            try:
-                currentlyunmuting.remove(mutedmember.id)
-            except:
-                pass
-
-    @commands.hybrid_command(
         brief="This command unbans user from the guild.",
         description="This command unbans user from the guild(requires ban members).",
     )
@@ -4754,8 +3419,8 @@ class Moderation(commands.Cog):
         bannedmembers = await ctx.guild.bans(limit=None).flatten()
         for member in members:
             if member is None or member == ctx.author:
-                await on_command_error(
-                    ctx, "You cannot apply ban/unban actions to your own account."
+                raise commands.CommandError(
+                    "You cannot apply ban/unban actions to your own account."
                 )
                 continue
             exists = False
@@ -4764,8 +3429,7 @@ class Moderation(commands.Cog):
                     exists = True
                     break
             if not exists:
-                await on_command_error(
-                    ctx,
+                raise commands.CommandError(
                     f"The member {member.mention} is already not banned from the guild.",
                 )
                 continue
@@ -4776,8 +3440,7 @@ class Moderation(commands.Cog):
             try:
                 await ctx.guild.unban(member, reason=reason)
             except:
-                await on_command_error(
-                    ctx,
+                raise commands.CommandError(
                     f"I do not have ban members permissions or I am not high enough in role hierarchy to unban {member}.",
                 )
                 continue
@@ -4860,14 +3523,13 @@ class Moderation(commands.Cog):
                 and not ctx.author.bot
                 and not ctx.author.id == ctx.guild.owner.id
             ):
-                await on_command_error(
-                    ctx,
+                raise commands.CommandError(
                     "You cannot ban members having higher roles than your highest role.",
                 )
                 continue
             if member is None or member == ctx.message.author:
-                await on_command_error(
-                    ctx, "You cannot apply ban/unban actions to your own account."
+                raise commands.CommandError(
+                    "You cannot apply ban/unban actions to your own account."
                 )
                 continue
             exists = False
@@ -4876,8 +3538,8 @@ class Moderation(commands.Cog):
                     exists = True
                     break
             if exists:
-                await on_command_error(
-                    ctx, f"The member {member.name} is already banned from the guild."
+                raise commands.CommandError(
+                    f"The member {member.name} is already banned from the guild."
                 )
                 continue
             if reason is None:
@@ -4888,8 +3550,7 @@ class Moderation(commands.Cog):
             try:
                 await ctx.guild.ban(member, reason=reason)
             except:
-                await on_command_error(
-                    ctx,
+                raise commands.CommandError(
                     f"I do not have ban members permissions or I am not high enough in role hierarchy to ban {member}.",
                 )
                 continue
@@ -4944,14 +3605,13 @@ class Moderation(commands.Cog):
                 and not ctx.author.bot
                 and not ctx.author.id == ctx.guild.owner.id
             ):
-                await on_command_error(
-                    ctx,
+                raise commands.CommandError(
                     "You cannot kick members having higher roles than your highest role.",
                 )
                 continue
             if member is None or member == ctx.message.author:
-                await on_command_error(
-                    ctx, "You cannot kick your own account from this guild."
+                raise commands.CommandError(
+                    "You cannot kick your own account from this guild."
                 )
                 continue
 
@@ -4963,8 +3623,7 @@ class Moderation(commands.Cog):
             try:
                 await ctx.guild.kick(member, reason=reason)
             except:
-                await on_command_error(
-                    ctx,
+                raise commands.CommandError(
                     f"I do not have kick members permissions or I am not high enough in role hierarchy to kick {member}.",
                 )
                 continue
@@ -5038,7 +3697,7 @@ class Logging(commands.Cog):
         if channel is None:
             channel = ctx.channel
         if channel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
+            raise commands.CommandError(" The channel provided was not in this guild.")
             return
         if not channel.permissions_for(ctx.guild.me).send_messages:
             raise commands.BotMissingPermissions(["send_messages"])
@@ -5067,6 +3726,7 @@ class Logging(commands.Cog):
             f"Successfully set logging channel of {ctx.guild} to {channel.mention}.",
             ephemeral=True,
         )
+
 
 class AntiRaid(commands.Cog):
     @commands.hybrid_command(
@@ -5121,7 +3781,7 @@ class AntiRaid(commands.Cog):
         if channel is None:
             channel = ctx.channel
         if channel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
+            raise commands.CommandError(" The channel provided was not in this guild.")
             return
         if not channel.permissions_for(ctx.guild.me).send_messages:
             raise commands.BotMissingPermissions(["send_messages"])
@@ -5166,7 +3826,7 @@ class AutoMod(commands.Cog):
             channel = ctx.channel
 
         if channel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
+            raise commands.CommandError(" The channel provided was not in this guild.")
             return
         givenTitle = channel.name
         channel = [channel]
@@ -5217,7 +3877,7 @@ class AutoMod(commands.Cog):
             channel = ctx.channel
 
         if channel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
+            raise commands.CommandError(" The channel provided was not in this guild.")
             return
         givenTitle = channel.name
         channel = [channel]
@@ -5327,7 +3987,7 @@ class AutoMod(commands.Cog):
             channel = ctx.channel
 
         if channel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
+            raise commands.CommandError(" The channel provided was not in this guild.")
             return
         givenTitle = channel.name
         channel = [channel]
@@ -5378,7 +4038,7 @@ class AutoMod(commands.Cog):
             channel = ctx.channel
 
         if channel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
+            raise commands.CommandError(" The channel provided was not in this guild.")
             return
         givenTitle = channel.name
         channel = [channel]
@@ -5429,7 +4089,7 @@ class AutoMod(commands.Cog):
         if channel is None:
             channel = ctx.channel
         if channel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
+            raise commands.CommandError(" The channel provided was not in this guild.")
             return
         givenTitle = channel.name
         channel = [channel]
@@ -5480,7 +4140,7 @@ class AutoMod(commands.Cog):
             channel = ctx.channel
 
         if channel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
+            raise commands.CommandError(" The channel provided was not in this guild.")
             return
         givenTitle = channel.name
         channel = [channel]
@@ -5568,8 +4228,7 @@ class Templates(commands.Cog):
             backupTemplate = backupTemplate.code
         except:
             backupTemplate = "<:offline:886434154412113961> No permissions"
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 " I don't have manage guild permissions to create a backup template.",
             )
             return
@@ -5621,13 +4280,13 @@ class Templates(commands.Cog):
             except:
                 thecode = copytemplate
             if thecode is None:
-                await on_command_error(ctx, f"Unknown template with id `{thecode}`")
+                raise commands.CommandError(f"Unknown template with id `{thecode}`")
                 return
             copytemplate = "https://discord.new/" + thecode
             try:
                 template = await client.fetch_template(copytemplate)
             except:
-                await on_command_error(ctx, f"Unknown template with id `{thecode}`")
+                raise commands.CommandError(f"Unknown template with id `{thecode}`")
                 return
         try:
             existTemp = await ctx.guild.templates()
@@ -5642,8 +4301,7 @@ class Templates(commands.Cog):
             backupTemplate = backupTemplate.code
         except:
             backupTemplate = "<:offline:886434154412113961> No permissions"
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 "I don't have manage guild permissions to create a backup template.",
             )
             return
@@ -5909,7 +4567,7 @@ class SupportTicket(commands.Cog):
             ],
         )
         if channelname.guild != ctx.guild:
-            await on_command_error(ctx, "The channel provided was not in this guild.")
+            raise commands.CommandError("The channel provided was not in this guild.")
             return
         channel = channelname
 
@@ -6147,7 +4805,7 @@ targeted attacks using automated user accounts.""",
         def check(m):
             return interaction.user.id == m.author.id and not m.guild
 
-        msg = await client.wait_for("_message", check=check)
+        msg = await client.wait_for("message", check=check)
         if msg.content == captchaMessage:
             ea = discord.Embed(
                 title="Thank you for verifying!",
@@ -6217,28 +4875,6 @@ targeted attacks using automated user accounts.""",
 class Captcha(commands.Cog):
     """Captcha verification commands"""
 
-    async def cog_load(self):
-        await client.wait_until_ready()
-        async with pool.acquire() as con:
-            msgs = await con.fetch(f"SELECT * FROM verifymsg")
-            for msg in msgs:
-                guildid = msg["guildid"]
-                channelid = msg["channelid"]
-                msgid = msg["messageid"]
-                try:
-                    guild = client.get_guild(guildid)
-                    channel = guild.get_channel(channelid)
-                    _message = await channel.fetch_message(msgid)
-                    await _message.edit(view=Verification())
-                except Exception as e:
-                    print(
-                        f"{e} Failed to edit message {msgid} in channel {channelid} in guild {guildid}."
-                    )
-                    async with pool.acquire() as con:
-                        await con.execute(
-                            f"DELETE FROM verifymsg WHERE guildid = {guildid} AND channelid = {channelid} AND messageid = {msgid}"
-                        )
-
     @commands.hybrid_command(
         brief="This command adds the channels from the verification role.",
         description="This command adds the channels from the verification role(requires manage guild).",
@@ -6250,8 +4886,7 @@ class Captcha(commands.Cog):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 " The verification role was not found , run the setupverification command for setting this up .",
             )
             return
@@ -6306,8 +4941,7 @@ class Captcha(commands.Cog):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 " The verification role was not found , run the setupverification command for setting this up .",
             )
             return
@@ -6365,8 +4999,7 @@ class Captcha(commands.Cog):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 " The verification role was not found , run the setupverification command for setting this up .",
             )
             return
@@ -6423,8 +5056,7 @@ class Captcha(commands.Cog):
         check_ensure_permissions(ctx, ctx.guild.me, ["manage_channels"])
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 " The verification role was not found , run the setupverification command for setting this up .",
             )
             return
@@ -6481,8 +5113,7 @@ class Captcha(commands.Cog):
     async def verificationchannels(self, ctx):
         verifyrole = discord.utils.get(ctx.guild.roles, name="Verified")
         if verifyrole == None:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 " The verification role was not found , run the setupverification command for setting this up .",
             )
             return
@@ -6580,7 +5211,7 @@ class Captcha(commands.Cog):
             ],
         )
         if verifychannel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
+            raise commands.CommandError(" The channel provided was not in this guild.")
             return
         global prefixlist, verifyonly
 
@@ -6899,7 +5530,7 @@ class MinecraftFun(commands.Cog):
             await addmoney(ctx.author.id, 1500)
         else:
             ctx.command.reset_cooldown(ctx)
-            await on_command_error(ctx, "You have not voted for this bot on top.gg!")
+            raise commands.CommandError("You have not voted for this bot on top.gg!")
 
     @commands.cooldown(1, 43200, BucketType.member)
     @commands.hybrid_command(
@@ -6930,8 +5561,7 @@ class MinecraftFun(commands.Cog):
             await addmoney(ctx.author.id, 150)
         else:
             ctx.command.reset_cooldown(ctx)
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 "You have not voted for this bot on top.gg!\nVoting sites:https://top.gg/bot/1061480715172200498/vote",
             )
 
@@ -6947,10 +5577,10 @@ class MinecraftFun(commands.Cog):
         try:
             price = int(price)
         except:
-            await on_command_error(ctx, "Enter a valid number to pay.")
+            raise commands.CommandError("Enter a valid number to pay.")
             return
         if price <= 0:
-            await on_command_error(ctx, " You cannot pay a negative/zero amount.")
+            raise commands.CommandError(" You cannot pay a negative/zero amount.")
             return
         await addmoney(ctx.author.id, (-1 * price))
         await addmoney(member.id, price)
@@ -7535,7 +6165,6 @@ async def take_quick_screenshot(ctx, url, save_fn="capture.png"):
         my_file = discord.File(save_fn)
         return my_file
 
-
 async def take_screenshot(ctx, url, save_fn="capture.png"):
     global browser
     if browser is None:
@@ -7575,7 +6204,6 @@ async def take_screenshot(ctx, url, save_fn="capture.png"):
         return
     my_file = discord.File(save_fn)
     return my_file
-
 
 class PaginateEmbed(discord.ui.View):  # EMBED PAGINATOR
     def __init__(self, embeds):
@@ -7748,13 +6376,12 @@ class Leveling(commands.Cog):
         try:
             messagecount = int(messagecount)
         except:
-            await on_command_error(
-                ctx, "Enter a valid number to set message per level count."
+            raise commands.CommandError(
+                "Enter a valid number to set message per level count."
             )
             return
         if messagecount < 20:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 "You cannot set the message per level requirement to below 20 messages.",
             )
             return
@@ -9125,8 +7752,8 @@ class Valorant(commands.Cog):
                 f"Your stats could not be fetched due to an error, try re-linking your account!",
                 ephemeral=True,
             )
-            await on_command_error(
-                ctx, f"Exception in riot link cmd - {ex}", forcelog=True, userlog=False
+            raise commands.CommandError(
+                f"Exception in riot link cmd - {ex}", forcelog=True, userlog=False
             )
             return
         currentrank = respjson["data"]["currenttierpatched"]
@@ -9179,25 +7806,23 @@ class Misc(commands.Cog):
     async def setreminder(self, ctx, time: str, *, reason: str = "⏰Reminder finished"):
         timenum = convert(time)
         if timenum == -1:
-            await on_command_error(
-                ctx, "You didn't answer with a proper unit. Use (s|m|h|d) next time!"
+            raise commands.CommandError(
+                "You didn't answer with a proper unit. Use (s|m|h|d) next time!"
             )
 
             return
         elif timenum == -2:
-            await on_command_error(
-                ctx, "The time must be an integer. Please enter an integer next time."
+            raise commands.CommandError(
+                "The time must be an integer. Please enter an integer next time."
             )
             return
         elif timenum == -3:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 "The time must be an positive number. Please enter an positive number next time.",
             )
             return
         if timenum > 86400:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 "It is not recommended to set the time to more than 1 day due to bot restarts.",
             )
         a_datetime = datetime.now()
@@ -9515,7 +8140,7 @@ class Misc(commands.Cog):
             embedVar.add_field(name="Pressure ", value=(f"{pressure} Pa"), inline=False)
             # print(f"Weather Report: {report[0]['description']}")
         else:
-            await on_command_error(ctx, "The city provided was not found.")
+            raise commands.CommandError("The city provided was not found.")
             return
         try:
             await ctx.send(embed=embedVar, ephemeral=True)
@@ -9583,7 +8208,7 @@ class Misc(commands.Cog):
         check_ensure_permissions(ctx, ctx.guild.me, ["add_reactions"])
         if not ctx.guild is None:
             if prefix == "None" or len(prefix) > 10:
-                await on_command_error(ctx, "You cannot set the prefix to that value.")
+                raise commands.CommandError("You cannot set the prefix to that value.")
                 return
             msg = await ctx.send(
                 f"Are you sure you want to change the prefix to `{prefix}`",
@@ -9980,7 +8605,7 @@ class Fun(commands.Cog):
         description=" This command can be used to play Chess in the Park (chess)",
     )
     async def playgame(self, ctx):
-        await on_command_error(ctx, "No argument was provided in the playgame command.")
+        raise commands.CommandError("No argument was provided in the playgame command.")
         return
 
     @commands.cooldown(1, 30, BucketType.member)
@@ -10424,25 +9049,23 @@ class Giveaways(commands.Cog):
     async def poll(self, ctx, time: str, *, reasonpoll: str):
         timenum = convert(time)
         if timenum == -1:
-            await on_command_error(
-                ctx, "You didn't answer with a proper unit. Use (s|m|h|d) next time!"
+            raise commands.CommandError(
+                "You didn't answer with a proper unit. Use (s|m|h|d) next time!"
             )
 
             return
         elif timenum == -2:
-            await on_command_error(
-                ctx, "The time must be an integer. Please enter an integer next time."
+            raise commands.CommandError(
+                "The time must be an integer. Please enter an integer next time."
             )
             return
         elif timenum == -3:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 "The time must be an positive number. Please enter an positive number next time.",
             )
             return
         if timenum > 86400:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 "It is not recommended to set the time to more than 1 day due to bot restarts.",
             )
         embed = discord.Embed(
@@ -10553,7 +9176,7 @@ class Giveaways(commands.Cog):
                     "I do not have `manage messages` permissions to delete messages.",
                     ephemeral=True,
                 )
-            await on_command_error(ctx, "You didn't answer with a valid number.")
+            raise commands.CommandError("You didn't answer with a valid number.")
             return
         if membercount <= 0:
             try:
@@ -10563,8 +9186,7 @@ class Giveaways(commands.Cog):
                     "I do not have `manage messages` permissions to delete messages.",
                     ephemeral=True,
                 )
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 "You didn't answer with a proper number , Give a number above zero.",
             )
             return
@@ -10583,8 +9205,8 @@ class Giveaways(commands.Cog):
                         ephemeral=True,
                     )
 
-                await on_command_error(
-                    ctx, "You didn't answer in time, please be quicker next time!"
+                raise commands.CommandError(
+                    "You didn't answer in time, please be quicker next time!"
                 )
                 return
             answers.append(msg.content)
@@ -10599,28 +9221,24 @@ class Giveaways(commands.Cog):
                     "I do not have `manage messages` permissions to delete messages.",
                     ephemeral=True,
                 )
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 f"You didn't mention a channel properly. Do it like this {ctx.channel.mention} next time.",
             )
             return
 
         channel = client.get_channel(c_id)
         if not channel.permissions_for(ctx.guild.me).view_channel:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 f"I cannot view the channel(view_channel) {channel.mention} for sending a message for a giveaway.",
             )
             return
         if not channel.permissions_for(ctx.guild.me).send_messages:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 f"I cannot send messages(send_messages) in channel {channel.mention} for sending a message for a giveaway.",
             )
             return
         if not channel.permissions_for(ctx.guild.me).embed_links:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 f"I cannot send embeds(embed_links) in channel {channel.mention} for sending a message for a giveaway.",
             )
             return
@@ -10634,8 +9252,8 @@ class Giveaways(commands.Cog):
                     ephemeral=True,
                 )
 
-            await on_command_error(
-                ctx, "You didn't answer with a proper unit. Use (s|m|h|d) next time!"
+            raise commands.CommandError(
+                "You didn't answer with a proper unit. Use (s|m|h|d) next time!"
             )
 
             return
@@ -10648,8 +9266,8 @@ class Giveaways(commands.Cog):
                     ephemeral=True,
                 )
 
-            await on_command_error(
-                ctx, "The time must be an integer. Please enter an integer next time."
+            raise commands.CommandError(
+                "The time must be an integer. Please enter an integer next time."
             )
             return
         elif timenum == -3:
@@ -10660,14 +9278,12 @@ class Giveaways(commands.Cog):
                     "I do not have `manage messages` permissions to delete messages.",
                     ephemeral=True,
                 )
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 "The time must be an positive number. Please enter an positive number next time.",
             )
             return
         if timenum > 86400:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 "It is not recommended to set the time to more than 1 day due to bot restarts.",
             )
 
@@ -10711,8 +9327,7 @@ class Giveaways(commands.Cog):
             except:
                 pass
             if len(users) < membercount:
-                await on_command_error(
-                    ctx,
+                raise commands.CommandError(
                     f"Enough number of users didn't participate in giveaway of {prize}. ",
                 )
                 return
@@ -10743,7 +9358,7 @@ class Giveaways(commands.Cog):
     ):
         await ctx.interaction.response.defer()
         if channel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
+            raise commands.CommandError(" The channel provided was not in this guild.")
             return
         if not channel.permissions_for(ctx.guild.me).send_messages:
             raise commands.BotMissingPermissions(["send_messages"])
@@ -10754,8 +9369,7 @@ class Giveaways(commands.Cog):
         try:
             new_msg = await channel.fetch_message(id_)
         except:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 "The ID that was entered was incorrect, make sure you have entered the correct giveaway message ID.",
             )
             return
@@ -10774,7 +9388,7 @@ class Giveaways(commands.Cog):
     async def reroll(self, ctx, channel: discord.TextChannel, id_: int, *, prize: str):
         await ctx.interaction.response.defer()
         if channel.guild != ctx.guild:
-            await on_command_error(ctx, " The channel provided was not in this guild.")
+            raise commands.CommandError(" The channel provided was not in this guild.")
             return
         if not channel.permissions_for(ctx.guild.me).send_messages:
             raise commands.BotMissingPermissions(["send_messages"])
@@ -10785,8 +9399,7 @@ class Giveaways(commands.Cog):
         try:
             new_msg = await channel.fetch_message(id_)
         except:
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 "The ID that was entered was incorrect, make sure you have entered the correct giveaway message ID.",
             )
             return
@@ -11080,8 +9693,8 @@ class Support(commands.Cog):
                 messageget = await channel.fetch_message(msgid)
                 await messageget.delete()
             except Exception as ex:
-                await on_command_error(
-                    ctx, f" I couldn't delete the message due to {ex}"
+                raise commands.CommandError(
+                    f" I couldn't delete the message due to {ex}"
                 )
 
                 return
@@ -11092,16 +9705,16 @@ class Support(commands.Cog):
             refer = ctx.message.reference
             refermsg = refer.resolved
             if refermsg == None:
-                await on_command_error(
-                    ctx, " I could not retrieve the original message of reply ."
+                raise commands.CommandError(
+                    " I could not retrieve the original message of reply ."
                 )
                 return
             else:
                 try:
                     await refermsg.delete()
                 except Exception as ex:
-                    await on_command_error(
-                        ctx, f" I couldn't delete the message due to {ex}"
+                    raise commands.CommandError(
+                        f" I couldn't delete the message due to {ex}"
                     )
                     return
                 await ctx.author.send(
@@ -11128,22 +9741,18 @@ class Support(commands.Cog):
         if not timenum is None:
             convertedtime = convert(timenum)
             if convertedtime == -1:
-
-                await on_command_error(
-                    ctx,
+                raise commands.CommandError(
                     "You didn't answer with a proper unit. Use (s|m|h|d) next time!",
                 )
 
                 return
             elif convertedtime == -2:
-                await on_command_error(
-                    ctx,
+                raise commands.CommandError(
                     "The time must be an integer. Please enter an integer next time.",
                 )
                 return
             elif convertedtime == -3:
-                await on_command_error(
-                    ctx,
+                raise commands.CommandError(
                     "The time must be an positive number. Please enter an positive number next time.",
                 )
                 return
@@ -11181,7 +9790,7 @@ class Support(commands.Cog):
     @is_bot_staff()
     async def solvebug(self, ctx, bugid: int, *, solution: str):
         await ctx.interaction.response.defer()
-        theBugMessage = await client.get_channel(CHANNEL_BUG_LOGGING_ID).fetch_message(
+        theBugMessage = client.get_channel(CHANNEL_BUG_LOGGING_ID).fetch_message(
             int(bugid)
         )
 
@@ -11205,7 +9814,7 @@ class Support(commands.Cog):
         embedtwo.add_field(
             name="Command ", value=theBugMessage.embeds[0].fields[4].value, inline=False
         )
-        await client.get_channel(CHANNEL_BUG_LOGGING_ID).send(embed=embedtwo)
+        client.get_channel(CHANNEL_BUG_LOGGING_ID).send(embed=embedtwo)
         user = await client.fetch_user(int(theBugMessage.embeds[0].fields[2].value))
         try:
             await user.send(
@@ -11234,7 +9843,7 @@ class Support(commands.Cog):
     @is_bot_staff()
     async def seenbug(self, ctx, bugid: int):
         await ctx.interaction.response.defer()
-        theBugMessage = await client.get_channel(CHANNEL_BUG_LOGGING_ID).fetch_message(
+        theBugMessage = client.get_channel(CHANNEL_BUG_LOGGING_ID).fetch_message(
             int(bugid)
         )
         listEmbeds = theBugMessage.embeds
@@ -11290,7 +9899,7 @@ class Support(commands.Cog):
             inline=False,
         )
         embedtwo.add_field(name="Command ", value=commandname)
-        messageSent = await client.get_channel(CHANNEL_BUG_LOGGING_ID).send(
+        messageSent = client.get_channel(CHANNEL_BUG_LOGGING_ID).send(
             embed=embedtwo
         )
         await asyncio.sleep(1)
@@ -11312,7 +9921,7 @@ class Support(commands.Cog):
             # i = i.replace(".", ".\n\n")
             embedtwo = discord.Embed(color=Color.blue())
             embedtwo.add_field(name=disMessage, value=i + "** **", inline=False)
-            await client.get_channel(CHANNEL_BUG_LOGGING_ID).send(embed=embedtwo)
+            client.get_channel(CHANNEL_BUG_LOGGING_ID).send(embed=embedtwo)
             disMessage = "** **"
 
         userdetails = f" This report was reported in discord by {ctx.author.name}({ctx.author.id})."
@@ -11747,7 +10356,7 @@ class Support(commands.Cog):
                 try:
                     directout = await aexec(code, ctx)
                 except Exception as ex:
-                    await on_command_error(ctx, ex, tracebackreq=True)
+                    raise commands.CommandError(ex, tracebackreq=True)
                     return
         if directout is None:
             directout = ""
@@ -11934,7 +10543,7 @@ class Music(commands.Cog):
         """Skip the current song."""
         player: wavelink.Player = cast(wavelink.Player, ctx.voice_client)
         if not player:
-            await on_command_error(ctx, "I could not find any playing song.")
+            raise commands.CommandError("I could not find any playing song.")
             return
 
         member = player.guild.get_member(player.current.extras.requester_id)
@@ -11943,8 +10552,7 @@ class Music(commands.Cog):
             and not ctx.channel.permissions_for(ctx.author).manage_channels
             and not checkstaff(ctx.author)
         ):
-            await on_command_error(
-                ctx,
+            raise commands.CommandError(
                 f"You cannot skip the song played by {member.mention}.",
             )
             return
@@ -11964,7 +10572,7 @@ class Music(commands.Cog):
     async def currentlyplaying(self, ctx):
         player: wavelink.Player = cast(wavelink.Player, ctx.voice_client)
         if not player:
-            await on_command_error(ctx, "I could not find any playing song.")
+            raise commands.CommandError("I could not find any playing song.")
             return
 
         member = player.guild.get_member(player.current.extras.requester_id)
@@ -14222,7 +12830,7 @@ async def restrict(guild, channel, member):
 
 @client.event
 async def on_message(_message):
-    global maintenancemodestatus, maintenancemodereason, verifyCommand, debugCode, yourCode, retryDebug, disabledChannels
+    global maintenancemodestatus, maintenancemodereason, debugCode, yourCode, retryDebug, disabledChannels
     try:
         if pool is None:
             while client.start_status != BotStartStatus.COMPLETED:
@@ -14279,7 +12887,7 @@ async def on_message(_message):
                 game = discord.Game(reqid)
                 await client.change_presence(status=discord.Status.idle, activity=game)
                 messages = (
-                    await client.get_channel(CHANNEL_GIT_LOGGING_ID)
+                    client.get_channel(CHANNEL_GIT_LOGGING_ID)
                     .history(limit=1)
                     .flatten()
                 )
@@ -14396,8 +13004,7 @@ async def on_message(_message):
                     if not _message.channel.permissions_for(
                         _message.author
                     ).administrator and not checkstaff(_message.author):
-                        await on_command_error(
-                            ctx,
+                        raise commands.CommandError(
                             "You cannot use that command in this server as it is disabled!",
                         )
                         return
@@ -14513,6 +13120,7 @@ async def on_message(_message):
                             messagesent = await ctx.send(embed=automodembedOne)
                             await asyncio.sleep(2)
                             await messagesent.delete()
+                        #TODO replace mute -> timeout
                         cmd = client.get_command("mute")
                         try:
                             noninvite = await client.fetch_invite(word)
@@ -14553,6 +13161,7 @@ async def on_message(_message):
                                 messagesent = await ctx.send(embed=automodembedOne)
                                 await asyncio.sleep(2)
                                 await messagesent.delete()
+                            #TODO replace mute -> timeout
                             cmd = client.get_command("mute")
                             try:
                                 await cmd(
@@ -14587,6 +13196,7 @@ async def on_message(_message):
                                 messagesent = await ctx.send(embed=automodembedOne)
                                 await asyncio.sleep(2)
                                 await messagesent.delete()
+                            #TODO replace mute -> timeout
                             cmd = client.get_command("mute")
                             try:
                                 await cmd(
@@ -14728,6 +13338,7 @@ async def on_message(_message):
                         messagesent = await ctx.send(embed=automodembedOne)
                         await asyncio.sleep(2)
                         await messagesent.delete()
+                #TODO replace mute -> timeout
                 cmd = client.get_command("mute")
                 try:
                     await cmd(
@@ -14782,6 +13393,7 @@ async def on_message(_message):
                         messagesent = await ctx.send(embed=automodembedOne)
                         await asyncio.sleep(2)
                         await messagesent.delete()
+                    #TODO replace mute -> timeout
                     cmd = client.get_command("mute")
                     try:
                         await cmd(
@@ -14826,6 +13438,7 @@ async def on_message(_message):
                         messagesent = await ctx.send(embed=automodembedOne)
                         await asyncio.sleep(2)
                         await messagesent.delete()
+                    #TODO replace mute -> timeout
                     cmd = client.get_command("mute")
                     try:
                         await cmd(
@@ -14871,50 +13484,47 @@ async def on_guild_channel_create(channel):
     if logchannellist:
         channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
+        if logchannel:
+            checklog = logchannel.permissions_for(logguild.me).view_audit_log
+            if not checklog:
+                raise commands.BotMissingPermissions(["view_audit_log"])
+            async for entry in logguild.audit_logs(
+                limit=1, action=discord.AuditLogAction.channel_create
+            ):
+                mod = logguild.get_member(entry.user.id)
+            try:
+                embed = discord.Embed(
+                    title=f"Channel creation", description=channel.mention, color=Color.green()
+                )
+                embed.add_field(name="Category", value=channel.category)
+                embed.add_field(name=f"Moderator", value=f"{mod.mention}")
+                await logchannel.send(embed=embed)
+            except Exception as ex:
+                print(f" on_guild_channel_create Logging error {ex}")
     if antiraidchannellist:
         channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
-    checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
-    if not checklog:
-        raise commands.BotMissingPermissions(["view_audit_log"])
-    currententry = None
-    async for entry in logguild.audit_logs(
-        limit=1, action=discord.AuditLogAction.channel_create
-    ):
-        currententry = entry
-    modid = currententry.user.id
-    mod = None
-    if not modid == 1061480715172200498:
-        mod = logguild.get_member(modid)
-        _message = constructmsg(logguild, mod)
-        ctx = constructctx(logguild, mod, antiraidchannel)
-        ctx.bot = client
-        bucket = bot.channel_createcooldown.get_bucket(_message)
-        retry_after = bucket.update_rate_limit()
-        if retry_after:
-            cmd = client.get_command("blacklist")
-            try:
-                await cmd(
-                    ctx,
-                    str(mod),
-                    reason=(f"""AUTO-MOD for exceeding channel create limit."""),
-                )
-            except Exception as ex:
-                pass
-            statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
-            async with pool.acquire() as con:
-                await con.execute(statement, logguild.id)
-            await removeguildcaution(logguild.id)
-            return
-    try:
-        embed = discord.Embed(
-            title=f"Channel creation", description=channel.mention, color=Color.green()
-        )
-        embed.add_field(name="Category", value=channel.category)
-        embed.add_field(name=f"Moderator", value=f"{mod.mention}")
-        await logchannel.send(embed=embed)
-    except Exception as ex:
-        print(f" on_guild_channel_create Logging error {ex}")
+        if mod is None:
+            checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
+            if not checklog:
+                raise commands.BotMissingPermissions(["view_audit_log"])
+            async for entry in logguild.audit_logs(
+                limit=1, action=discord.AuditLogAction.channel_create
+            ):
+                mod = logguild.get_member(entry.user.id)
+        if not mod.bot:
+            _message = constructmsg(logguild, mod)
+            ctx = constructctx(logguild, mod, antiraidchannel)
+            ctx.bot = client
+            bucket = bot.channel_createcooldown.get_bucket(_message)
+            retry_after = bucket.update_rate_limit()
+            if retry_after:
+                #TODO replace mute -> timeout
+                statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
+                async with pool.acquire() as con:
+                    await con.execute(statement, logguild.id)
+                await removeguildcaution(logguild.id)
+                return
 
 
 @client.event
@@ -14933,50 +13543,47 @@ async def on_guild_channel_delete(channel):
     if logchannellist:
         channelid = logchannellist["channelid"]
         logchannel = logguild.get_channel(channelid)
+        if logchannel:
+            checklog = logchannel.permissions_for(logguild.me).view_audit_log
+            if not checklog:
+                raise commands.BotMissingPermissions(["view_audit_log"])
+            async for entry in logguild.audit_logs(
+                limit=1, action=discord.AuditLogAction.channel_delete
+            ):
+                mod = logguild.get_member(entry.user.id)
+            try:
+                embed = discord.Embed(
+                    title=f"Channel deletion", description=channel.mention, color=Color.green()
+                )
+                embed.add_field(name="Category", value=channel.category)
+                embed.add_field(name=f"Moderator", value=f"{mod.mention}")
+                await logchannel.send(embed=embed)
+            except Exception as ex:
+                print(f" on_guild_channel_delete Logging error {ex}")
     if antiraidchannellist:
         channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
-    checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
-    if not checklog:
-        raise commands.BotMissingPermissions(["view_audit_log"])
-    currententry = None
-    async for entry in logguild.audit_logs(
-        limit=1, action=discord.AuditLogAction.channel_delete
-    ):
-        currententry = entry
-    modid = currententry.user.id
-    mod = None
-    if not modid == 1061480715172200498:
-        mod = logguild.get_member(modid)
-        _message = constructmsg(logguild, mod)
-        ctx = constructctx(logguild, mod, antiraidchannel)
-        ctx.bot = client
-        bucket = bot.channel_deletecooldown.get_bucket(_message)
-        retry_after = bucket.update_rate_limit()
-        if retry_after:
-            cmd = client.get_command("blacklist")
-            try:
-                await cmd(
-                    ctx,
-                    str(mod),
-                    reason=(f"""AUTO-MOD for exceeding channel delete limit."""),
-                )
-            except Exception as ex:
-                pass
-            statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
-            async with pool.acquire() as con:
-                await con.execute(statement, logguild.id)
-            await removeguildcaution(logguild.id)
-            return
-    try:
-        embed = discord.Embed(
-            title=f"Channel deletion", description=channel, color=Color.red()
-        )
-        embed.add_field(name="Category", value=channel.category)
-        embed.add_field(name=f"Moderator", value=f"{mod.mention}")
-        await logchannel.send(embed=embed)
-    except Exception as ex:
-        print(f" on_guild_channel_delete Logging error {ex}")
+        if mod is None:
+            checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
+            if not checklog:
+                raise commands.BotMissingPermissions(["view_audit_log"])
+            async for entry in logguild.audit_logs(
+                limit=1, action=discord.AuditLogAction.channel_delete
+            ):
+                mod = logguild.get_member(entry.user.id)
+        if not mod.bot:
+            _message = constructmsg(logguild, mod)
+            ctx = constructctx(logguild, mod, antiraidchannel)
+            ctx.bot = client
+            bucket = bot.channel_deletecooldown.get_bucket(_message)
+            retry_after = bucket.update_rate_limit()
+            if retry_after:
+                #TODO replace mute -> timeout
+                statement = """INSERT INTO cautionraid (guildid) VALUES($1);"""
+                async with pool.acquire() as con:
+                    await con.execute(statement, logguild.id)
+                await removeguildcaution(logguild.id)
+                return
 
 
 @client.event
@@ -15002,6 +13609,9 @@ async def on_guild_channel_update(before, after):
     if antiraidchannellist:
         channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
+    if not antiraidchannel:
+        return
+    
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
@@ -15049,6 +13659,7 @@ async def on_guild_channel_update(before, after):
         bucket = bot.channel_updatecooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
+            #TODO replace mute -> timeout
             cmd = client.get_command("blacklist")
             try:
                 await cmd(
@@ -15417,6 +14028,9 @@ async def on_guild_update(before, after):
     if antiraidchannellist:
         channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
+    if not antiraidchannel:
+        return
+
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
@@ -15435,6 +14049,7 @@ async def on_guild_update(before, after):
         bucket = bot.guild_updatecooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
+            #TODO replace mute -> timeout
             cmd = client.get_command("blacklist")
             try:
                 await cmd(
@@ -15524,6 +14139,9 @@ async def on_guild_role_create(role):
     if antiraidchannellist:
         channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
+    if not antiraidchannel:
+        return
+    
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
@@ -15542,6 +14160,7 @@ async def on_guild_role_create(role):
         bucket = bot.role_createcooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
+            #TODO replace mute -> timeout
             cmd = client.get_command("blacklist")
             try:
                 await cmd(
@@ -15594,6 +14213,9 @@ async def on_guild_role_delete(role):
     if antiraidchannellist:
         channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
+    if not antiraidchannel:
+        return
+    
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
@@ -15612,6 +14234,7 @@ async def on_guild_role_delete(role):
         bucket = bot.role_deletecooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
+            #TODO replace mute -> timeout
             cmd = client.get_command("blacklist")
             try:
                 await cmd(
@@ -15655,6 +14278,9 @@ async def on_guild_role_update(before, after):
     if antiraidchannellist:
         channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
+    if not antiraidchannel:
+        return
+    
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
@@ -15673,6 +14299,7 @@ async def on_guild_role_update(before, after):
         bucket = bot.role_updatecooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
+            #TODO replace mute -> timeout
             cmd = client.get_command("blacklist")
             try:
                 await cmd(
@@ -16010,6 +14637,9 @@ async def on_member_ban(guild, member):
     if antiraidchannellist:
         channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
+    if not antiraidchannel:
+        return
+    
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     if not checklog:
         raise commands.BotMissingPermissions(["view_audit_log"])
@@ -16026,6 +14656,7 @@ async def on_member_ban(guild, member):
         bucket = bot.member_bancooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
+            #TODO replace mute -> timeout
             cmd = client.get_command("blacklist")
             try:
                 await cmd(
@@ -16072,6 +14703,9 @@ async def on_member_unban(guild, member):
     if antiraidchannellist:
         channelid = antiraidchannellist["channelid"]
         antiraidchannel = logguild.get_channel(channelid)
+    if not antiraidchannel:
+        return
+    
     checklog = antiraidchannel.permissions_for(logguild.me).view_audit_log
     currententry = None
     if not checklog:
@@ -16090,6 +14724,7 @@ async def on_member_unban(guild, member):
         bucket = bot.member_unbancooldown.get_bucket(_message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
+            #TODO replace mute -> timeout
             cmd = client.get_command("blacklist")
             try:
                 await cmd(
