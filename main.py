@@ -1250,50 +1250,52 @@ class MyBot(commands.Bot):
     async def on_wavelink_track_start(
         self, payload: wavelink.TrackStartEventPayload
     ) -> None:
-        player: wavelink.Player | None = payload.player
-        if not player:
-            logging.log(logging.ERROR, f"No player found while trying to start {payload.track}!")
-            return
+        try:
+            player: wavelink.Player | None = payload.player
+            if not player:
+                logging.log(logging.ERROR, f"No player found while trying to start {payload.track}!")
+                return
 
-        original: wavelink.Playable | None = payload.original
-        track: wavelink.Playable = payload.track
-        if track.artist.url is None:
-            embed = discord.Embed(
-                title="",
-                description=f"Feat {track.author}",
-                color=0x00FF00,
-            )
-        else:
-            embed = discord.Embed(
-                title="",
-                description=f"Feat [{track.author}]({track.artist.url})",
-                color=0x00FF00,
-            )
-        if track.source == "youtube":
-            embed.set_author(
-                name=track.title,
-                icon_url="https://cdn.discordapp.com/avatars/812967359312297994/2c234518e4889657d01fe7001cd52422.webp?size=128",
-            )
-        elif track.source == "spotify":
-            embed.set_author(
-                name=track.title,
-                icon_url="https://cdn.discordapp.com/avatars/841279857879154689/0d77aa58a3f0a937f6c45b0305030562.png?size=128",
-            )
-        else:
-            embed.set_author(
-                name=track.title,
-                icon_url="https://cdn.discordapp.com/avatars/879269940853612544/3b32d0d2b8eafc0d32cdeac99f9ece6f.png?size=128",
-            )
+            original: wavelink.Playable | None = payload.original
+            track: wavelink.Playable = payload.track
+            if track.artist.url is None:
+                embed = discord.Embed(
+                    title="",
+                    description=f"Feat {track.author}",
+                    color=0x00FF00,
+                )
+            else:
+                embed = discord.Embed(
+                    title="",
+                    description=f"Feat [{track.author}]({track.artist.url})",
+                    color=0x00FF00,
+                )
+            if track.source == "youtube":
+                embed.set_author(
+                    name=track.title,
+                    icon_url="https://cdn.discordapp.com/avatars/812967359312297994/2c234518e4889657d01fe7001cd52422.webp?size=128",
+                )
+            elif track.source == "spotify":
+                embed.set_author(
+                    name=track.title,
+                    icon_url="https://cdn.discordapp.com/avatars/841279857879154689/0d77aa58a3f0a937f6c45b0305030562.png?size=128",
+                )
+            else:
+                embed.set_author(
+                    name=track.title,
+                    icon_url="https://cdn.discordapp.com/avatars/879269940853612544/3b32d0d2b8eafc0d32cdeac99f9ece6f.png?size=128",
+                )
 
-        if track.artwork:
-            embed.set_image(url=track.artwork)
+            if track.artwork:
+                embed.set_image(url=track.artwork)
 
-        if original and original.recommended:
-            embed.description += f"(Recommended)"
+            if original and original.recommended:
+                embed.description += f"(Recommended)"
 
-        panel = Songpanel(player.home.guild, player.home, player)
-        panel.set_message(await player.home.send(embed=embed, view=panel))
-
+            panel = Songpanel(player.home.guild, player.home, player)
+            panel.set_message(await player.home.send(embed=embed, view=panel))
+        except Exception as ex:
+            logging.log(logging.ERROR, f"Error while starting track: {get_traceback(ex)}")
 
 class BotStartStatus(enum.Enum):
     WAITING = 1
