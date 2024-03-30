@@ -1813,10 +1813,6 @@ class Songpanel(discord.ui.View):
             channel.permissions_for(interaction.user).manage_channels
             or checkstaff(member)
         ):
-        if not (
-            channel.permissions_for(interaction.user).manage_channels
-            or checkstaff(member)
-        ):
             await interaction.response.send_message(
                 f"I am already playing music in a channel , you must have `manage_channels` permissions to stop music.",
                 ephemeral=True,
@@ -2070,10 +2066,8 @@ async def exception_catching_callback(task):
 
 @client.event
 async def on_command_error(ctx, error):
-async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
-
 
     if isinstance(error, commands.CheckAnyFailure) or isinstance(
         error, commands.CheckFailure
@@ -2175,8 +2169,6 @@ async def on_command_error(ctx, error):
         error_data = (
             error_data
             + f"Example  {ctx.prefix}{ctx.command.qualified_name} {exampleLine}"
-            error_data
-            + f"Example  {ctx.prefix}{ctx.command.qualified_name} {exampleLine}"
         )
     elif isinstance(error, commands.BadArgument):
         error_data = f"Oops looks like provided the wrong arguments in the {ctx.command} command.\n"
@@ -2188,8 +2180,6 @@ async def on_command_error(ctx, error):
                 + "\n\nNote: (OPT.) means that argument in the command is optional."
             )
         error_data = (
-            error_data
-            + f"Example: {ctx.prefix}{ctx.command.qualified_name} {exampleLine}"
             error_data
             + f"Example: {ctx.prefix}{ctx.command.qualified_name} {exampleLine}"
         )
